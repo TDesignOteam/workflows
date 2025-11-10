@@ -1,21 +1,6 @@
 name: pr-spell-check
-on:
-  pull_request:
+on: [pull_request]
 
-  workflow_call:
-    inputs:
-      config:
-        required: false
-        type: string
-        default: .github/workflows/typos-config.toml
 jobs:
   run:
-    name: Spell Check with Typos
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Check spelling
-        uses: crate-ci/typos@master
-        with:
-          config: ${{ inputs.config }}
+    uses: TDesignOteam/workflows/.github/workflows/spell-check.yml@main
