@@ -1,0 +1,33 @@
+name: Setup Flutter
+description: Setup Flutter environment
+
+inputs:
+  flutter-version:
+    description: The Flutter version to use
+    required: true
+    default: stable
+  channel:
+    description: The Flutter channel to use
+    required: false
+    default: stable
+  cache:
+    description: Enable caching for Flutter SDK and packages
+    required: false
+    default: true
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v5
+
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2.21.0
+      with:
+        flutter-version: ${{ inputs.flutter-version }}
+        channel: ${{ inputs.channel }}
+        cache: ${{ inputs.cache }}
+
+    - name: AOP Registry
+      run: |
+        flutter --version
