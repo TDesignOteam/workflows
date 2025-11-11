@@ -14,7 +14,7 @@ inputs:
     description: Enable caching for Flutter SDK and packages
     required: false
     default: true
-  apo-registry:
+  aop-registry:
     description: Use AOP registry for Flutter packages
     required: false
     default: false
@@ -30,7 +30,7 @@ runs:
         cache: ${{ inputs.cache }}
 
     - name: AOP Registry
-      if: ${{ inputs.apo-registry }}
+      if: ${{ inputs.aop-registry }}
       shell: bash
       run: |
         patch_url="https://raw.githubusercontent.com/TDesignOteam/tdesign-flutter-aop-registry/refs/heads/main/patch_flutter/"
