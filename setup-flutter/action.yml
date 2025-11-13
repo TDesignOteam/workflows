@@ -81,7 +81,7 @@ runs:
         # 检查补丁是否已应用
         if echo "$patch_content" | git apply --reverse --check 2>/dev/null; then
           echo "Patch already applied, cleaning up old patch..."
-          echo "$patch_content" | git apply --reverse
+          echo "$patch_content" | git apply --reverse --verbose
           echo "Old patch removed"
         fi
 
