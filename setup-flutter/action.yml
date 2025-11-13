@@ -61,8 +61,13 @@ runs:
 
         if [ ! -z "$patch_file" ]; then
           echo "Applying patch: $patch_file"
+          git status
+
+          git reset --hard HEAD
+          git status
           cd ${{ env.FLUTTER_ROOT }}
           curl -L "$patch_url$patch_file" | git apply
+          git status
         else
           echo "No matching patch file found for Flutter version: $flutter_version"
         fi
