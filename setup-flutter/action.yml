@@ -33,10 +33,14 @@ runs:
       if: ${{ inputs.aop-registry }}
       shell: bash
       run: |
+        set -e
+
         patch_url="https://raw.githubusercontent.com/TDesignOteam/tdesign-flutter-aop-registry/refs/heads/main/patch_flutter/"
         flutter_version=$(flutter --version | head -n 1 | awk '{print $2}')
         major_version=$(echo $flutter_version | cut -d. -f1)
         minor_version=$(echo $flutter_version | cut -d. -f2)
+
+        # 确定适用的补丁文件
         # 2.2~3.10.patch, 3.13~3.16.patch, 3.19~3.22.patch, 3.24~3.32.patch, 3.35~infinity.patch
         patch_file=""
         if [ "$major_version" -gt 3 ]; then
@@ -59,20 +63,30 @@ runs:
           fi
         fi
 
-        if [ ! -z "$patch_file" ]; then
-          echo "Applying patch: $patch_file"
-          echo "before start status"
-          git status
-          echo "before reset"
-          git reset --hard HEAD
-          git clean -fd
-          echo "before reset status"
-          git status
-          echo "before end status"
-          cd ${{ env.FLUTTER_ROOT }}
-          curl -L "$patch_url$patch_file" | git apply
-          git status
-          echo "after status"
-        else
+        if [ -z "$patch_file" ]; then
           echo "No matching patch file found for Flutter version: $flutter_version"
+          exit 0
         fi
+
+        echo "Flutter version: $flutter_version"
+        echo "Selected patch: $patch_file"
+
+        # 进入 Flutter SDK 目录
+        cd "${{ env.FLUTTER_ROOT }}"
+
+        # 下载补丁
+        echo "Downloading patch: $patch_url$patch_file"
+        patch_content=$(curl -fsSL "$patch_url$patch_file")
+
+        # 检查补丁是否已应用
+        if echo "$patch_content" | git apply --reverse --check 2>/dev/null; then
+          echo "Patch already applied, cleaning up old patch..."
+          echo "$patch_content" | git apply --reverse
+          echo "Old patch removed"
+        fi
+
+        # 应用新补丁
+        echo "Applying patch..."
+        echo "$patch_content" | git apply --verbose
+
+        echo "✓ Patch applied successfully"
