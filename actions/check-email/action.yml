@@ -1,0 +1,80 @@
+name: Check Email
+description: Check Email
+
+inputs:
+  email-suffix:
+    description: The email suffix to check
+    required: false
+    default: '@tencent.com'
+  ignore-email:
+    description: The email to ignore
+    required: false
+    default: tdesign@tencent.com
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v4
+
+    # 检查仓库当前检出的最新提交（作者/提交者邮箱）
+    - name: check_github_primary_email
+      shell: bash
+      env:
+        MAIL_SUFFIX: ${{ inputs.email-suffix }}
+        IGNORE_MAIL: ${{ inputs.ignore-email }}
+      run: |
+        set -eu
+
+        # 获取最新提交的作者邮箱和提交者邮箱（可能为空）
+        log_emails=$(git log --pretty=format:"%ae %ce" -1)
+        if [[ -z "$log_emails" ]]; then
+          echo "No commits found in checked-out ref"
+          exit 0
+        fi
+
+        # 如果包含忽略邮箱，跳过验证
+        if [[ "$log_emails" == *"$IGNORE_MAIL"* ]]; then
+          echo "$log_emails 跳过验证"
+          exit 0
+        fi
+
+        # 如果包含默认后缀则视为非法（可通过 inputs 覆盖）
+        if [[ "$log_emails" == *"$MAIL_SUFFIX"* ]]; then
+          echo "默认邮箱 $log_emails 校验非法，可以去 https://github.com/settings/emails 更改"
+          exit 2
+        fi
+
+        echo "邮箱 $log_emails 校验通过"
+
+    # 检出 PR 源分支（如果存在），以便检查 PR 里的最新提交
+    - name: Checkout PR head
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+
+    # 检查 PR 源分支最新提交的邮箱
+    - name: check_local_email
+      shell: bash
+      env:
+        MAIL_SUFFIX: ${{ inputs.email-suffix }}
+        IGNORE_MAIL: ${{ inputs.ignore-email }}
+      run: |
+        set -eu
+
+        log_emails=$(git log --pretty=format:"%ae %ce" -1q)
+        if [[ -z "$log_emails" ]]; then
+          echo "No commits found in PR head"
+          exit 0
+        fi
+
+        if [[ "$log_emails" == *"$IGNORE_MAIL"* ]]; then
+          echo "$log_emails 跳过验证"
+          exit 0
+        fi
+
+        if [[ "$log_emails" == *"$MAIL_SUFFIX"* ]]; then
+          echo "本地提交邮箱 $log_emails 校验非法，需要本地更改重新提交"
+          exit 2
+        fi
+
+        echo "邮箱 $log_emails 校验通过"
