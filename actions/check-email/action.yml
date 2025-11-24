@@ -14,7 +14,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     # 检查仓库当前检出的最新提交（作者/提交者邮箱）
     - name: check_github_primary_email
@@ -48,7 +48,7 @@ runs:
 
     # 检出 PR 源分支（如果存在），以便检查 PR 里的最新提交
     - name: Checkout PR head
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
       with:
         ref: ${{ github.event.pull_request.head.sha }}
 
