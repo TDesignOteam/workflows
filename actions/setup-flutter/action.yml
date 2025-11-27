@@ -70,3 +70,4 @@ runs:
         patch_url="$patch_prefix$patch_name"
         echo "patch_url: $patch_url"
         wget $patch_url
+        git status
