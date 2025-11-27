@@ -62,6 +62,7 @@ runs:
             patch_file="2.2~3.10.patch"
           fi
         fi
+        echo "Determined patch file: $patch_file"
 
         if [ -z "$patch_file" ]; then
           echo "No matching patch file found for Flutter version: $flutter_version"
