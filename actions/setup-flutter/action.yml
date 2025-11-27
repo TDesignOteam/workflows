@@ -38,6 +38,9 @@ runs:
         flutter --version
         cd ${{ env.FLUTTER_ROOT }}
         git status
+        git restore .
+        git clean -fdx
+        git status
 
         patch_prefix="https://raw.githubusercontent.com/TDesignOteam/tdesign-flutter-aop-registry/refs/heads/main/patch_flutter/"
         flutter_version=$(flutter --version | head -n 1 | awk '{print $2}')
