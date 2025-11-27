@@ -33,7 +33,7 @@ runs:
       if: ${{ inputs.aop-registry }}
       shell: bash
       run: |
-        set -e
+        set -eu
         echo "Setting up AOP registry for Flutter packages..."
         flutter --version
         cd ${{ env.FLUTTER_ROOT }}
