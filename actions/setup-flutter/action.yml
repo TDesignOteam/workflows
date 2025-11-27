@@ -71,3 +71,6 @@ runs:
         echo "patch_url: $patch_url"
         wget $patch_url
         git status
+        git apply $patch_name
+        git status
+        echo "AOP registry setup completed."
