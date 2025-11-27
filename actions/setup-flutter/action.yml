@@ -34,7 +34,7 @@ runs:
       shell: bash
       run: |
         set -e
-
+        echo "Setting up AOP registry for Flutter packages..."
         patch_url="https://raw.githubusercontent.com/TDesignOteam/tdesign-flutter-aop-registry/refs/heads/main/patch_flutter/"
         flutter_version=$(flutter --version | head -n 1 | awk '{print $2}')
         major_version=$(echo $flutter_version | cut -d. -f1)
@@ -73,6 +73,9 @@ runs:
 
         # 进入 Flutter SDK 目录
         cd "${{ env.FLUTTER_ROOT }}"
+        git status
+        git pull
+        git status
 
         # 下载补丁
         echo "Downloading patch: $patch_url$patch_file"
