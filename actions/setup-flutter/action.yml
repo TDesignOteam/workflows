@@ -9,7 +9,7 @@ inputs:
   channel:
     description: The Flutter channel to use
     required: false
-    default: stable
+    default: master
   cache:
     description: Enable caching for Flutter SDK and packages
     required: false
