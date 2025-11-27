@@ -39,7 +39,7 @@ runs:
         cd ${{ env.FLUTTER_ROOT }}
         git status
         git restore .
-        git clean -fdx
+        git clean -fd
         git status
 
         patch_prefix="https://raw.githubusercontent.com/TDesignOteam/tdesign-flutter-aop-registry/refs/heads/main/patch_flutter/"
