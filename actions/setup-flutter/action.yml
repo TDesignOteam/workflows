@@ -5,19 +5,19 @@ inputs:
   flutter-version:
     description: The Flutter version to use
     required: true
-    default: 3.x
+    default: '3.x'
   channel:
     description: The Flutter channel to use
     required: false
-    default: stable
+    default: 'stable'
   cache:
     description: Enable caching for Flutter SDK and packages
     required: false
-    default: false
+    default: 'false'
   aop-registry:
     description: Use AOP registry for Flutter packages
     required: false
-    default: false
+    default: 'false'
 
 runs:
   using: composite
@@ -30,7 +30,7 @@ runs:
         cache: ${{ inputs.cache }}
 
     - name: AOP Registry
-      if: ${{ inputs.aop-registry }}
+      if: ${{ inputs.aop-registry == 'true' }}
       shell: bash
       run: |
         set -eu
