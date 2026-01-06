@@ -107,12 +107,12 @@ runs:
         # git clone https://github.com/TDesignOteam/tdesign-flutter-aop-registry.git /opt/hostedtool/cache/aop_registry
 
         # Add debug logging to pub_interceptor.dart
-        dart_file="./packages/flutter_tools/lib/src/aop_tools/interceptor/impl/pub_interceptor.dart"
-        if [ -f "$dart_file" ]; then
-          sed -i.bak '/final Directory aopRegistryProject = fetchAOPRegistry(commandPath);/a\    Logger.d('\''aopRegistryProject.path: ${aopRegistryProject.path}'\'', tag: _tag);' "$dart_file"
-          rm "$dart_file.bak"
-          echo "Added debug logging to pub_interceptor.dart"
-        fi
+        #dart_file="./packages/flutter_tools/lib/src/aop_tools/interceptor/impl/pub_interceptor.dart"
+        #if [ -f "$dart_file" ]; then
+        #  sed -i.bak '/final Directory aopRegistryProject = fetchAOPRegistry(commandPath);/a\    Logger.d('\''aopRegistryProject.path: ${aopRegistryProject.path}'\'', tag: _tag);' "$dart_file"
+        #  rm "$dart_file.bak"
+        #  echo "Added debug logging to pub_interceptor.dart"
+        #fi
 
         # 删除SDK/bin/cache/flutter_tools.stamp，使修改生效
         rm ./bin/cache/flutter_tools.stamp
