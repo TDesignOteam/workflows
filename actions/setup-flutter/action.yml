@@ -104,7 +104,7 @@ runs:
         git apply $patch_name
         git status
 
-        git clone https://github.com/TDesignOteam/tdesign-flutter-aop-registry.git /opt/hostedtool/cache/aop_registry
+        # git clone https://github.com/TDesignOteam/tdesign-flutter-aop-registry.git /opt/hostedtool/cache/aop_registry
 
         # Add debug logging to pub_interceptor.dart
         dart_file="./packages/flutter_tools/lib/src/aop_tools/interceptor/impl/pub_interceptor.dart"
