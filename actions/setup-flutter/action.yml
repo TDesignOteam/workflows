@@ -67,7 +67,7 @@ runs:
         git clean -fd
         git status
 
-        patch_prefix="https://raw.githubusercontent.com/TDesignOteam/tdesign-flutter-aop-registry/refs/heads/lwj-debug/patch_flutter/"
+        patch_prefix="https://raw.githubusercontent.com/TDesignOteam/tdesign-flutter-aop-registry/refs/heads/main/patch_flutter/"
         flutter_version=$(flutter --version | head -n 1 | awk '{print $2}')
         major_version=$(echo $flutter_version | cut -d. -f1)
         minor_version=$(echo $flutter_version | cut -d. -f2)
@@ -101,10 +101,19 @@ runs:
         git status
         git apply $patch_name
         git status
-        # 删除SDK/bin/cache/flutter_tools.stamp，使修改生效
-        rm ./bin/cache/flutter_tools.stamp
 
         git clone https://github.com/TDesignOteam/tdesign-flutter-aop-registry.git ./bin/cache/aop_registry
+
+        # Add debug logging to pub_interceptor.dart
+        dart_file="./packages/flutter_tools/lib/src/aop_tools/interceptor/impl/pub_interceptor.dart"
+        if [ -f "$dart_file" ]; then
+          sed -i.bak '/final Directory aopRegistryProject = fetchAOPRegistry(commandPath);/a\    Logger.d('\''aopRegistryProject.path: ${aopRegistryProject.path}'\'', tag: _tag);' "$dart_file"
+          rm "$dart_file.bak"
+          echo "Added debug logging to pub_interceptor.dart"
+        fi
+
+        # 删除SDK/bin/cache/flutter_tools.stamp，使修改生效
+        rm ./bin/cache/flutter_tools.stamp
 
         echo "AOP registry setup completed."
 
