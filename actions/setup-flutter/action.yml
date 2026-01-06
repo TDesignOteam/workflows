@@ -44,15 +44,15 @@ runs:
       if: ${{ inputs.aop-registry == 'true' }}
       shell: bash
       run: |
-        mkdir -p ${{ inputs.aop-project-path }}
         cp -af ${{ runner.temp }}/tdesign-flutter-aop-registry/_example/aop_tools ${{ inputs.aop-project-path }}
+        ls -l ${{ inputs.aop-project-path }}/aop_tools
 
     - name: Move generator to ${{ inputs.aop-project-path }}
       if: ${{ inputs.aop-registry == 'true' }}
       shell: bash
       run: |
-        mkdir -p ${{ inputs.aop-project-path }}
         cp -af ${{ runner.temp }}/tdesign-flutter-generator ${{ inputs.aop-project-path }}
+        ls -l ${{ inputs.aop-project-path }}/tdesign-flutter-generator
 
     - name: AOP Registry
       if: ${{ inputs.aop-registry == 'true' }}
