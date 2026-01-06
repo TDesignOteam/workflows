@@ -80,3 +80,5 @@ runs:
         rm ./bin/cache/flutter_tools.stamp
         
         echo "AOP registry setup completed."
+
+        flutter --version
