@@ -76,4 +76,7 @@ runs:
         git status
         git apply $patch_name
         git status
+        # 删除SDK/bin/cache/flutter_tools.stamp，使修改生效
+        rm ./bin/cache/flutter_tools.stamp
+        
         echo "AOP registry setup completed."
