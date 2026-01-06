@@ -61,7 +61,6 @@ runs:
         set -eu
         echo "Setting up AOP registry for Flutter packages..."
         flutter --version
-        flutter config
         cd ${{ env.FLUTTER_ROOT }}
         pwd
         git status
