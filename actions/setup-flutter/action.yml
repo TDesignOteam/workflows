@@ -103,11 +103,11 @@ runs:
         git apply $patch_name
         git status
 
-        rm -rf ./bin/cache/aop_registry
-        git clone https://github.com/TDesignOteam/tdesign-flutter-aop-registry.git ./bin/cache/aop_registry
-
         # 删除SDK/bin/cache/flutter_tools.stamp，使修改生效
         rm ./bin/cache/flutter_tools.stamp
+
+        rm -rf ./bin/cache/aop_registry
+        git clone https://github.com/TDesignOteam/tdesign-flutter-aop-registry.git ./bin/cache/aop_registry
 
         echo "AOP registry setup completed."
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
