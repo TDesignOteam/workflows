@@ -104,6 +104,8 @@ runs:
         # 删除SDK/bin/cache/flutter_tools.stamp，使修改生效
         rm ./bin/cache/flutter_tools.stamp
 
+        git clone https://github.com/TDesignOteam/tdesign-flutter-aop-registry.git ./bin/cache/aop_registry
+
         echo "AOP registry setup completed."
 
         flutter --version
