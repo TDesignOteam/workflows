@@ -13,7 +13,7 @@ inputs:
   cache:
     description: Enable caching for Flutter SDK and packages
     required: false
-    default: true
+    default: false
   aop-registry:
     description: Use AOP registry for Flutter packages
     required: false
