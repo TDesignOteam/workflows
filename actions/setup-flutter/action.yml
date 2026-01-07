@@ -21,6 +21,14 @@ inputs:
   aop-project-path:
     description: The path to the AOP project
     required: false
+  aop-repo:
+    description: The URL of the AOP repository
+    required: false
+    default: 'https://github.com/TDesignOteam/tdesign-flutter-aop-registry.git'
+  aop-repo-branch:
+    description: The branch of the AOP repository
+    required: false
+    default: rss1102/fix/git-clone-repo
 
 runs:
   using: composite
@@ -37,7 +45,7 @@ runs:
       shell: bash
       run: |
         cd ${{ runner.temp }}
-        git clone https://github.com/TDesignOteam/tdesign-flutter-aop-registry.git
+        git clone ${{ inputs.aop-repo }} -b ${{ inputs.aop-repo-branch }}
         git clone https://github.com/TDesignOteam/tdesign-flutter-generator.git
 
     - name: Move aop_tools to ${{ inputs.aop-project-path }}
@@ -68,7 +76,7 @@ runs:
         git clean -fd
         git status
 
-        patch_prefix="https://raw.githubusercontent.com/TDesignOteam/tdesign-flutter-aop-registry/refs/heads/rss1102/fix/git-clone-repo/patch_flutter/"
+        aop_patch_path="${{ runner.temp }}/tdesign-flutter-aop-registry/patch_flutter"
         flutter_version=$(flutter --version | head -n 1 | awk '{print $2}')
         major_version=$(echo $flutter_version | cut -d. -f1)
         minor_version=$(echo $flutter_version | cut -d. -f2)
@@ -96,18 +104,15 @@ runs:
           fi
         fi
         echo "patch_name: $patch_name"
-        patch_url="$patch_prefix$patch_name"
-        echo "patch_url: $patch_url"
-        wget $patch_url
+        echo "aop_patch_path: $aop_patch_path"
+        patch="$aop_patch_path/$patch_name"
+        echo "patch: $patch"
         git status
-        git apply $patch_name
+        git apply $patch
         git status
 
         # 删除SDK/bin/cache/flutter_tools.stamp，使修改生效
         rm ./bin/cache/flutter_tools.stamp
-
-        rm -rf ./bin/cache/aop_registry
-        git clone https://github.com/TDesignOteam/tdesign-flutter-aop-registry.git ./bin/cache/aop_registry
 
         echo "AOP registry setup completed."
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
