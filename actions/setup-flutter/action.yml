@@ -5,11 +5,11 @@ inputs:
   flutter-version:
     description: The Flutter version to use
     required: true
-    default: '3.x'
+    default: 3.x
   channel:
     description: The Flutter channel to use
     required: false
-    default: 'stable'
+    default: stable
   cache:
     description: Enable caching for Flutter SDK and packages
     required: false
@@ -18,6 +18,17 @@ inputs:
     description: Use AOP registry for Flutter packages
     required: false
     default: 'false'
+  aop-project-path:
+    description: The path to the AOP project
+    required: false
+  aop-repo:
+    description: The URL of the AOP repository
+    required: false
+    default: 'https://github.com/TDesignOteam/tdesign-flutter-aop-registry.git'
+  aop-repo-branch:
+    description: The branch of the AOP repository
+    required: false
+    default: main
 
 runs:
   using: composite
@@ -29,6 +40,28 @@ runs:
         channel: ${{ inputs.channel }}
         cache: ${{ inputs.cache }}
 
+    - name: Download AOP Tools
+      if: ${{ inputs.aop-registry == 'true' }}
+      shell: bash
+      run: |
+        cd ${{ runner.temp }}
+        git clone ${{ inputs.aop-repo }} -b ${{ inputs.aop-repo-branch }}
+        git clone https://github.com/TDesignOteam/tdesign-flutter-generator.git
+
+    - name: Move aop_tools to ${{ inputs.aop-project-path }}
+      if: ${{ inputs.aop-registry == 'true' }}
+      shell: bash
+      run: |
+        cp -af ${{ runner.temp }}/tdesign-flutter-aop-registry/_example/aop_tools ${{ inputs.aop-project-path }}
+        ls -l ${{ inputs.aop-project-path }}/aop_tools
+
+    - name: Move generator to ${{ inputs.aop-project-path }}
+      if: ${{ inputs.aop-registry == 'true' }}
+      shell: bash
+      run: |
+        cp -af ${{ runner.temp }}/tdesign-flutter-generator ${{ inputs.aop-project-path }}
+        ls -l ${{ inputs.aop-project-path }}/tdesign-flutter-generator
+
     - name: AOP Registry
       if: ${{ inputs.aop-registry == 'true' }}
       shell: bash
@@ -37,12 +70,13 @@ runs:
         echo "Setting up AOP registry for Flutter packages..."
         flutter --version
         cd ${{ env.FLUTTER_ROOT }}
+        pwd
         git status
         git restore .
         git clean -fd
         git status
 
-        patch_prefix="https://raw.githubusercontent.com/TDesignOteam/tdesign-flutter-aop-registry/refs/heads/main/patch_flutter/"
+        aop_patch_path="${{ runner.temp }}/tdesign-flutter-aop-registry/patch_flutter"
         flutter_version=$(flutter --version | head -n 1 | awk '{print $2}')
         major_version=$(echo $flutter_version | cut -d. -f1)
         minor_version=$(echo $flutter_version | cut -d. -f2)
@@ -70,15 +104,18 @@ runs:
           fi
         fi
         echo "patch_name: $patch_name"
-        patch_url="$patch_prefix$patch_name"
-        echo "patch_url: $patch_url"
-        wget $patch_url
+        echo "aop_patch_path: $aop_patch_path"
+        patch="$aop_patch_path/$patch_name"
+        echo "patch: $patch"
         git status
-        git apply $patch_name
+        git apply $patch
         git status
+
         # 删除SDK/bin/cache/flutter_tools.stamp，使修改生效
         rm ./bin/cache/flutter_tools.stamp
-        
+
         echo "AOP registry setup completed."
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git config --global user.name "github-actions[bot]"
 
         flutter --version
