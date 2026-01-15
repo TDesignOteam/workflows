@@ -28,7 +28,7 @@ inputs:
   aop-repo-branch:
     description: The branch of the AOP repository
     required: false
-    default: rss1102/fix/git-clone-repo
+    default: main
 
 runs:
   using: composite
