@@ -87,8 +87,10 @@ runs:
         if [ "$major_version" -gt 3 ]; then
           patch_name="3.35~infinity.patch"
         elif [ "$major_version" -eq 3 ]; then
-          if [ "$minor_version" -ge 35 ]; then
-            patch_name="3.35~infinity.patch"
+          if [ "$minor_version" -ge 38 ]; then
+            patch_name="3.38~infinity.patch"
+          elif [ "$minor_version" -eq 35 ]; then
+            patch_name="3.35.patch"
           elif [ "$minor_version" -ge 24 ] && [ "$minor_version" -le 32 ]; then
             patch_name="3.24~3.32.patch"
           elif [ "$minor_version" -ge 19 ] && [ "$minor_version" -le 22 ]; then
