@@ -81,6 +81,7 @@ runs:
         git status
 
         rm ./bin/cache/flutter_tools.stamp
+        flutter --version
 
         aop_patch_path="${{ runner.temp }}/tdesign-flutter-aop-registry/patch_flutter"
         flutter_version=$(flutter --version | head -n 1 | awk '{print $2}')
