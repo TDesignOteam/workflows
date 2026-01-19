@@ -69,11 +69,16 @@ runs:
         set -eu
         echo "Setting up AOP registry for Flutter packages..."
         flutter --version
+        echo "Entering Flutter root directory"
         cd ${{ env.FLUTTER_ROOT }}
         pwd
+        echo "Checking git status"
         git status
+        echo "Restoring working directory"
         git restore .
+        echo "Cleaning working directory"
         git clean -fd
+        echo "Checking git status"
         git status
 
         aop_patch_path="${{ runner.temp }}/tdesign-flutter-aop-registry/patch_flutter"
@@ -81,7 +86,7 @@ runs:
         major_version=$(echo $flutter_version | cut -d. -f1)
         minor_version=$(echo $flutter_version | cut -d. -f2)
 
-        # 确定适用的补丁文件
+        # Determine applicable patch file
         # 2.2~3.10.patch, 3.13~3.16.patch, 3.19~3.22.patch, 3.24~3.32.patch, 3.35~infinity.patch
         patch_name=""
         if [ "$major_version" -gt 3 ]; then
