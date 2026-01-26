@@ -11,9 +11,9 @@ jobs:
     name: Typos
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.1
+      - uses: actions/checkout@v6.0.2
 
       - name: Check spelling
-        uses: crate-ci/typos@v1.42.0
+        uses: crate-ci/typos@v1.42.1
         with:
           config: ${{ inputs.config }}
