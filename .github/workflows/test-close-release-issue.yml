@@ -1,0 +1,17 @@
+name: test-close-release-issue
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - packages/close-release-issue/dist/*
+
+jobs:
+  test:
+    name: Typos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - name: test
+        uses: ./actions/close-release-issue

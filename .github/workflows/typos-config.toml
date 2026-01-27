@@ -1,0 +1,6 @@
+default.check-filename = true
+
+[files]
+extend-exclude = [
+  "dist"
+]
