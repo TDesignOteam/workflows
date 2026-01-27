@@ -35,6 +35,9 @@ importers:
       '@actions/core':
         specifier: 'catalog:'
         version: 2.0.2
+      '@actions/github':
+        specifier: 'catalog:'
+        version: 7.0.0
     devDependencies:
       tsdown:
         specifier: 'catalog:'

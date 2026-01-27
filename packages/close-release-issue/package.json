@@ -11,7 +11,8 @@
     "build": "tsdown"
   },
   "dependencies": {
-    "@actions/core": "catalog:"
+    "@actions/core": "catalog:",
+    "@actions/github": "catalog:"
   },
   "devDependencies": {
     "tsdown": "catalog:"
