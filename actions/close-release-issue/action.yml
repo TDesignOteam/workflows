@@ -1,4 +1,3 @@
-
 name: Close Release Issues
 description: Close issues with release label when merging release branch
 
@@ -8,22 +7,5 @@ inputs:
     required: true
 
 runs:
-  using: composite
-  steps:
-    - name: Close issues with release label
-      shell: bash
-      env:
-        GITHUB_TOKEN: ${{ github.token }}
-      run: |
-        BRANCH_NAME="${{ inputs.branch-name }}"
-        if [[ "$BRANCH_NAME" =~ ^release\/([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
-          VERSION="${BASH_REMATCH[1]}"
-          echo "Release branch detected: $VERSION"
-          issues=$(gh issue list --label "$VERSION" --state open --json number -q '.[].number')
-          for issue in $issues; do
-            echo "Closing issue #$issue with label $VERSION"
-            gh issue close "$issue"
-          done
-        else
-          echo "Not a release branch, skipping issue close."
-        fi
+  using: node24
+  main: ../packages/close-release-issue/dist/index.mjs

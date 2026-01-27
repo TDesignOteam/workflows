@@ -1,0 +1,19 @@
+{
+  "name": "close-release-issue",
+  "type": "module",
+  "private": true,
+  "description": "",
+  "author": "",
+  "license": "ISC",
+  "keywords": [],
+  "main": "index.js",
+  "scripts": {
+    "build": "tsdown"
+  },
+  "dependencies": {
+    "@actions/core": "catalog:"
+  },
+  "devDependencies": {
+    "tsdown": "catalog:"
+  }
+}
