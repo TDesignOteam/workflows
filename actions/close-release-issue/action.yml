@@ -2,10 +2,16 @@ name: Close Release Issues
 description: Close issues with release label when merging release branch
 
 inputs:
-  branch-name:
-    description: The branch name to check and close issues for (e.g. release/1.2.3)
+  token:
+    description: GitHub token
     required: true
+  dry-run:
+    description: Whether to run in dry-run mode
+    required: false
+    default: false
 
 runs:
   using: node24
   main: ../../packages/close-release-issue/dist/index.mjs
+  with:
+    token: ${{ secrets.GITHUB_TOKEN }}
