@@ -20105,7 +20105,7 @@ var GithubHelper = class {
 		return data;
 	}
 	async getIssueList(params) {
-		const { data } = await this.octokit.rest.issues.list({
+		const { data } = await this.octokit.rest.issues.listForRepo({
 			...params,
 			owner: this.context.owner,
 			repo: this.context.repo
@@ -20178,7 +20178,6 @@ async function main() {
 	import_core.info(`repo: ${repo}`);
 	import_core.info(`owner: ${owner}`);
 	import_core.endGroup();
-	
 	const issues = await new GithubHelper({
 		owner,
 		repo,

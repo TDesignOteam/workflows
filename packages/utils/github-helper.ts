@@ -38,12 +38,11 @@ export class GithubHelper {
   }
 
 
-  async getIssueList(params?: RestEndpointMethodTypes["issues"]["list"]["parameters"]) {
-    const { data } = await this.octokit.rest.issues.list({
+  async getIssueList(params?: RestEndpointMethodTypes["issues"]["listForRepo"]["parameters"]) {
+    const { data } = await this.octokit.rest.issues.listForRepo({
       ...params,
       owner: this.context.owner,
       repo: this.context.repo,
-      
     })
     return data
   }
