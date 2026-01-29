@@ -1,5 +1,6 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
+import type { RestEndpointMethodTypes } from '@octokit/plugin-rest-endpoint-methods'
 
 export interface GithubContext {
   owner: string
@@ -37,11 +38,12 @@ export class GithubHelper {
   }
 
 
-  async getIssueList(filter?: object) {
+  async getIssueList(params?: RestEndpointMethodTypes["issues"]["list"]["parameters"]) {
     const { data } = await this.octokit.rest.issues.list({
+      ...params,
       owner: this.context.owner,
       repo: this.context.repo,
-      ...filter
+      
     })
     return data
   }

@@ -8,9 +8,8 @@
     "lint:fix": "eslint --fix"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^7.2.0",
+    "@antfu/eslint-config": "catalog:",
     "@workflows/utils": "workspace:*",
-    "eslint": "^9.39.2"
+    "eslint": "catalog:"
   }
 }
-

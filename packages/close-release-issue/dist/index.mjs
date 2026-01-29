@@ -20076,17 +20076,115 @@ var require_github = /* @__PURE__ */ __commonJSMin(((exports) => {
 }));
 
 //#endregion
+//#region ../utils/github-helper.ts
+var import_core = /* @__PURE__ */ __toESM(require_core());
+var import_github = /* @__PURE__ */ __toESM(require_github());
+var GithubHelper = class {
+	octokit;
+	context;
+	dryRun;
+	constructor(context) {
+		this.context = context;
+		this.dryRun = context.dryRun;
+		this.octokit = import_github.getOctokit(context.token);
+	}
+	async getPrData(pr_number) {
+		const { data } = await this.octokit.rest.pulls.get({
+			owner: this.context.owner,
+			repo: this.context.repo,
+			pull_number: pr_number
+		});
+		return data;
+	}
+	async getIssueData(issue_number) {
+		const { data } = await this.octokit.rest.issues.get({
+			owner: this.context.owner,
+			repo: this.context.repo,
+			issue_number
+		});
+		return data;
+	}
+	async getIssueList(params) {
+		const { data } = await this.octokit.rest.issues.list({
+			...params,
+			owner: this.context.owner,
+			repo: this.context.repo
+		});
+		return data;
+	}
+	async createPR(title, head, body, base) {
+		if (this.dryRun) {
+			import_core.startGroup("dry-run模式, 不运行createPR");
+			import_core.info(`title: ${title}`);
+			import_core.info(`head: ${head}`);
+			import_core.info(`base: ${base}`);
+			import_core.info(`body: ${body}`);
+			import_core.endGroup();
+			return;
+		}
+		const { data } = await this.octokit.rest.pulls.create({
+			owner: this.context.owner,
+			repo: this.context.repo,
+			title,
+			head,
+			base: base || "develop",
+			body
+		});
+		return data;
+	}
+	async addComment(pr_number, body) {
+		if (this.dryRun) {
+			import_core.startGroup("dry-run模式, 不运行addComment");
+			import_core.info(`pr_number: ${pr_number}`);
+			import_core.info(`body: ${body}`);
+			import_core.endGroup();
+			return;
+		}
+		const { data } = await this.octokit.rest.issues.createComment({
+			owner: this.context.owner,
+			repo: this.context.repo,
+			issue_number: pr_number,
+			body
+		});
+		return data;
+	}
+	async addLabels(pr_number, labels) {
+		if (this.dryRun) {
+			import_core.startGroup("dry-run模式, 不运行addLabels");
+			import_core.info(`pr_number: ${pr_number}`);
+			import_core.info(`labels: ${labels.join(", ")}`);
+			import_core.endGroup();
+			return;
+		}
+		const { data } = await this.octokit.rest.issues.addLabels({
+			owner: this.context.owner,
+			repo: this.context.repo,
+			issue_number: pr_number,
+			labels
+		});
+		return data;
+	}
+};
+
+//#endregion
 //#region index.ts
-var import_core = /* @__PURE__ */ __toESM(require_core(), 1);
-var import_github = /* @__PURE__ */ __toESM(require_github(), 1);
 async function main() {
 	const repo = import_core.getInput("repo") || import_github.context.repo.repo;
 	const owner = import_core.getInput("owner") || import_github.context.repo.owner;
+	const token = import_core.getInput("token") || "";
+	const dryRun = import_core.getBooleanInput("dry-run") || false;
 	import_core.startGroup("close-release-issue");
 	import_core.info("close-release-issue");
 	import_core.info(`repo: ${repo}`);
 	import_core.info(`owner: ${owner}`);
 	import_core.endGroup();
+	const issues = await new GithubHelper({
+		owner,
+		repo,
+		token,
+		dryRun
+	}).getIssueList({ state: "open" });
+	import_core.info(`issues: ${JSON.stringify(issues, null, 2)}`);
 }
 main();
 

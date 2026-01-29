@@ -12,9 +12,12 @@
   },
   "dependencies": {
     "@actions/core": "catalog:",
-    "@actions/github": "catalog:"
+    "@actions/github": "catalog:",
+    "@workflows/utils": "workspace:*"
   },
   "devDependencies": {
+    "@octokit/plugin-rest-endpoint-methods": "catalog:",
+    "@types/node": "catalog:",
     "tsdown": "catalog:"
   }
 }
