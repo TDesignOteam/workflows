@@ -15,3 +15,5 @@ jobs:
 
       - name: test
         uses: ./actions/close-release-issue
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
