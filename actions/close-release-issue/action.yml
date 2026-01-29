@@ -13,5 +13,3 @@ inputs:
 runs:
   using: node24
   main: ../../packages/close-release-issue/dist/index.mjs
-  with:
-    token: ${{ secrets.GITHUB_TOKEN }}
