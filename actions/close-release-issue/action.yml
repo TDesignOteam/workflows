@@ -16,6 +16,13 @@ inputs:
   version:
     description: Release version
     required: true
+  repo:
+    description: Repository name
+    required: false
+  owner:
+    description: Repository owner
+    required: false
+
 runs:
   using: node24
   main: ../../packages/close-release-issue/dist/index.mjs
