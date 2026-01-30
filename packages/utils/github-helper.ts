@@ -47,6 +47,23 @@ export class GithubHelper {
     return data.filter(item => !item?.pull_request)
   }
 
+  async closeIssue(issue_number: number, body: string | null) {
+    if (this.dryRun) {
+      core.startGroup('dry-run模式, 不运行closeIssue')
+      core.info(`issue_number: ${issue_number}`)
+      core.endGroup()
+      return
+    }
+    
+    await this.octokit.rest.issues.update({
+      owner: this.context.owner,
+      repo: this.context.repo,
+      issue_number,
+      state: 'closed',
+      body
+    })
+  }
+
   async createPR(title: string, head: string, body: string, base?: string) {
     if (this.dryRun) {
       core.startGroup('dry-run模式, 不运行createPR')

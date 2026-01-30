@@ -20112,6 +20112,21 @@ var GithubHelper = class {
 		});
 		return data.filter((item) => !item?.pull_request);
 	}
+	async closeIssue(issue_number, body) {
+		if (this.dryRun) {
+			import_core.startGroup("dry-run模式, 不运行closeIssue");
+			import_core.info(`issue_number: ${issue_number}`);
+			import_core.endGroup();
+			return;
+		}
+		await this.octokit.rest.issues.update({
+			owner: this.context.owner,
+			repo: this.context.repo,
+			issue_number,
+			state: "closed",
+			body
+		});
+	}
 	async createPR(title, head, body, base) {
 		if (this.dryRun) {
 			import_core.startGroup("dry-run模式, 不运行createPR");
@@ -20173,18 +20188,26 @@ async function main() {
 	const owner = import_core.getInput("owner") || import_github.context.repo.owner;
 	const token = import_core.getInput("token") || "";
 	const dryRun = import_core.getBooleanInput("dry-run") || false;
+	const label = import_core.getInput("label");
+	const version = import_core.getInput("version");
 	import_core.startGroup("close-release-issue");
 	import_core.info("close-release-issue");
 	import_core.info(`repo: ${repo}`);
 	import_core.info(`owner: ${owner}`);
 	import_core.endGroup();
-	const issues = await new GithubHelper({
+	const githubHelper = new GithubHelper({
 		owner,
 		repo,
 		token,
 		dryRun
-	}).getIssueList({ state: "open" });
-	import_core.info(`issues: ${JSON.stringify(issues, null, 2)}`);
+	});
+	const issues = await githubHelper.getIssueList({
+		state: "open",
+		label
+	});
+	import_core.debug(`issues: ${JSON.stringify(issues, null, 2)}`);
+	const body = `此问题 [${version}](${`https://github.com/${owner}/${repo}/releases/tag/${version}`}) 版本已处理发布,请升级版本使用，如有问题请重新新建 issue 进行反馈，谢谢。`;
+	for (const issue of issues) await githubHelper.closeIssue(issue.number, body);
 }
 main();
 

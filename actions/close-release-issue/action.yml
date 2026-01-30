@@ -9,7 +9,13 @@ inputs:
     description: Whether to run in dry-run mode
     required: false
     default: false
-
+  label:
+    description: Label to close issues with
+    required: false
+    default: to be published
+  version:
+    description: Release version
+    required: true
 runs:
   using: node24
   main: ../../packages/close-release-issue/dist/index.mjs
