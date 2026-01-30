@@ -37,14 +37,14 @@ export class GithubHelper {
     return data
   }
 
-
-  async getIssueList(params?: RestEndpointMethodTypes["issues"]["listForRepo"]["parameters"]) {
+  
+  async getIssueList(params?: Omit<RestEndpointMethodTypes["issues"]["listForRepo"]["parameters"], 'owner' | 'repo'>) {
     const { data } = await this.octokit.rest.issues.listForRepo({
       ...params,
       owner: this.context.owner,
-      repo: this.context.repo,
+      repo: this.context.repo
     })
-    return data
+    return data.filter(item => !item?.pull_request)
   }
 
   async createPR(title: string, head: string, body: string, base?: string) {

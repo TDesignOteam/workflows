@@ -20110,7 +20110,7 @@ var GithubHelper = class {
 			owner: this.context.owner,
 			repo: this.context.repo
 		});
-		return data;
+		return data.filter((item) => !item?.pull_request);
 	}
 	async createPR(title, head, body, base) {
 		if (this.dryRun) {
