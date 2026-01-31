@@ -1,0 +1,23 @@
+{
+  "name": "close-release-issue",
+  "type": "module",
+  "private": true,
+  "description": "",
+  "author": "",
+  "license": "ISC",
+  "keywords": [],
+  "main": "index.js",
+  "scripts": {
+    "build": "tsdown"
+  },
+  "dependencies": {
+    "@actions/core": "catalog:",
+    "@actions/github": "catalog:",
+    "@workflows/utils": "workspace:*"
+  },
+  "devDependencies": {
+    "@octokit/plugin-rest-endpoint-methods": "catalog:",
+    "@types/node": "catalog:",
+    "tsdown": "catalog:"
+  }
+}

@@ -4,5 +4,3 @@ on: [pull_request]
 jobs:
   check:
     uses: TDesignOteam/workflows/.github/workflows/spell-check.yml@main
-    with:
-      config: ''
