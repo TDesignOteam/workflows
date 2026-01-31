@@ -20112,7 +20112,7 @@ var GithubHelper = class {
 		});
 		return data.filter((item) => !item?.pull_request);
 	}
-	async closeIssue(issue_number, body) {
+	async closeIssue(issue_number) {
 		if (this.dryRun) {
 			import_core.startGroup("dry-run模式, 不运行closeIssue");
 			import_core.info(`issue_number: ${issue_number}`);
@@ -20123,8 +20123,7 @@ var GithubHelper = class {
 			owner: this.context.owner,
 			repo: this.context.repo,
 			issue_number,
-			state: "closed",
-			body
+			state: "closed"
 		});
 	}
 	async createPR(title, head, body, base) {
@@ -20206,8 +20205,11 @@ async function main() {
 		label
 	});
 	import_core.debug(`issues: ${JSON.stringify(issues, null, 2)}`);
-	const body = `此问题 [${version}](${`https://github.com/${owner}/${repo}/releases/tag/${version}`}) 版本已处理发布,请升级版本使用，如有问题请重新新建 issue 进行反馈，谢谢。`;
-	for (const issue of issues) await githubHelper.closeIssue(issue.number, body);
+	const comment = `此问题 [${version}](${`https://github.com/${owner}/${repo}/releases/tag/${version}`}) 版本已处理发布,请升级版本使用，如有问题请重新新建 issue 进行反馈，谢谢。`;
+	for (const issue of issues) {
+		await githubHelper.closeIssue(issue.number);
+		await githubHelper.addComment(issue.number, comment);
+	}
 }
 main();
 

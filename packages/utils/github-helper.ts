@@ -47,7 +47,7 @@ export class GithubHelper {
     return data.filter(item => !item?.pull_request)
   }
 
-  async closeIssue(issue_number: number, body: string | null) {
+  async closeIssue(issue_number: number) {
     if (this.dryRun) {
       core.startGroup('dry-run模式, 不运行closeIssue')
       core.info(`issue_number: ${issue_number}`)
@@ -59,8 +59,7 @@ export class GithubHelper {
       owner: this.context.owner,
       repo: this.context.repo,
       issue_number,
-      state: 'closed',
-      body
+      state: 'closed'
     })
   }
 

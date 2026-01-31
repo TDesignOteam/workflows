@@ -29,10 +29,11 @@ async function main(): Promise<void> {
   core.debug(`issues: ${JSON.stringify(issues, null, 2)}`);
 
   const releaseUrl = `https://github.com/${owner}/${repo}/releases/tag/${version}`
-  const body = `此问题 [${version}](${releaseUrl}) 版本已处理发布,请升级版本使用，如有问题请重新新建 issue 进行反馈，谢谢。`;
+  const comment = `此问题 [${version}](${releaseUrl}) 版本已处理发布,请升级版本使用，如有问题请重新新建 issue 进行反馈，谢谢。`;
   for (const issue of issues) {
+    await githubHelper.closeIssue(issue.number);
+    await githubHelper.addComment(issue.number, comment);
 
-    await githubHelper.closeIssue(issue.number, body);
   }
 }
 
