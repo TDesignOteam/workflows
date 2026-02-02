@@ -5,35 +5,29 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v4
 
-      - name: Install Node.js
-        uses: actions/setup-node@v6
+      - uses: actions/setup-node@v6
         with:
           node-version-file: .node-version
           cache: pnpm
 
       - run: pnpm install
 
-      - name: Run build
-        run: pnpm -r run build
+      - run: pnpm run build
 
   lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v4
 
-      - name: Install Node.js
-        uses: actions/setup-node@v6
+      - uses: actions/setup-node@v6
         with:
           node-version-file: .node-version
           cache: pnpm
 
       - run: pnpm install
 
-      - name: Run lint
-        run: pnpm run lint
+      - run: pnpm run lint
