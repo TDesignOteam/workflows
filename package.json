@@ -9,7 +9,6 @@
   },
   "devDependencies": {
     "@antfu/eslint-config": "catalog:",
-    "@workflows/utils": "workspace:*",
     "eslint": "catalog:"
   }
 }
