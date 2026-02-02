@@ -17,3 +17,4 @@ jobs:
         uses: ./actions/close-release-issue
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          dry-run: true
