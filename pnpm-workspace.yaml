@@ -13,4 +13,4 @@ catalog:
   '@octokit/plugin-rest-endpoint-methods': ^17.0.0
   '@types/node': ^24.10.9
   eslint: ^9.39.2
-  tsdown: ^0.20.1
+  tsdown: ^0.20.2
