@@ -9,8 +9,8 @@ packages:
 catalog:
   '@actions/core': ^3.0.0
   '@actions/github': ^9.0.0
-  '@antfu/eslint-config': ^7.3.0
+  '@antfu/eslint-config': ^7.4.3
   '@octokit/plugin-rest-endpoint-methods': ^17.0.0
-  '@types/node': ^24.10.12
+  '@types/node': ^24.10.13
   eslint: ^10.0.0
   tsdown: ^0.20.3
