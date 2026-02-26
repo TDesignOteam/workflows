@@ -3,7 +3,6 @@ catalogMode: prefer
 shellEmulator: true
 
 trustPolicy: no-downgrade
-
 packages:
   - packages/*
 catalog:
@@ -12,5 +11,6 @@ catalog:
   '@antfu/eslint-config': ^7.4.3
   '@octokit/plugin-rest-endpoint-methods': ^17.0.0
   '@types/node': ^24.10.13
+  '@typescript/native-preview': 7.0.0-dev.20260226.1
   eslint: ^10.0.1
   tsdown: ^0.20.3
