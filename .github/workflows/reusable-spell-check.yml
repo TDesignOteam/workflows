@@ -5,7 +5,7 @@ on:
       config:
         required: false
         type: string
-        default: .github/workflows/typos-config.toml
+        default: ''
 jobs:
   check:
     name: Typos
