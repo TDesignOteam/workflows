@@ -4,4 +4,4 @@ on:
 
 jobs:
   check:
-    uses: TDesignOteam/workflows/.github/workflows/spell-check.yml@main
+    uses: TDesignOteam/workflows/.github/workflows/reusable-spell-check.yml@main
