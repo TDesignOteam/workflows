@@ -61,7 +61,7 @@ runs:
       run: |
         set -eu
 
-        log_emails=$(git log --pretty=format:"%ae %ce" -1q)
+        log_emails=$(git log --pretty=format:"%ae %ce" -1)
         if [[ -z "$log_emails" ]]; then
           echo "No commits found in PR head"
           exit 0
