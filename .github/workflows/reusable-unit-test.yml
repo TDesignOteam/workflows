@@ -15,7 +15,7 @@ on:
         type: string
         default: ''
 jobs:
-  check:
+  check-email:
     runs-on: ubuntu-latest
     steps:
       - uses: TDesignOteam/workflows/actions/check-email@main
