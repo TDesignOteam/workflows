@@ -1,0 +1,20 @@
+name: Setup Surge
+description: Deploy to Surge
+
+inputs:
+  project:
+    description: The project directory to deploy
+    required: true
+  domain:
+    description: The surge domain to deploy
+    required: true
+  token:
+    description: The surge token for deploy
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Deploy to Surge
+      shell: bash
+      run: |
+        npx surge --project ${{ inputs.project }} --domain ${{ inputs.domain }} --token ${{ inputs.token }}
