@@ -14,6 +14,11 @@ on:
         required: false
         type: string
         default: ''
+      package-manager:
+        required: false
+        type: string
+        default: npm
+
 jobs:
   check-email:
     runs-on: ubuntu-latest
@@ -26,24 +31,19 @@ jobs:
       - uses: actions/checkout@v6.0.2
         with:
           submodules: recursive
+
+      - uses: pnpm/action-setup@v4.2.0
+        if: ${{ inputs.package-manager == 'pnpm' }}
+
       - uses: actions/setup-node@v6.2.0
         with:
           node-version: ${{ inputs.node-version }}
           node-version-file: ${{ inputs.node-version-file }}
-      - uses: actions/cache@v5.0.3
-        env:
-          cache-name: cache-nodemodules
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ env.cache-name }}-
-            ${{ runner.os }}-build-
-            ${{ runner.os }}-
-      - run: npm install
 
-      - run: npm run lint
-      - run: npm run test
+      - run: ${{ inputs.package-manager }} install
+
+      - run: ${{ inputs.package-manager }} run lint
+      - run: ${{ inputs.package-manager }} run test
       # upload report to codecov
       - uses: codecov/codecov-action@v2
         with:
@@ -56,25 +56,19 @@ jobs:
       - uses: actions/checkout@v6.0.2
         with:
           submodules: recursive
+
+      - uses: pnpm/action-setup@v4.2.0
+        if: ${{ inputs.package-manager == 'pnpm' }}
+
       - uses: actions/setup-node@v6.2.0
         with:
           node-version: ${{ inputs.node-version }}
           node-version-file: ${{ inputs.node-version-file }}
 
-      - uses: actions/cache@v5.0.3
-        env:
-          cache-name: cache-nodemodules
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ env.cache-name }}-
-            ${{ runner.os }}-build-
-            ${{ runner.os }}-
-      - run: npm install
+      - run: ${{ inputs.package-manager }} install
 
       - name: Build site
-        run: npm run site:preview
+        run: ${{ inputs.package-manager }} run site:preview
 
       - run: |
           zip -r _site.zip _site
@@ -103,21 +97,16 @@ jobs:
       - uses: actions/checkout@v6.0.2
         with:
           submodules: recursive
+
+      - uses: pnpm/action-setup@v4.2.0
+        if: ${{ inputs.package-manager == 'pnpm' }}
+
       - uses: actions/setup-node@v6.2.0
         with:
           node-version: ${{ inputs.node-version }}
           node-version-file: ${{ inputs.node-version-file }}
-      - uses: actions/cache@v5.0.3
-        env:
-          cache-name: cache-nodemodules
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ env.cache-name }}-
-            ${{ runner.os }}-build-
-            ${{ runner.os }}-
-      - run: npm install
+
+      - run: ${{ inputs.package-manager }} install
 
       - name: Build
-        run: npm run build
+        run: ${{ inputs.package-manager }} run build
