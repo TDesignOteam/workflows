@@ -45,7 +45,7 @@ jobs:
       - run: ${{ inputs.package-manager }} run lint
       - run: ${{ inputs.package-manager }} run test
       # upload report to codecov
-      - uses: codecov/codecov-action@v2
+      - uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 
