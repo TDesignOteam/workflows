@@ -4,7 +4,7 @@ export default defineConfig({
   entry: ['index.ts'],
   deps: {
     alwaysBundle: ['@actions/core', '@actions/github', '@workflows/utils'],
-    onlyAllowBundle: [
+    onlyBundle: [
       '@actions/core',
       '@actions/exec',
       '@actions/github',

@@ -1,1 +1,1 @@
-export * from "./github-helper";
+export * from './github-helper'
