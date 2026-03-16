@@ -1,6 +1,6 @@
+import type { RestEndpointMethodTypes } from '@octokit/plugin-rest-endpoint-methods'
 import * as core from '@actions/core'
 import * as github from '@actions/github'
-import type { RestEndpointMethodTypes } from '@octokit/plugin-rest-endpoint-methods'
 
 export interface GithubContext {
   owner: string
@@ -37,12 +37,11 @@ export class GithubHelper {
     return data
   }
 
-  
-  async getIssueList(params?: Omit<RestEndpointMethodTypes["issues"]["listForRepo"]["parameters"], 'owner' | 'repo'>) {
+  async getIssueList(params?: Omit<RestEndpointMethodTypes['issues']['listForRepo']['parameters'], 'owner' | 'repo'>) {
     const { data } = await this.octokit.rest.issues.listForRepo({
       ...params,
       owner: this.context.owner,
-      repo: this.context.repo
+      repo: this.context.repo,
     })
     return data.filter(item => !item?.pull_request)
   }
@@ -54,12 +53,12 @@ export class GithubHelper {
       core.endGroup()
       return
     }
-    
+
     await this.octokit.rest.issues.update({
       owner: this.context.owner,
       repo: this.context.repo,
       issue_number,
-      state: 'closed'
+      state: 'closed',
     })
   }
 
