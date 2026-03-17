@@ -2,6 +2,13 @@ name: reusable-publish-npm
 
 on:
   workflow_call:
+    secrets:
+      PERSONAL_TOKEN:
+        required: false
+
+      TDESIGN_SURGE_TOKEN:
+        required: true
+
     inputs:
       node-version:
         required: false
@@ -113,7 +120,7 @@ jobs:
         with:
           project: _site
           domain: ${{ steps.domain.outputs.domain }}
-          token: ${{ inputs.surge-token  }}
+          token: ${{ secrets.TDESIGN_SURGE_TOKEN }}
 
   publish-official-website:
     runs-on: ubuntu-latest
@@ -123,7 +130,7 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-          token: ${{ inputs.token }}
+          token: ${{ secrets.PERSONAL_TOKEN }}
           submodules: recursive
 
       - name: update official website
