@@ -1,0 +1,136 @@
+name: reusable-publish-npm
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        required: false
+        type: string
+        default: '22'
+
+      node-version-file:
+        required: false
+        type: string
+        default: ''
+
+      package-manager:
+        required: false
+        type: string
+        default: npm
+
+      surge-token:
+        required: false
+        type: string
+
+      token:
+        required: false
+        type: string
+        default: ${{ github.token }}
+
+      skip-publish-npm:
+        required: false
+        type: boolean
+        default: false
+
+      skip-publish-tag-website:
+        required: false
+        type: boolean
+        default: false
+
+      skip-publish-official-website:
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  publish-npm:
+    runs-on: ubuntu-latest
+    if: github.event.ref_type == 'tag' && !inputs.publish-npm
+    steps:
+      - uses: actions/checkout@v6.0.2
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@v6.3.0
+        with:
+          node-version: ${{ inputs.node-version-file == '' && inputs.node-version || null }}
+          node-version-file: ${{ inputs.node-version-file != '' && inputs.node-version-file || null }}
+
+      - run: ${{ inputs.package-manager }} install
+
+      - run: ${{ inputs.package-manager }} run build
+
+      - uses: actions/setup-node@v6.3.0
+        with:
+          node-version: 24
+
+      - id: tag
+        shell: bash
+        run: |
+          tag=${{ contains(github.ref_name, 'beta') && 'beta' || 'latest' }}
+          echo "tag=$tag" >> $GITHUB_OUTPUT
+
+      - name: npm publish
+        if: ${{ inputs.package-manager  == 'npm'}}
+        uses: JS-DevTools/npm-publish@v4
+        with:
+          tag: ${{ steps.tag.outputs.tag }}
+
+      - name: pnpm publish
+        if: ${{ inputs.package-manager  == 'pnpm'}}
+        run: pnpm publish --access public --no-git-checks --tag ${{ steps.tag.outputs.tag }}
+
+  publish-tag-website:
+    runs-on: ubuntu-latest
+    if: github.event.ref_type == 'tag' && !inputs.publish-tag-website
+    steps:
+      - uses: actions/checkout@v6.0.2
+        with:
+          submodules: recursive
+
+      - uses: pnpm/action-setup@v4.2.0
+        if: ${{ inputs.package-manager == 'pnpm' }}
+
+      - uses: actions/setup-node@v6.3.0
+        with:
+          node-version: ${{ inputs.node-version-file == '' && inputs.node-version || null }}
+          node-version-file: ${{ inputs.node-version-file != '' && inputs.node-version-file || null }}
+
+      - run: ${{ inputs.package-manager }} install
+
+      - run: ${{ inputs.package-manager }} run site:preview
+
+      - id: domain
+        shell: bash
+        run: |
+          repository=${{github.repository}}
+          project_name=${repository#*/}
+          ref_name=${{ github.ref_name }}
+          tag_name=${ref_name//./_}
+          echo "domain=https://$tag_name-$project_name.surge.sh" >> $GITHUB_OUTPUT
+
+      - uses: TDesignOteam/workflows/actions/setup-surge@main
+        with:
+          project: _site
+          domain: ${{ steps.domain.outputs.domain }}
+          token: ${{ inputs.surge-token  }}
+
+  publish-official-website:
+    runs-on: ubuntu-latest
+    if: github.event.ref_type == 'tag' && !inputs.publish-official-website
+    steps:
+      - uses: actions/checkout@v6.0.2
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ inputs.token }}
+          submodules: recursive
+
+      - name: update official website
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git status
+          git fetch origin
+          git merge origin/develop
+          git push origin main
