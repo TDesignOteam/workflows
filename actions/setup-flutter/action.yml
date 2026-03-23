@@ -51,7 +51,7 @@ runs:
       with:
         repository: ${{ inputs.aop-repo }}
         ref: ${{ inputs.aop-repo-branch }}
-        path: ${{ runner.temp }}/tdesign-flutter-aop-registry
+        path: ${{ runner.temp }}
 
     - name: Move aop_tools to ${{ inputs.aop-project-path }}
       if: ${{ inputs.aop-registry == 'true' }}
