@@ -24,7 +24,7 @@ inputs:
   aop-repo:
     description: The URL of the AOP repository
     required: false
-    default: TDesignOteam/tdesign-flutter-aop-registry
+    default: 'https://github.com/TDesignOteam/tdesign-flutter-aop-registry.git'
   aop-repo-branch:
     description: The branch of the AOP repository
     required: false
@@ -45,13 +45,9 @@ runs:
       shell: bash
       run: |
         cd ${{ runner.temp }}
+        branch="${ inputs.aop-repo-branch#refs/heads/ }"
+        git clone ${{ inputs.aop-repo }} -b "$branch"
         git clone https://github.com/TDesignOteam/tdesign-flutter-generator.git
-
-    - uses: actions/checkout@v6.0.2
-      with:
-        repository: ${{ inputs.aop-repo }}
-        ref: ${{ inputs.aop-repo-branch }}
-        path: ${{ runner.temp }}
 
     - name: Move aop_tools to ${{ inputs.aop-project-path }}
       if: ${{ inputs.aop-registry == 'true' }}
