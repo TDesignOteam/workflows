@@ -45,8 +45,9 @@ runs:
       shell: bash
       run: |
         cd ${{ runner.temp }}
-        branch="${ inputs.aop-repo-branch#refs/heads/ }"
-        git clone ${{ inputs.aop-repo }} -b "$branch"
+        branch="${{ inputs.aop-repo-branch }}"
+        branch="${branch#refs/heads/}"
+        git clone "${{ inputs.aop-repo }}" -b "$branch"
         git clone https://github.com/TDesignOteam/tdesign-flutter-generator.git
 
     - name: Move aop_tools to ${{ inputs.aop-project-path }}
