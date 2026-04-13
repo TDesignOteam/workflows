@@ -74,7 +74,7 @@ jobs:
           zip -r _site.zip _site
 
       - name: upload _site artifact
-        uses: actions/upload-artifact@v7.0.0
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: _site
           path: _site.zip
@@ -86,7 +86,7 @@ jobs:
 
       - name: Upload PR number
         if: ${{ always() }}
-        uses: actions/upload-artifact@v7.0.0
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: pr
           path: ./pr-id.txt

@@ -7,10 +7,10 @@ packages:
   - packages/*
 catalog:
   '@actions/core': ^3.0.0
-  '@actions/github': ^9.0.0
+  '@actions/github': ^9.1.0
   '@antfu/eslint-config': ^8.2.0
   '@octokit/plugin-rest-endpoint-methods': ^17.0.0
   '@types/node': ^24.12.2
-  '@typescript/native-preview': 7.0.0-dev.20260406.1
+  '@typescript/native-preview': 7.0.0-dev.20260412.1
   eslint: ^10.2.0
   tsdown: ^0.21.7
