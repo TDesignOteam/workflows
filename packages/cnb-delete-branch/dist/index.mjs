@@ -13,14 +13,14 @@ async function main() {
 	core.info(`Branch: ${branch}`);
 	core.endGroup();
 	const client = getClient(CNB_API_URL, token);
-	const prs = await client.Pulls.ListPulls({
+	const branchPRs = (await client.Pulls.ListPulls({
 		repo,
 		state: "open"
-	});
-	core.info(`Found ${prs.length} open PR(s) associated with branch "${branch}"`);
-	for (const pr of prs) {
-		core.info(`Closing PR #${pr.number} (head.ref: ${pr.head.ref})`);
-		if (pr.head.ref === branch) await client.Pulls.PatchPull({
+	})).filter((pr) => pr.head.ref === branch);
+	core.info(`找到 ${branchPRs.length} 个与分支 "${branch}" 关联的 open PR`);
+	for (const pr of branchPRs) {
+		core.info(`关闭 PR #${pr.number} (head.ref: ${pr.head.ref})`);
+		await client.Pulls.PatchPull({
 			repo,
 			number: pr.number,
 			update_pull_request_form: {
@@ -30,12 +30,12 @@ async function main() {
 			}
 		});
 	}
-	core.info(`Deleting branch "${branch}"...`);
+	core.info(`删除分支 "${branch}"...`);
 	await client.repo.git.branches.delete({
 		repo,
 		branch
 	});
-	core.info("Branch deletion completed successfully");
+	core.info("分支删除完成");
 }
 main();
 //#endregion

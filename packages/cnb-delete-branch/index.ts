@@ -16,29 +16,28 @@ async function main(): Promise<void> {
   core.endGroup()
 
   const client = getClient(CNB_API_URL, token)
-  // Step 1: Query open PRs associated with the branch
+  // 步骤 1: 查询所有 open PRs
   const prs = await client.Pulls.ListPulls({ repo, state: 'open' })
-  core.info(`Found ${prs.length} open PR(s) associated with branch "${branch}"`)
-  // Step 2: Close associated PRs
-  for (const pr of prs) {
-    core.info(`Closing PR #${pr.number} (head.ref: ${pr.head.ref})`)
-    if (pr.head.ref === branch) {
-      await client.Pulls.PatchPull({ repo, number: pr.number, update_pull_request_form: {
-        state: 'closed',
-        title: pr.title,
-        body: pr.body,
-      } })
-    }
+  // 步骤 2: 过滤并关闭与该分支关联的 PRs（CNB 不允许直接删除有 open PR 的分支）
+  const branchPRs = prs.filter(pr => pr.head.ref === branch)
+  core.info(`找到 ${branchPRs.length} 个与分支 "${branch}" 关联的 open PR`)
+  for (const pr of branchPRs) {
+    core.info(`关闭 PR #${pr.number} (head.ref: ${pr.head.ref})`)
+    await client.Pulls.PatchPull({ repo, number: pr.number, update_pull_request_form: {
+      state: 'closed',
+      title: pr.title,
+      body: pr.body,
+    } })
   }
 
-  // Step 3: Delete the branch
-  core.info(`Deleting branch "${branch}"...`)
+  // 步骤 3: 删除分支
+  core.info(`删除分支 "${branch}"...`)
   await client.repo.git.branches.delete({
     repo,
     branch,
   })
 
-  core.info('Branch deletion completed successfully')
+  core.info('分支删除完成')
 }
 
 main()
