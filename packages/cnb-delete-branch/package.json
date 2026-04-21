@@ -1,0 +1,16 @@
+{
+  "name": "cnb-delete-branch",
+  "type": "module",
+  "main": "index.ts",
+  "scripts": {
+    "build": "tsdown"
+  },
+  "dependencies": {
+    "@actions/core": "catalog:",
+    "node-cnb": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsdown": "catalog:"
+  }
+}

@@ -3,6 +3,7 @@ catalogMode: prefer
 shellEmulator: true
 
 trustPolicy: no-downgrade
+
 packages:
   - packages/*
 catalog:
@@ -13,4 +14,5 @@ catalog:
   '@types/node': ^24.12.2
   '@typescript/native-preview': 7.0.0-dev.20260412.1
   eslint: ^10.2.0
+  node-cnb: ^1.28.0
   tsdown: ^0.21.7
