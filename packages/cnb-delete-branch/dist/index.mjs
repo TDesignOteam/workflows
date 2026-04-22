@@ -20,6 +20,23 @@ function toCommandValue(input) {
 	else if (typeof input === "string" || input instanceof String) return input;
 	return JSON.stringify(input);
 }
+/**
+*
+* @param annotationProperties
+* @returns The command properties to send with the actual annotation command
+* See IssueCommandProperties: https://github.com/actions/runner/blob/main/src/Runner.Worker/ActionCommandManager.cs#L646
+*/
+function toCommandProperties(annotationProperties) {
+	if (!Object.keys(annotationProperties).length) return {};
+	return {
+		title: annotationProperties.title,
+		file: annotationProperties.file,
+		line: annotationProperties.startLine,
+		endLine: annotationProperties.endLine,
+		col: annotationProperties.startColumn,
+		endColumn: annotationProperties.endColumn
+	};
+}
 //#endregion
 //#region ../../node_modules/.pnpm/@actions+core@3.0.0/node_modules/@actions/core/lib/command.js
 /**
@@ -16008,6 +16025,23 @@ function getInput(name, options) {
 	return val.trim();
 }
 /**
+* Sets the action status to failed.
+* When the action exits it will be with an exit code of 1
+* @param message add error issue message
+*/
+function setFailed(message) {
+	process.exitCode = ExitCode.Failure;
+	error(message);
+}
+/**
+* Adds an error issue
+* @param message error issue message. Errors will be converted to string via toString()
+* @param properties optional properties to add to the annotation.
+*/
+function error(message, properties = {}) {
+	issueCommand("error", toCommandProperties(properties), message instanceof Error ? message.toString() : message);
+}
+/**
 * Writes info to log with console.log.
 * @param message info message
 */
@@ -26304,40 +26338,46 @@ const getClient = (baseUrl, token) => {
 //#region index.ts
 const CNB_API_URL = "https://api.cnb.cool";
 async function main() {
-	const org = getInput("org", { required: true });
 	const repo = getInput("repo", { required: true });
 	const branch = getInput("branch", { required: true });
 	const token = getInput("token", { required: true });
 	startGroup("cnb-delete-branch");
-	info(`Org: ${org}`);
 	info(`Repo: ${repo}`);
 	info(`Branch: ${branch}`);
 	endGroup();
-	const client = getClient(CNB_API_URL, token);
-	const branchPRs = (await client.Pulls.ListPulls({
-		repo,
-		state: "open"
-	})).filter((pr) => pr.head.ref === branch);
-	info(`找到 ${branchPRs.length} 个与分支 "${branch}" 关联的 open PR`);
-	for (const pr of branchPRs) {
-		info(`关闭 PR #${pr.number} (head.ref: ${pr.head.ref})`);
-		await client.Pulls.PatchPull({
+	try {
+		const client = getClient(CNB_API_URL, token);
+		if (!client) throw new Error("Failed to get CNB client");
+		const branchPRs = (await client.Pulls.ListPulls({
 			repo,
-			number: pr.number,
-			update_pull_request_form: {
-				state: "closed",
-				title: pr.title,
-				body: pr.body
-			}
+			state: "open"
+		})).filter((pr) => pr.head.ref === branch);
+		info(`找到 ${branchPRs.length} 个与分支 "${branch}" 关联的 open PR`);
+		for (const pr of branchPRs) {
+			info(`关闭 PR #${pr.number} (head.ref: ${pr.head.ref})`);
+			await client.Pulls.PatchPull({
+				repo,
+				number: pr.number,
+				update_pull_request_form: {
+					state: "closed",
+					title: pr.title,
+					body: pr.body
+				}
+			});
+		}
+		info(`删除分支 "${branch}"...`);
+		await client.repo.git.branches.delete({
+			repo,
+			branch
 		});
+		info("分支删除完成");
+	} catch (error$1) {
+		error(`Error: ${error$1 instanceof Error ? error$1.message : String(error$1)}`);
+		setFailed(`cnb-delete-branch failed: ${error$1 instanceof Error ? error$1.message : String(error$1)}`);
 	}
-	info(`删除分支 "${branch}"...`);
-	await client.repo.git.branches.delete({
-		repo,
-		branch
-	});
-	info("分支删除完成");
 }
-main();
+main().catch((error) => {
+	setFailed(`cnb-delete-branch failed: ${error instanceof Error ? error.message : String(error)}`);
+});
 //#endregion
 export {};
