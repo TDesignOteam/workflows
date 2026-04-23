@@ -27,6 +27,9 @@ catalogs:
     eslint:
       specifier: ^10.2.1
       version: 10.2.1
+    node-cnb:
+      specifier: ^1.29.0
+      version: 1.29.0
     tsdown:
       specifier: ^0.21.9
       version: 0.21.9
@@ -60,6 +63,22 @@ importers:
       '@octokit/plugin-rest-endpoint-methods':
         specifier: 'catalog:'
         version: 17.0.0(@octokit/core@7.0.6)
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.12.2
+      tsdown:
+        specifier: 'catalog:'
+        version: 0.21.9(@typescript/native-preview@7.0.0-dev.20260419.1)(synckit@0.11.12)(typescript@5.9.3)
+
+  packages/cnb-delete-branch:
+    dependencies:
+      '@actions/core':
+        specifier: 'catalog:'
+        version: 3.0.0
+      node-cnb:
+        specifier: 'catalog:'
+        version: 1.29.0
+    devDependencies:
       '@types/node':
         specifier: 'catalog:'
         version: 24.12.2
@@ -1252,6 +1271,10 @@ packages:
   keyv@4.5.4:
     resolution: {integrity: sha512-oxVHkHR/EJf2CNXnWxRLW6mg7JyCCUcG0DtEGmL2ctUo1PNTin1PUil+r/+4r5MpVgC/fn1kjsx7mjSujKqIpw==}
 
+  ky@1.14.3:
+    resolution: {integrity: sha512-9zy9lkjac+TR1c2tG+mkNSVlyOpInnWdSMiue4F+kq8TwJSgv6o8jhLRg8Ho6SnZ9wOYUq/yozts9qQCfk7bIw==}
+    engines: {node: '>=18'}
+
   levn@0.4.1:
     resolution: {integrity: sha512-+bT2uH4E5LGE7h/n3evcS/sQlJXCpIp6ym8OWJ5eV6+67Dsql/LaaT7qJBAt2rzfoa/5QBGBhxDix1dMt2kQKQ==}
     engines: {node: '>= 0.8.0'}
@@ -1429,6 +1452,9 @@ packages:
   natural-orderby@5.0.0:
     resolution: {integrity: sha512-kKHJhxwpR/Okycz4HhQKKlhWe4ASEfPgkSWNmKFHd7+ezuQlxkA5cM3+XkBPvm1gmHen3w53qsYAv+8GwRrBlg==}
     engines: {node: '>=18'}
+
+  node-cnb@1.29.0:
+    resolution: {integrity: sha512-xdMYrfV6P2FjezKHv8O48HIvjk7rI0FHza59CQfv6XWHs4SbCk47VrWGfHJflUWDLYseEMOXyFPRh77A9dcmxg==}
 
   node-releases@2.0.27:
     resolution: {integrity: sha512-nmh3lCkYZ3grZvqcCH+fjmQ7X+H0OeZgP40OierEaAptX4XofMh5kwNbWh7lBduUzCcV/8kZ+NDLCwm2iorIlA==}
@@ -2333,7 +2359,7 @@ snapshots:
       debug: 4.4.3
       minimatch: 10.2.4
       semver: 7.7.4
-      tinyglobby: 0.2.15
+      tinyglobby: 0.2.16
       ts-api-utils: 2.5.0(typescript@5.9.3)
       typescript: 5.9.3
     transitivePeerDependencies:
@@ -2990,6 +3016,8 @@ snapshots:
     dependencies:
       json-buffer: 3.0.1
 
+  ky@1.14.3: {}
+
   levn@0.4.1:
     dependencies:
       prelude-ls: 1.2.1
@@ -3368,6 +3396,10 @@ snapshots:
   natural-compare@1.4.0: {}
 
   natural-orderby@5.0.0: {}
+
+  node-cnb@1.29.0:
+    dependencies:
+      ky: 1.14.3
 
   node-releases@2.0.27: {}
 

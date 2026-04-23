@@ -1,0 +1,17 @@
+name: CNB Delete Branch
+description: Delete branch from CNB (Gitea) after closing associated PRs
+
+inputs:
+  token:
+    description: CNB API Token
+    required: true
+  repo:
+    description: Repository name
+    required: true
+  branch:
+    description: Branch name
+    required: true
+
+runs:
+  using: node24
+  main: ../../packages/cnb-delete-branch/dist/index.mjs
