@@ -28,8 +28,8 @@ catalogs:
       specifier: ^10.2.1
       version: 10.2.1
     node-cnb:
-      specifier: ^1.28.0
-      version: 1.28.0
+      specifier: ^1.29.0
+      version: 1.29.0
     tsdown:
       specifier: ^0.21.9
       version: 0.21.9
@@ -77,7 +77,7 @@ importers:
         version: 3.0.0
       node-cnb:
         specifier: 'catalog:'
-        version: 1.28.0
+        version: 1.29.0
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -1453,8 +1453,8 @@ packages:
     resolution: {integrity: sha512-kKHJhxwpR/Okycz4HhQKKlhWe4ASEfPgkSWNmKFHd7+ezuQlxkA5cM3+XkBPvm1gmHen3w53qsYAv+8GwRrBlg==}
     engines: {node: '>=18'}
 
-  node-cnb@1.28.0:
-    resolution: {integrity: sha512-udupV3aLXMtTDd2nTl+4afGwy37p91v+XC4NKYmAtyBDLnfqHp5AaP5a3V4tQJTF4ElY71soRx9Ai40Dcl7klw==}
+  node-cnb@1.29.0:
+    resolution: {integrity: sha512-xdMYrfV6P2FjezKHv8O48HIvjk7rI0FHza59CQfv6XWHs4SbCk47VrWGfHJflUWDLYseEMOXyFPRh77A9dcmxg==}
 
   node-releases@2.0.27:
     resolution: {integrity: sha512-nmh3lCkYZ3grZvqcCH+fjmQ7X+H0OeZgP40OierEaAptX4XofMh5kwNbWh7lBduUzCcV/8kZ+NDLCwm2iorIlA==}
@@ -3397,7 +3397,7 @@ snapshots:
 
   natural-orderby@5.0.0: {}
 
-  node-cnb@1.28.0:
+  node-cnb@1.29.0:
     dependencies:
       ky: 1.14.3
 
