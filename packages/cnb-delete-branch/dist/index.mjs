@@ -16874,7 +16874,7 @@ const createInstance = (defaults) => {
 };
 const ky = createInstance();
 //#endregion
-//#region ../../node_modules/.pnpm/node-cnb@1.28.0/node_modules/node-cnb/dist/index.mjs
+//#region ../../node_modules/.pnpm/node-cnb@1.29.0/node_modules/node-cnb/dist/index.mjs
 var paths_default = {
 	"events.repo.get": {
 		"tags": ["Event"],
@@ -16913,7 +16913,7 @@ var paths_default = {
 		"path": "/groups",
 		"method": "post"
 	},
-	"ranks.repo.annual.list": {
+	"ranks.repo.annual.get": {
 		"tags": ["Rank"],
 		"summary": "获取公仓年榜",
 		"operationId": "GetRepoAnnualRank",
@@ -16953,16 +16953,13 @@ var paths_default = {
 		],
 		"responses": { "200": {
 			"description": "OK",
-			"schema": {
-				"type": "array",
-				"items": { "$ref": "#/definitions/dto.RankDetailWithIncr" }
-			}
+			"schema": { "$ref": "#/definitions/dto.GetRankResult" }
 		} },
 		"description": "访问令牌调用此接口需包含以下权限。Required permissions for access token. \nrepo-basic-info:r",
 		"path": "/ranks/repo/annual",
 		"method": "get"
 	},
-	"ranks.repo.daily.list": {
+	"ranks.repo.daily.get": {
 		"tags": ["Rank"],
 		"summary": "获取公仓日榜",
 		"operationId": "GetRepoDailyRank",
@@ -17001,10 +16998,7 @@ var paths_default = {
 		],
 		"responses": { "200": {
 			"description": "OK",
-			"schema": {
-				"type": "array",
-				"items": { "$ref": "#/definitions/dto.RankDetailWithIncr" }
-			}
+			"schema": { "$ref": "#/definitions/dto.GetRankResult" }
 		} },
 		"description": "访问令牌调用此接口需包含以下权限。Required permissions for access token. \nrepo-basic-info:r",
 		"path": "/ranks/repo/daily",
@@ -17040,7 +17034,7 @@ var paths_default = {
 		"path": "/ranks/repo/language-list",
 		"method": "get"
 	},
-	"ranks.repo.monthly.list": {
+	"ranks.repo.monthly.get": {
 		"tags": ["Rank"],
 		"summary": "获取公仓月榜",
 		"operationId": "GetRepoMonthlyRank",
@@ -17080,16 +17074,13 @@ var paths_default = {
 		],
 		"responses": { "200": {
 			"description": "OK",
-			"schema": {
-				"type": "array",
-				"items": { "$ref": "#/definitions/dto.RankDetailWithIncr" }
-			}
+			"schema": { "$ref": "#/definitions/dto.GetRankResult" }
 		} },
 		"description": "访问令牌调用此接口需包含以下权限。Required permissions for access token. \nrepo-basic-info:r",
 		"path": "/ranks/repo/monthly",
 		"method": "get"
 	},
-	"ranks.repo.weekly.list": {
+	"ranks.repo.weekly.get": {
 		"tags": ["Rank"],
 		"summary": "获取公仓周榜",
 		"operationId": "GetRepoWeeklyRank",
@@ -17129,10 +17120,7 @@ var paths_default = {
 		],
 		"responses": { "200": {
 			"description": "OK",
-			"schema": {
-				"type": "array",
-				"items": { "$ref": "#/definitions/dto.RankDetailWithIncr" }
-			}
+			"schema": { "$ref": "#/definitions/dto.GetRankResult" }
 		} },
 		"description": "访问令牌调用此接口需包含以下权限。Required permissions for access token. \nrepo-basic-info:r",
 		"path": "/ranks/repo/weekly",
@@ -17271,7 +17259,11 @@ var paths_default = {
 		"operationId": "AutoCompleteSource",
 		"parameters": [
 			{
-				"enum": ["Group", "Repo"],
+				"enum": [
+					"Group",
+					"Repo",
+					"RootGroup"
+				],
 				"type": "string",
 				"default": "Group",
 				"description": "Source type",
@@ -21528,7 +21520,7 @@ var paths_default = {
 	"repo.issues.commentFileAssetUploadUrl.post": {
 		"tags": ["Issues"],
 		"summary": "创建一个 Issue 评论的文件上传 url。请使用 put 发起流式上传到 upload_url 地址。上传完成后将 asset_link 添加到创建评论请求的 body 中。 Create a file upload URL for an Issue comment. Please use put to initiate a stream upload to the upload_url address. After uploading, add the asset_link to the body of the create comment request.",
-		"operationId": "PostIssueFileAssetUploadURL",
+		"operationId": "PostIssueCommentFileAssetUploadURL",
 		"parameters": [
 			{
 				"type": "string",
@@ -21573,7 +21565,7 @@ var paths_default = {
 	"repo.issues.commentImageAssetUploadUrl.post": {
 		"tags": ["Issues"],
 		"summary": "创建一个 Issue 评论的图片上传 url。请使用 put 发起流式上传到 upload_url 地址。上传完成后将 asset_link 添加到创建评论请求的 body 中。Create an image upload URL for an Issue comment. Please use put to initiate a stream upload to the upload_url address. After uploading, add the asset_link to the body of the create comment request.",
-		"operationId": "PostIssueImageAssetUploadURL",
+		"operationId": "PostIssueCommentImageAssetUploadURL",
 		"parameters": [
 			{
 				"type": "string",
@@ -22040,6 +22032,44 @@ var paths_default = {
 		"description": "访问令牌调用此接口需包含以下权限。Required permissions for access token. \nrepo-issue:rw",
 		"path": "/{repo}/-/issues/{number}/labels/{name}",
 		"method": "delete"
+	},
+	"repo.issues.property.list": {
+		"description": "返回该Issue已设置的所有自定义属性及其值。\n访问令牌调用此接口需包含以下权限。Required permissions for access token. \nrepo-issue:r",
+		"tags": ["Issues"],
+		"summary": "查询指定Issue的自定义属性列表。Get issue custom properties.",
+		"operationId": "GetIssueProperties",
+		"parameters": [{
+			"type": "string",
+			"description": "不带.git后缀的仓库名称。格式：`组织名称/仓库名称`",
+			"name": "repo",
+			"in": "path",
+			"required": true
+		}, {
+			"type": "integer",
+			"description": "Issue唯一标识编号。",
+			"name": "number",
+			"in": "path",
+			"required": true
+		}],
+		"responses": {
+			"200": {
+				"description": "OK",
+				"schema": {
+					"type": "array",
+					"items": { "$ref": "#/definitions/api.IssueProperty" }
+				}
+			},
+			"404": {
+				"description": "Not Found",
+				"schema": { "$ref": "#/definitions/die.WebError" }
+			},
+			"500": {
+				"description": "Internal Server Error",
+				"schema": { "$ref": "#/definitions/die.WebError" }
+			}
+		},
+		"path": "/{repo}/-/issues/{number}/property",
+		"method": "get"
 	},
 	"repo.issues.property.patch": {
 		"description": "为指定Issue批量更新多个自定义属性的值，要求属性 key 必须已存在，允许部分失败\n访问令牌调用此接口需包含以下权限。Required permissions for access token. \nrepo-issue:rw",
@@ -22552,6 +22582,90 @@ var paths_default = {
 		} },
 		"description": "访问令牌调用此接口需包含以下权限。Required permissions for access token. \nrepo-manage:r",
 		"path": "/{repo}/-/members/{username}/access-level",
+		"method": "get"
+	},
+	"repo.property.list": {
+		"description": "返回该仓库中已设置为可见的自定义属性定义信息（key、显示名称、类型等）。\n访问令牌调用此接口需包含以下权限。Required permissions for access token. \nrepo-issue:r",
+		"tags": ["Issues"],
+		"summary": "查询仓库可见的自定义属性列表。List repository visible custom properties.",
+		"operationId": "ListRepoVisibleProperties",
+		"parameters": [{
+			"type": "string",
+			"description": "不带.git后缀的仓库名称。格式：`组织名称/仓库名称`",
+			"name": "repo",
+			"in": "path",
+			"required": true
+		}],
+		"responses": {
+			"200": {
+				"description": "OK",
+				"schema": {
+					"type": "array",
+					"items": { "$ref": "#/definitions/api.RepoProperty" }
+				}
+			},
+			"404": {
+				"description": "Not Found",
+				"schema": { "$ref": "#/definitions/die.WebError" }
+			},
+			"500": {
+				"description": "Internal Server Error",
+				"schema": { "$ref": "#/definitions/die.WebError" }
+			}
+		},
+		"path": "/{repo}/-/property",
+		"method": "get"
+	},
+	"repo.property.invisible.list": {
+		"description": "分页获取该仓库中已设置为不可见的自定义属性定义信息（key、显示名称、类型），支持关键字搜索。\n访问令牌调用此接口需包含以下权限。Required permissions for access token. \nrepo-issue:r",
+		"tags": ["Issues"],
+		"summary": "查询仓库不可见的自定义属性列表。List repository invisible custom properties.",
+		"operationId": "ListRepoInvisibleProperties",
+		"parameters": [
+			{
+				"type": "string",
+				"description": "不带.git后缀的仓库名称。格式：`组织名称/仓库名称`",
+				"name": "repo",
+				"in": "path",
+				"required": true
+			},
+			{
+				"type": "integer",
+				"description": "页码，默认1。",
+				"name": "page",
+				"in": "query"
+			},
+			{
+				"type": "integer",
+				"description": "每页数量，默认10。",
+				"name": "page_size",
+				"in": "query"
+			},
+			{
+				"type": "string",
+				"description": "搜索关键字。",
+				"name": "keyword",
+				"in": "query"
+			}
+		],
+		"responses": {
+			"200": {
+				"description": "OK",
+				"schema": {
+					"type": "array",
+					"items": { "$ref": "#/definitions/api.RepoProperty" }
+				}
+			},
+			"404": {
+				"description": "Not Found",
+				"schema": { "$ref": "#/definitions/die.WebError" }
+			},
+			"500": {
+				"description": "Internal Server Error",
+				"schema": { "$ref": "#/definitions/die.WebError" }
+			}
+		},
+		"path": "/{repo}/-/property/invisible",
 		"method": "get"
 	},
 	"repo.pullInBatch.list": {
@@ -24903,34 +25017,34 @@ var paths_default = {
 		"parameters": [
 			{
 				"type": "string",
-				"description": "repo",
+				"description": "不带.git后缀的仓库名称。格式：`组织名称/仓库名称`",
 				"name": "slug",
 				"in": "path",
 				"required": true
 			},
 			{
 				"type": "string",
-				"description": "问题规则，用于筛选特定类型的问题",
+				"description": "问题规则，用于筛选特定类型的问题。示例值：`critical-risk`, `LIC_CRITICAL`, `VUL_CRITICAL`",
 				"name": "issue_rule",
 				"in": "query"
 			},
 			{
 				"type": "string",
-				"description": "严重程度，用于筛选特定风险等级的问题",
+				"description": "严重程度，用于筛选特定风险等级的问题。枚举值：`info`, `warning`, `error`, `fatal`, `all`",
 				"name": "risk_level",
 				"in": "query"
 			},
 			{
 				"type": "integer",
 				"default": 1,
-				"description": "分页页码",
+				"description": "分页页码。",
 				"name": "page",
 				"in": "query"
 			},
 			{
 				"type": "integer",
 				"default": 10,
-				"description": "每页条数",
+				"description": "分页页大小。",
 				"name": "page_size",
 				"in": "query"
 			}
@@ -24941,11 +25055,11 @@ var paths_default = {
 				"schema": { "$ref": "#/definitions/api.CodeIssueListData" }
 			},
 			"400": {
-				"description": "请求参数错误",
+				"description": "请求参数错误。",
 				"schema": { "$ref": "#/definitions/die.WebError" }
 			},
 			"500": {
-				"description": "服务器内部错误",
+				"description": "服务器内部错误。",
 				"schema": { "$ref": "#/definitions/die.WebError" }
 			}
 		},
@@ -24959,14 +25073,14 @@ var paths_default = {
 		"operationId": "GetCodeIssueDetailOpenAPI",
 		"parameters": [{
 			"type": "string",
-			"description": "repo",
+			"description": "不带.git后缀的仓库名称。格式：`组织名称/仓库名称`",
 			"name": "slug",
 			"in": "path",
 			"required": true
 		}, {
 			"type": "integer",
 			"format": "int64",
-			"description": "源码扫描问题记录ID",
+			"description": "源码扫描问题记录ID。",
 			"name": "record_id",
 			"in": "path",
 			"required": true
@@ -24977,7 +25091,7 @@ var paths_default = {
 				"schema": { "$ref": "#/definitions/api.CodeIssueDetail" }
 			},
 			"400": {
-				"description": "请求参数错误",
+				"description": "请求参数错误。",
 				"schema": { "$ref": "#/definitions/die.WebError" }
 			},
 			"404": {
@@ -24985,7 +25099,7 @@ var paths_default = {
 				"schema": { "$ref": "#/definitions/die.WebError" }
 			},
 			"500": {
-				"description": "服务器内部错误",
+				"description": "服务器内部错误。",
 				"schema": { "$ref": "#/definitions/die.WebError" }
 			}
 		},
@@ -26351,7 +26465,9 @@ async function main() {
 		const branchPRs = (await client.Pulls.ListPulls({
 			repo,
 			state: "open"
-		})).filter((pr) => pr.head.ref === branch);
+		})).filter((pr) => {
+			return pr.head.ref.replace(/^refs\/heads\//, "") === branch && pr.head.repo.path === repo;
+		});
 		info(`找到 ${branchPRs.length} 个与分支 "${branch}" 关联的 open PR`);
 		for (const pr of branchPRs) {
 			info(`关闭 PR #${pr.number} (head.ref: ${pr.head.ref})`);

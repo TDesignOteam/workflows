@@ -22,7 +22,10 @@ async function main(): Promise<void> {
     // 步骤 1: 查询所有 open PRs
     const prs = await client.Pulls.ListPulls({ repo, state: 'open' })
     // 步骤 2: 过滤并关闭与该分支关联的 PRs（CNB 不允许直接删除有 open PR 的分支）
-    const branchPRs = prs.filter(pr => pr.head.ref === branch)
+    const branchPRs = prs.filter((pr) => {
+      const headRef = pr.head.ref.replace(/^refs\/heads\//, '')
+      return headRef === branch && pr.head.repo.path === repo
+    })
     core.info(`找到 ${branchPRs.length} 个与分支 "${branch}" 关联的 open PR`)
     for (const pr of branchPRs) {
       core.info(`关闭 PR #${pr.number} (head.ref: ${pr.head.ref})`)
