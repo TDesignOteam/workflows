@@ -3,15 +3,14 @@ description: Delete branch from CNB (Gitea) after closing associated PRs
 
 inputs:
   token:
-    description: GitHub token
+    description: CNB API Token
     required: true
-  dry-run:
-    description: Whether to run in dry-run mode
-    required: false
-    default: false
   repo:
     description: Repository name
-    required: false
+    required: true
+  branch:
+    description: Branch name
+    required: true
 
 runs:
   using: node24
