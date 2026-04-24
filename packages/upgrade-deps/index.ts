@@ -39,7 +39,7 @@ interface TriggerContext {
   repo: string
   owner: string
   token: string
-  dry_run: boolean
+  dryRun: boolean
   trigger: string
 }
 
@@ -153,7 +153,7 @@ async function createDepsPr(
     owner: context.owner,
     repo: context.repo,
     token: context.token,
-    dryRun: context.dry_run,
+    dryRun: context.dryRun,
   })
   await githubHelper.createPR(title, branchName, title, baseBranch)
 }
@@ -176,7 +176,7 @@ async function updateDependencies(context: TriggerContext): Promise<void> {
     repo: context.repo,
     owner: context.owner,
     token: context.token,
-    dryRun: context.dry_run,
+    dryRun: context.dryRun,
   })
 
   const baseBranch = await gitHelper.clone()
@@ -220,7 +220,7 @@ async function main(): Promise<void> {
     repo,
     owner,
     token,
-    dry_run: dryRun,
+    dryRun,
     trigger: github.context.eventName,
   })
 }
