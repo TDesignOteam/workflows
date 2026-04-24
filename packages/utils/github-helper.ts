@@ -1,4 +1,3 @@
-import type { RestEndpointMethodTypes } from '@octokit/plugin-rest-endpoint-methods'
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 
@@ -8,112 +7,147 @@ export interface GithubContext {
   token: string
   dryRun: boolean
 }
+
 export class GithubHelper {
   private octokit: ReturnType<typeof github.getOctokit>
   private context: GithubContext
-  private dryRun: boolean
 
   constructor(context: GithubContext) {
     this.context = context
-    this.dryRun = context.dryRun
     this.octokit = github.getOctokit(context.token)
   }
 
-  async getPrData(pr_number: number) {
-    const { data } = await this.octokit.rest.pulls.get({
-      owner: this.context.owner,
-      repo: this.context.repo,
-      pull_number: pr_number,
-    })
-    return data
-  }
+  private async dryRunLog(methodName: string, params: Record<string, unknown>) {
+    if (!this.context.dryRun)
+      return false
 
-  async getIssueData(issue_number: number) {
-    const { data } = await this.octokit.rest.issues.get({
-      owner: this.context.owner,
-      repo: this.context.repo,
-      issue_number,
-    })
-    return data
-  }
-
-  async getIssueList(params?: Omit<RestEndpointMethodTypes['issues']['listForRepo']['parameters'], 'owner' | 'repo'>) {
-    const { data } = await this.octokit.rest.issues.listForRepo({
-      ...params,
-      owner: this.context.owner,
-      repo: this.context.repo,
-    })
-    return data.filter(item => !item?.pull_request)
-  }
-
-  async closeIssue(issue_number: number) {
-    if (this.dryRun) {
-      core.startGroup('dry-run模式, 不运行closeIssue')
-      core.info(`issue_number: ${issue_number}`)
-      core.endGroup()
-      return
+    core.startGroup(`dry-run模式, 不运行${methodName}`)
+    for (const [key, value] of Object.entries(params)) {
+      core.info(`${key}: ${typeof value === 'string' ? value : JSON.stringify(value)}`)
     }
-
-    await this.octokit.rest.issues.update({
-      owner: this.context.owner,
-      repo: this.context.repo,
-      issue_number,
-      state: 'closed',
-    })
+    core.endGroup()
+    return true
   }
 
-  async createPR(title: string, head: string, body: string, base?: string) {
-    if (this.dryRun) {
-      core.startGroup('dry-run模式, 不运行createPR')
-      core.info(`title: ${title}`)
-      core.info(`head: ${head}`)
-      core.info(`base: ${base}`)
-      core.info(`body: ${body}`)
-      core.endGroup()
-      return
-    }
-    const { data } = await this.octokit.rest.pulls.create({
+  private get defaultRepoParams() {
+    return {
       owner: this.context.owner,
       repo: this.context.repo,
-      title,
-      head,
-      base: base || 'develop',
-      body,
-    })
-    return data
+    }
   }
 
-  async addComment(pr_number: number, body: string) {
-    if (this.dryRun) {
-      core.startGroup('dry-run模式, 不运行addComment')
-      core.info(`pr_number: ${pr_number}`)
-      core.info(`body: ${body}`)
-      core.endGroup()
-      return
+  async getPrData(prNumber: number) {
+    try {
+      const { data } = await this.octokit.rest.pulls.get({
+        ...this.defaultRepoParams,
+        pull_number: prNumber,
+      })
+      return data
     }
-    const { data } = await this.octokit.rest.issues.createComment({
-      owner: this.context.owner,
-      repo: this.context.repo,
-      issue_number: pr_number,
-      body,
-    })
-    return data
+    catch (error) {
+      core.error(`获取PR数据失败: ${error}`)
+      throw error
+    }
   }
 
-  async addLabels(pr_number: number, labels: string[]) {
-    if (this.dryRun) {
-      core.startGroup('dry-run模式, 不运行addLabels')
-      core.info(`pr_number: ${pr_number}`)
-      core.info(`labels: ${labels.join(', ')}`)
-      core.endGroup()
-      return
+  async getIssueData(issueNumber: number) {
+    try {
+      const { data } = await this.octokit.rest.issues.get({
+        ...this.defaultRepoParams,
+        issue_number: issueNumber,
+      })
+      return data
     }
-    const { data } = await this.octokit.rest.issues.addLabels({
-      owner: this.context.owner,
-      repo: this.context.repo,
-      issue_number: pr_number,
-      labels,
-    })
-    return data
+    catch (error) {
+      core.error(`获取Issue数据失败: ${error}`)
+      throw error
+    }
+  }
+
+  async getIssueList(params?: Omit<Parameters<typeof this.octokit.rest.issues.listForRepo>[0], 'owner' | 'repo'>) {
+    try {
+      const { data } = await this.octokit.rest.issues.listForRepo({
+        ...params,
+        ...this.defaultRepoParams,
+      })
+      return data.filter(item => !item?.pull_request)
+    }
+    catch (error) {
+      core.error(`获取Issue列表失败: ${error}`)
+      throw error
+    }
+  }
+
+  async closeIssue(issueNumber: number) {
+    if (await this.dryRunLog('closeIssue', { issueNumber }))
+      return
+
+    try {
+      await this.octokit.rest.issues.update({
+        ...this.defaultRepoParams,
+        issue_number: issueNumber,
+        state: 'closed',
+      })
+    }
+    catch (error) {
+      core.error(`关闭Issue失败: ${error}`)
+      throw error
+    }
+  }
+
+  async createPR(title: string, head: string, body: string, base = 'develop') {
+    if (await this.dryRunLog('createPR', { title, head, base, body }))
+      return
+
+    try {
+      const { data } = await this.octokit.rest.pulls.create({
+        ...this.defaultRepoParams,
+        title,
+        head,
+        base,
+        body,
+      })
+      return data
+    }
+    catch (error) {
+      core.error(`创建PR失败: ${error}`)
+      throw error
+    }
+  }
+
+  async addComment(issueNumber: number, body: string) {
+    if (await this.dryRunLog('addComment', { issueNumber, body }))
+      return
+
+    try {
+      const { data } = await this.octokit.rest.issues.createComment({
+        ...this.defaultRepoParams,
+        issue_number: issueNumber,
+        body,
+      })
+      return data
+    }
+    catch (error) {
+      core.error(`添加评论失败: ${error}`)
+      throw error
+    }
+  }
+
+  async addLabels(issueNumber: number, labels: string[]) {
+    if (await this.dryRunLog('addLabels', { issueNumber, labels: labels.join(', ') }))
+      return
+
+    try {
+      const { data } = await this.octokit.rest.issues.addLabels({
+        ...this.defaultRepoParams,
+        issue_number: issueNumber,
+        labels,
+      })
+      return data
+    }
+    catch (error) {
+      core.error(`添加标签失败: ${error}`)
+      throw error
+    }
   }
 }
