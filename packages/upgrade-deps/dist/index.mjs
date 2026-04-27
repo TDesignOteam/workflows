@@ -1,4 +1,6 @@
 import { createRequire } from "node:module";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
 import * as os$1 from "os";
 import os, { EOL } from "os";
 import * as fs$3 from "fs";
@@ -9,8 +11,6 @@ import { fileURLToPath } from "node:url";
 import { StringDecoder } from "string_decoder";
 import * as child from "child_process";
 import { setTimeout as setTimeout$1 } from "timers";
-import * as fs from "node:fs/promises";
-import * as path from "node:path";
 //#region \0rolldown/runtime.js
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -30053,13 +30053,13 @@ var GithubHelper = class {
 	}
 };
 //#endregion
-//#region index.ts
-const BRANCH_PATTERNS = { DEPS: (deps) => {
+//#region main.ts
+function getBranchName(deps) {
 	return `chore(deps): upgrade-${deps.map((d) => `${d.name}-${d.version}`).join("-")}`;
-} };
-const PR_TITLES = { DEPS: (deps) => {
+}
+function getPrTitle(deps) {
 	return `chore: upgrade ${deps.map((d) => `${d.name} to ${d.version}`).join(", ")}`;
-} };
+}
 const ERROR_MESSAGES = { MISSING_DEPS: "Missing deps input" };
 var ActionError = class extends Error {
 	constructor(message, context) {
@@ -30068,6 +30068,11 @@ var ActionError = class extends Error {
 		if (context) error(`${message} ${JSON.stringify(context)}`);
 	}
 };
+function getUpdatedVersion(currentVersion, newVersion) {
+	const prefix = currentVersion[0];
+	if (prefix && (prefix === "^" || prefix === "~")) return `${prefix}${newVersion}`;
+	return newVersion;
+}
 async function updatePnpmCatalog(deps, repoPath) {
 	const workspaceFile = path.join(repoPath, "pnpm-workspace.yaml");
 	let manifestContent;
@@ -30084,22 +30089,17 @@ async function updatePnpmCatalog(deps, repoPath) {
 	}
 	const updatedCatalogs = {};
 	if (manifest.catalog) {
-		updatedCatalogs[""] = {};
-		for (const dep of deps) if (dep.name in manifest.catalog) {
-			const prefix = manifest.catalog[dep.name][0];
-			if (prefix === "^" || prefix === "~") updatedCatalogs[""][dep.name] = `${prefix}${dep.version}`;
-			else updatedCatalogs[""][dep.name] = dep.version;
-		}
+		const defaultCatalogUpdates = {};
+		for (const dep of deps) if (dep.name in manifest.catalog) defaultCatalogUpdates[dep.name] = getUpdatedVersion(manifest.catalog[dep.name], dep.version);
+		if (Object.keys(defaultCatalogUpdates).length > 0) updatedCatalogs[""] = defaultCatalogUpdates;
 	}
 	if (manifest.catalogs) for (const [catalogName, catalog] of Object.entries(manifest.catalogs)) {
-		updatedCatalogs[catalogName] = {};
-		for (const dep of deps) if (dep.name in catalog) {
-			const prefix = catalog[dep.name][0];
-			if (prefix === "^" || prefix === "~") updatedCatalogs[catalogName][dep.name] = `${prefix}${dep.version}`;
-			else updatedCatalogs[catalogName][dep.name] = dep.version;
-		}
+		const catalogUpdates = {};
+		const typedCatalog = catalog;
+		for (const dep of deps) if (dep.name in typedCatalog) catalogUpdates[dep.name] = getUpdatedVersion(typedCatalog[dep.name], dep.version);
+		if (Object.keys(catalogUpdates).length > 0) updatedCatalogs[catalogName] = catalogUpdates;
 	}
-	if (!Object.values(updatedCatalogs).some((catalog) => Object.keys(catalog).length > 0)) {
+	if (!(Object.keys(updatedCatalogs).length > 0)) {
 		info(`No matching dependencies found in catalog, skipping update`);
 		return;
 	}
@@ -30143,23 +30143,23 @@ async function createDepsPr(title, branchName, baseBranch, context) {
 		owner: context.owner,
 		repo: context.repo,
 		token: context.token,
-		dryRun: context.dry_run
+		dryRun: context.dryRun
 	}).createPR(title, branchName, title, baseBranch);
 }
 async function updateDependencies(context) {
 	const packageManager = getInput("package-manager") || "npm";
 	const deps = getMultilineInput("deps", { required: true });
-	if (!deps || deps.length === 0) throw new ActionError(ERROR_MESSAGES.MISSING_DEPS, { trigger: context.trigger });
+	if (!deps.length) throw new ActionError(ERROR_MESSAGES.MISSING_DEPS, { trigger: context.trigger });
 	const depInfos = await getPkgLatestVersion(deps);
 	if (packageManager !== "npm") await corepackEnable();
 	const gitHelper = new GitHelper({
 		repo: context.repo,
 		owner: context.owner,
 		token: context.token,
-		dryRun: context.dry_run
+		dryRun: context.dryRun
 	});
 	const baseBranch = await gitHelper.clone();
-	const branchName = BRANCH_PATTERNS.DEPS(depInfos);
+	const branchName = getBranchName(depInfos);
 	await gitHelper.createBranch(branchName);
 	if (packageManager === "pnpm") await updatePnpmCatalog(depInfos, context.repo);
 	await updatePackageDependencies(packageManager, deps, context.repo);
@@ -30167,7 +30167,7 @@ async function updateDependencies(context) {
 		info("No changes to commit");
 		return;
 	}
-	const title = PR_TITLES.DEPS(depInfos);
+	const title = getPrTitle(depInfos);
 	await gitHelper.commit(title);
 	await gitHelper.push(branchName);
 	await createDepsPr(title, branchName, baseBranch, context);
@@ -30175,24 +30175,22 @@ async function updateDependencies(context) {
 async function main() {
 	const repo = getInput("repo") || context.repo.repo;
 	const owner = getInput("owner") || context.repo.owner;
-	const token = getInput("token", { required: true }) || "";
-	const dryRun = getBooleanInput("dry-run") || false;
-	const packageManager = getInput("package-manager") || "npm";
-	const deps = getMultilineInput("deps", { required: true });
+	const token = getInput("token", { required: true });
+	const dryRun = getBooleanInput("dry-run");
 	startGroup("upgrade-deps");
 	info(`repo: ${repo}`);
 	info(`owner: ${owner}`);
-	info(`packageManager: ${packageManager}`);
-	info(`deps: ${JSON.stringify(deps)}`);
 	endGroup();
 	await updateDependencies({
 		repo,
 		owner,
 		token,
-		dry_run: dryRun,
+		dryRun,
 		trigger: context.eventName
 	});
 }
+//#endregion
+//#region index.ts
 main();
 //#endregion
 export {};
