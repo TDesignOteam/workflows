@@ -8,7 +8,7 @@ import { readWorkspaceManifest } from '@pnpm/workspace.read-manifest'
 import { GitHelper, GithubHelper } from '@workflows/utils'
 
 function getBranchName(deps: Array<{ name: string, version: string }>): string {
-  const depsSlug = deps.map(d => `${d.name}-${d.version}`).join('-')
+  const depsSlug = deps.map(d => `${d.name.replace(/[@:\/\\<>|\*\?\[\]^~`']/g, '-')}-${d.version}`).join('-')
   return `chore(deps): upgrade-${depsSlug}`
 }
 
