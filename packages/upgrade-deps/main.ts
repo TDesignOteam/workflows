@@ -157,7 +157,7 @@ async function createDepsPr(
 
 export async function updateDependencies(context: TriggerContext): Promise<void> {
   const packageManager = core.getInput('package-manager') || 'npm'
-  const deps = core.getMultilineInput('deps', { required: true })
+  const deps = core.getMultilineInput('deps', { required: true,trimWhitespace:true })
   core.info(`deps: ${JSON.stringify(deps)}`)
 
   if (!deps.length) {
@@ -165,6 +165,7 @@ export async function updateDependencies(context: TriggerContext): Promise<void>
   }
 
   const depInfos = await getPkgLatestVersion(deps)
+  core.info(`depInfos: ${JSON.stringify(depInfos)}`)
 
   if (packageManager !== 'npm') {
     await corepackEnable()
