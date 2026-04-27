@@ -4,7 +4,7 @@ on:
     branches:
       - main
     paths:
-      - packages/test-upgrade-deps/dist/*
+      - packages/upgrade-deps/dist/*
 
 jobs:
   test:
