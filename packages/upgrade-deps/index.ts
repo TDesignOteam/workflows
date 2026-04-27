@@ -7,18 +7,14 @@ import { updateWorkspaceManifest } from '@pnpm/workspace.manifest-writer'
 import { readWorkspaceManifest } from '@pnpm/workspace.read-manifest'
 import { GitHelper, GithubHelper } from '@workflows/utils'
 
-const BRANCH_PATTERNS = {
-  DEPS: (deps: Array<{ name: string, version: string }>) => {
-    const depsSlug = deps.map(d => `${d.name}-${d.version}`).join('-')
-    return `chore(deps): upgrade-${depsSlug}`
-  },
+function getBranchName(deps: Array<{ name: string, version: string }>): string {
+  const depsSlug = deps.map(d => `${d.name}-${d.version}`).join('-')
+  return `chore(deps): upgrade-${depsSlug}`
 }
 
-const PR_TITLES = {
-  DEPS: (deps: Array<{ name: string, version: string }>) => {
-    const depList = deps.map(d => `${d.name} to ${d.version}`).join(', ')
-    return `chore: upgrade ${depList}`
-  },
+function getPrTitle(deps: Array<{ name: string, version: string }>): string {
+  const depList = deps.map(d => `${d.name} to ${d.version}`).join(', ')
+  return `chore: upgrade ${depList}`
 }
 
 const ERROR_MESSAGES = {
@@ -48,14 +44,21 @@ interface DependencyInfo {
   version: string
 }
 
+function getUpdatedVersion(currentVersion: string, newVersion: string): string {
+  const prefix = currentVersion[0]
+  if (prefix && (prefix === '^' || prefix === '~')) {
+    return `${prefix}${newVersion}`
+  }
+  return newVersion
+}
+
 async function updatePnpmCatalog(deps: DependencyInfo[], repoPath: string): Promise<void> {
   const workspaceFile = path.join(repoPath, 'pnpm-workspace.yaml')
 
   let manifestContent: string
   try {
     manifestContent = await fs.readFile(workspaceFile, 'utf-8')
-  }
-  catch {
+  } catch {
     core.info(`pnpm-workspace.yaml not found in ${repoPath}, skipping catalog update`)
     return
   }
@@ -69,48 +72,39 @@ async function updatePnpmCatalog(deps: DependencyInfo[], repoPath: string): Prom
   const updatedCatalogs: Record<string, Record<string, string>> = {}
 
   if (manifest.catalog) {
-    updatedCatalogs[''] = {}
+    const defaultCatalogUpdates: Record<string, string> = {}
     for (const dep of deps) {
       if (dep.name in manifest.catalog) {
-        const current = manifest.catalog[dep.name] as string
-        const prefix = current[0]
-        if (prefix === '^' || prefix === '~') {
-          updatedCatalogs[''][dep.name] = `${prefix}${dep.version}`
-        }
-        else {
-          updatedCatalogs[''][dep.name] = dep.version
-        }
+        defaultCatalogUpdates[dep.name] = getUpdatedVersion(manifest.catalog[dep.name] as string, dep.version)
       }
+    }
+    if (Object.keys(defaultCatalogUpdates).length > 0) {
+      updatedCatalogs[''] = defaultCatalogUpdates
     }
   }
 
   if (manifest.catalogs) {
     for (const [catalogName, catalog] of Object.entries(manifest.catalogs)) {
-      updatedCatalogs[catalogName] = {}
+      const catalogUpdates: Record<string, string> = {}
+      const typedCatalog = catalog as Record<string, string>
       for (const dep of deps) {
-        if (dep.name in (catalog as Record<string, string>)) {
-          const current = (catalog as Record<string, string>)[dep.name]
-          const prefix = current[0]
-          if (prefix === '^' || prefix === '~') {
-            updatedCatalogs[catalogName][dep.name] = `${prefix}${dep.version}`
-          }
-          else {
-            updatedCatalogs[catalogName][dep.name] = dep.version
-          }
+        if (dep.name in typedCatalog) {
+          catalogUpdates[dep.name] = getUpdatedVersion(typedCatalog[dep.name], dep.version)
         }
+      }
+      if (Object.keys(catalogUpdates).length > 0) {
+        updatedCatalogs[catalogName] = catalogUpdates
       }
     }
   }
 
-  const hasUpdates = Object.values(updatedCatalogs).some(catalog => Object.keys(catalog).length > 0)
+  const hasUpdates = Object.keys(updatedCatalogs).length > 0
   if (!hasUpdates) {
     core.info(`No matching dependencies found in catalog, skipping update`)
     return
   }
 
-  await updateWorkspaceManifest(workspaceFile, {
-    updatedCatalogs,
-  })
+  await updateWorkspaceManifest(workspaceFile, { updatedCatalogs })
   core.info(`Updated pnpm catalog in pnpm-workspace.yaml`)
 }
 
@@ -162,7 +156,7 @@ async function updateDependencies(context: TriggerContext): Promise<void> {
   const packageManager = core.getInput('package-manager') || 'npm'
   const deps = core.getMultilineInput('deps', { required: true })
 
-  if (!deps || deps.length === 0) {
+  if (!deps.length) {
     throw new ActionError(ERROR_MESSAGES.MISSING_DEPS, { trigger: context.trigger })
   }
 
@@ -180,7 +174,7 @@ async function updateDependencies(context: TriggerContext): Promise<void> {
   })
 
   const baseBranch = await gitHelper.clone()
-  const branchName = BRANCH_PATTERNS.DEPS(depInfos)
+  const branchName = getBranchName(depInfos)
   await gitHelper.createBranch(branchName)
 
   if (packageManager === 'pnpm') {
@@ -189,12 +183,12 @@ async function updateDependencies(context: TriggerContext): Promise<void> {
 
   await updatePackageDependencies(packageManager, deps, context.repo)
 
-  if (!await gitHelper.isNeedCommit()) {
+  if (!(await gitHelper.isNeedCommit())) {
     core.info('No changes to commit')
     return
   }
 
-  const title = PR_TITLES.DEPS(depInfos)
+  const title = getPrTitle(depInfos)
   await gitHelper.commit(title)
   await gitHelper.push(branchName)
 
@@ -204,8 +198,8 @@ async function updateDependencies(context: TriggerContext): Promise<void> {
 async function main(): Promise<void> {
   const repo = core.getInput('repo') || github.context.repo.repo
   const owner = core.getInput('owner') || github.context.repo.owner
-  const token = core.getInput('token', { required: true }) || ''
-  const dryRun = core.getBooleanInput('dry-run') || false
+  const token = core.getInput('token', { required: true })
+  const dryRun = core.getBooleanInput('dry-run')
   const packageManager = core.getInput('package-manager') || 'npm'
   const deps = core.getMultilineInput('deps', { required: true })
 
