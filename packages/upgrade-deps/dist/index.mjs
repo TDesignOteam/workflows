@@ -16652,14 +16652,6 @@ function error(message, properties = {}) {
 	issueCommand("error", toCommandProperties(properties), message instanceof Error ? message.toString() : message);
 }
 /**
-* Adds a warning issue
-* @param message warning issue message. Errors will be converted to string via toString()
-* @param properties optional properties to add to the annotation.
-*/
-function warning(message, properties = {}) {
-	issueCommand("warning", toCommandProperties(properties), message instanceof Error ? message.toString() : message);
-}
-/**
 * Writes info to log with console.log.
 * @param message info message
 */
@@ -30189,14 +30181,14 @@ async function updatePnpmCatalog(deps, repoPath) {
 async function getPkgLatestVersion(pkgNames) {
 	const results = [];
 	for (const pkg of pkgNames) {
-		const response = await fetch(`https://registry.npmjs.org/${pkg}/latest`);
+		const response = await fetch(`https://registry.npmjs.org/${encodeURIComponent(pkg)}/latest`);
 		if (!response.ok) {
-			warning(`Failed to get ${pkg} info from npm registry, status code: ${response.status}`);
+			error(`Failed to get ${pkg} info from npm registry, status code: ${response.status}`);
 			continue;
 		}
 		const latest = (await response.json())["version"];
 		if (!latest) {
-			warning(`No version found for ${pkg}`);
+			error(`No version found for ${pkg}`);
 			continue;
 		}
 		info(`Latest version of ${pkg} is ${latest}`);
@@ -30237,7 +30229,7 @@ async function updateDependencies(context) {
 	const deps = getMultilineInput("deps", {
 		required: true,
 		trimWhitespace: true
-	});
+	}).map((dep) => dep.replace(/^['"]|['"]$/g, ""));
 	info(`deps: ${JSON.stringify(deps)}`);
 	if (!deps.length) throw new ActionError(ERROR_MESSAGES.MISSING_DEPS, { trigger: context.trigger });
 	const depInfos = await getPkgLatestVersion(deps);

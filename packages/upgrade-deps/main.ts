@@ -115,18 +115,18 @@ async function getPkgLatestVersion(pkgNames: string[]): Promise<DependencyInfo[]
     const encodedPkgName = encodeURIComponent(pkg)
     const response = await fetch(`https://registry.npmjs.org/${encodedPkgName}/latest`)
     if (!response.ok) {
-      core.error(`Failed to get ${encodedPkgName} info from npm registry, status code: ${response.status}`)
+      core.error(`Failed to get ${pkg} info from npm registry, status code: ${response.status}`)
       continue
     }
     const info = await response.json() as { 'version'?: string }
     const latest = info['version']
     if (!latest) {
-      core.error(`No version found for ${encodedPkgName}`)
+      core.error(`No version found for ${pkg}`)
       continue
     }
-    core.info(`Latest version of ${encodedPkgName} is ${latest}`)
+    core.info(`Latest version of ${pkg} is ${latest}`)
     results.push({
-      name: encodedPkgName,
+      name: pkg,
       version: latest,
     })
   }
@@ -168,6 +168,7 @@ async function createDepsPr(
 export async function updateDependencies(context: TriggerContext): Promise<void> {
   const packageManager = core.getInput('package-manager') || 'npm'
   const deps = core.getMultilineInput('deps', { required: true,trimWhitespace:true })
+    .map(dep => dep.replace(/^['"]|['"]$/g, ''))
   core.info(`deps: ${JSON.stringify(deps)}`)
 
   if (!deps.length) {
