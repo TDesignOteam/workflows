@@ -1,2 +1,2 @@
-export * from './git-helper'
 export * from './github-helper'
+export * from './git-helper'

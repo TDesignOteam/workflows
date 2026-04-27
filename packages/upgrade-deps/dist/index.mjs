@@ -16652,6 +16652,14 @@ function error(message, properties = {}) {
 	issueCommand("error", toCommandProperties(properties), message instanceof Error ? message.toString() : message);
 }
 /**
+* Adds a warning issue
+* @param message warning issue message. Errors will be converted to string via toString()
+* @param properties optional properties to add to the annotation.
+*/
+function warning(message, properties = {}) {
+	issueCommand("warning", toCommandProperties(properties), message instanceof Error ? message.toString() : message);
+}
+/**
 * Writes info to log with console.log.
 * @param message info message
 */
@@ -29835,170 +29843,9 @@ var require_lib = /* @__PURE__ */ __commonJSMin(((exports) => {
 	}
 }));
 //#endregion
-//#region ../utils/constants.ts
+//#region ../utils/github-helper.ts
 var import_lib$1 = require_lib$4();
 var import_lib = require_lib();
-const GIT_CONFIG = {
-	USER_NAME: "tdesign-bot",
-	USER_EMAIL: "tdesign@tencent.com"
-};
-//#endregion
-//#region ../utils/git-helper.ts
-var GitHelper = class {
-	token;
-	owner;
-	repo;
-	repoPath;
-	dryRun;
-	constructor(context) {
-		this.token = context.token;
-		this.owner = context.owner;
-		this.repo = context.repo;
-		this.dryRun = context.dryRun;
-		this.repoPath = context.repoPath ?? `./${context.repo}`;
-	}
-	isDryRun() {
-		return this.dryRun;
-	}
-	logDryRunInfo(action, details) {
-		if (this.isDryRun()) info(`[DRY-RUN] ${details ? `${action}: ${JSON.stringify(details)}` : action}`);
-	}
-	async initConfig() {
-		await exec("git", [
-			"config",
-			"--global",
-			"user.name",
-			GIT_CONFIG.USER_NAME
-		]);
-		await exec("git", [
-			"config",
-			"--global",
-			"user.email",
-			GIT_CONFIG.USER_EMAIL
-		]);
-		if (this.token == "test") return;
-		await exec("git", [
-			"config",
-			"--global",
-			`url.https://${this.token}@github.com/.insteadOf`,
-			"https://github.com/"
-		]);
-	}
-	async getConflictFiles() {
-		const { stdout } = await getExecOutput("git", [
-			"diff",
-			"--name-only",
-			"--diff-filter=U"
-		], { cwd: this.repoPath });
-		return stdout.split("\n").map((line) => line.trim()).filter(Boolean);
-	}
-	get repoUrl() {
-		return `https://github.com/${this.owner}/${this.repo}.git`;
-	}
-	async clone() {
-		await this.initConfig();
-		info(this.repoUrl);
-		await exec("ls", ["-al"]);
-		await exec("git", [
-			"clone",
-			this.repoUrl,
-			this.repoPath
-		]);
-		await exec("ls", ["-al"]);
-		const { stdout } = await getExecOutput("git", [
-			"rev-parse",
-			"--abbrev-ref",
-			"HEAD"
-		], { cwd: this.repoPath });
-		info(`当前分支: ${stdout.trim()}`);
-		return stdout.trim();
-	}
-	async createBranch(branch) {
-		await exec("git", [
-			"checkout",
-			"-b",
-			branch
-		], { cwd: this.repoPath });
-	}
-	async checkoutBranch(branch) {
-		await exec("git", ["checkout", branch], { cwd: this.repoPath });
-	}
-	async checkoutPr(prNumber) {
-		await exec("git", [
-			"fetch",
-			"origin",
-			`pull/${prNumber}/head:pr-${prNumber}`
-		], { cwd: this.repoPath });
-		await exec("git", ["checkout", `pr-${prNumber}`], { cwd: this.repoPath });
-	}
-	async addRemote(name, url) {
-		await exec("git", [
-			"remote",
-			"add",
-			name,
-			url
-		], { cwd: this.repoPath });
-		await exec("git", ["fetch", name], { cwd: this.repoPath });
-	}
-	async setUpstream(remote, branch) {
-		await exec("git", [
-			"branch",
-			"--set-upstream-to",
-			`${remote}/${branch}`
-		], { cwd: this.repoPath });
-	}
-	async commit(message) {
-		await exec("git", [
-			"commit",
-			"-am",
-			message,
-			"--no-verify"
-		], { cwd: this.repoPath });
-	}
-	async push(branch, forkOwner) {
-		if (this.isDryRun()) {
-			this.logDryRunInfo("git push", {
-				branch,
-				forkOwner
-			});
-			return;
-		}
-		if (forkOwner) await exec("git", [
-			"push",
-			forkOwner,
-			`HEAD:${branch}`
-		], { cwd: this.repoPath });
-		else await exec("git", [
-			"push",
-			"origin",
-			branch
-		], { cwd: this.repoPath });
-	}
-	async initSubmodule() {
-		await exec("git", [
-			"submodule",
-			"update",
-			"--init",
-			"--recursive"
-		], { cwd: this.repoPath });
-	}
-	async updateSubmodule() {
-		await exec("git", [
-			"submodule",
-			"update",
-			"--remote"
-		], { cwd: this.repoPath });
-	}
-	async isNeedCommit() {
-		const { stdout } = await getExecOutput("git", ["status", "--porcelain"], { cwd: this.repoPath });
-		return stdout.trim() !== "";
-	}
-	async printDiff() {
-		await exec("git", ["diff"], { cwd: this.repoPath });
-	}
-};
-//#endregion
-//#region ../utils/github-helper.ts
 var GithubHelper = class {
 	octokit;
 	context;
@@ -30125,6 +29972,167 @@ var GithubHelper = class {
 	}
 };
 //#endregion
+//#region ../utils/constants.ts
+const GIT_CONFIG = {
+	USER_NAME: "tdesign-bot",
+	USER_EMAIL: "tdesign@tencent.com"
+};
+//#endregion
+//#region ../utils/git-helper.ts
+var GitHelper = class {
+	token;
+	owner;
+	repo;
+	repoPath;
+	dryRun;
+	constructor(context) {
+		this.token = context.token;
+		this.owner = context.owner;
+		this.repo = context.repo;
+		this.dryRun = context.dryRun;
+		this.repoPath = context.repoPath ?? `./${context.repo}`;
+	}
+	isDryRun() {
+		return this.dryRun;
+	}
+	logDryRunInfo(action, details) {
+		if (this.isDryRun()) info(`[DRY-RUN] ${details ? `${action}: ${JSON.stringify(details)}` : action}`);
+	}
+	async initConfig() {
+		await exec("git", [
+			"config",
+			"--global",
+			"user.name",
+			GIT_CONFIG.USER_NAME
+		]);
+		await exec("git", [
+			"config",
+			"--global",
+			"user.email",
+			GIT_CONFIG.USER_EMAIL
+		]);
+		if (this.token === "test") return;
+		await exec("git", [
+			"config",
+			"--global",
+			`url.https://${this.token}@github.com/.insteadOf`,
+			"https://github.com/"
+		]);
+	}
+	async getConflictFiles() {
+		const { stdout } = await getExecOutput("git", [
+			"diff",
+			"--name-only",
+			"--diff-filter=U"
+		], { cwd: this.repoPath });
+		return stdout.split("\n").map((line) => line.trim()).filter(Boolean);
+	}
+	get repoUrl() {
+		return `https://github.com/${this.owner}/${this.repo}.git`;
+	}
+	async clone() {
+		await this.initConfig();
+		info(this.repoUrl);
+		await exec("ls", ["-al"]);
+		await exec("git", [
+			"clone",
+			this.repoUrl,
+			this.repoPath
+		]);
+		await exec("ls", ["-al"]);
+		const { stdout } = await getExecOutput("git", [
+			"rev-parse",
+			"--abbrev-ref",
+			"HEAD"
+		], { cwd: this.repoPath });
+		info(`当前分支: ${stdout.trim()}`);
+		return stdout.trim();
+	}
+	async createBranch(branch) {
+		await exec("git", [
+			"checkout",
+			"-b",
+			branch
+		], { cwd: this.repoPath });
+	}
+	async checkoutBranch(branch) {
+		await exec("git", ["checkout", branch], { cwd: this.repoPath });
+	}
+	async checkoutPr(prNumber) {
+		await exec("git", [
+			"fetch",
+			"origin",
+			`pull/${prNumber}/head:pr-${prNumber}`
+		], { cwd: this.repoPath });
+		await exec("git", ["checkout", `pr-${prNumber}`], { cwd: this.repoPath });
+	}
+	async addRemote(name, url) {
+		await exec("git", [
+			"remote",
+			"add",
+			name,
+			url
+		], { cwd: this.repoPath });
+		await exec("git", ["fetch", name], { cwd: this.repoPath });
+	}
+	async setUpstream(remote, branch) {
+		await exec("git", [
+			"branch",
+			"--set-upstream-to",
+			`${remote}/${branch}`
+		], { cwd: this.repoPath });
+	}
+	async commit(message) {
+		await exec("git", [
+			"commit",
+			"-am",
+			message,
+			"--no-verify"
+		], { cwd: this.repoPath });
+	}
+	async push(branch, forkOwner) {
+		if (this.isDryRun()) {
+			this.logDryRunInfo("git push", {
+				branch,
+				forkOwner
+			});
+			return;
+		}
+		if (forkOwner) await exec("git", [
+			"push",
+			forkOwner,
+			`HEAD:${branch}`
+		], { cwd: this.repoPath });
+		else await exec("git", [
+			"push",
+			"origin",
+			branch
+		], { cwd: this.repoPath });
+	}
+	async initSubmodule() {
+		await exec("git", [
+			"submodule",
+			"update",
+			"--init",
+			"--recursive"
+		], { cwd: this.repoPath });
+	}
+	async updateSubmodule() {
+		await exec("git", [
+			"submodule",
+			"update",
+			"--remote"
+		], { cwd: this.repoPath });
+	}
+	async isNeedCommit() {
+		const { stdout } = await getExecOutput("git", ["status", "--porcelain"], { cwd: this.repoPath });
+		return stdout.trim() !== "";
+	}
+	async printDiff() {
+		await exec("git", ["diff"], { cwd: this.repoPath });
+	}
+};
+//#endregion
 //#region main.ts
 function getBranchName(deps) {
 	return `chore(deps): upgrade-${deps.map((d) => `${d.name}-${d.version}`).join("-")}`;
@@ -30181,16 +30189,20 @@ async function updatePnpmCatalog(deps, repoPath) {
 async function getPkgLatestVersion(pkgNames) {
 	const results = [];
 	for (const pkg of pkgNames) {
-		const { stdout } = await getExecOutput("npm", [
-			"view",
-			pkg,
-			"version"
-		]);
-		const version = stdout.trim();
-		info(`Latest version of ${pkg} is ${version}`);
+		const response = await fetch(`https://registry.npmjs.org/${pkg}/latest`);
+		if (!response.ok) {
+			warning(`Failed to get ${pkg} info from npm registry, status code: ${response.status}`);
+			continue;
+		}
+		const latest = (await response.json())["version"];
+		if (!latest) {
+			warning(`No version found for ${pkg}`);
+			continue;
+		}
+		info(`Latest version of ${pkg} is ${latest}`);
 		results.push({
 			name: pkg,
-			version
+			version: latest
 		});
 	}
 	return results;
@@ -30222,10 +30234,14 @@ async function createDepsPr(title, branchName, baseBranch, context) {
 }
 async function updateDependencies(context) {
 	const packageManager = getInput("package-manager") || "npm";
-	const deps = getMultilineInput("deps", { required: true });
+	const deps = getMultilineInput("deps", {
+		required: true,
+		trimWhitespace: true
+	});
 	info(`deps: ${JSON.stringify(deps)}`);
 	if (!deps.length) throw new ActionError(ERROR_MESSAGES.MISSING_DEPS, { trigger: context.trigger });
 	const depInfos = await getPkgLatestVersion(deps);
+	info(`depInfos: ${JSON.stringify(depInfos)}`);
 	if (packageManager !== "npm") await corepackEnable();
 	const gitHelper = new GitHelper({
 		repo: context.repo,
