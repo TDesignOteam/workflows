@@ -115,13 +115,13 @@ async function getPkgLatestVersion(pkgNames: string[]): Promise<DependencyInfo[]
     const encodedPkgName = encodeURIComponent(pkg)
     const response = await fetch(`https://registry.npmjs.org/${encodedPkgName}/latest`)
     if (!response.ok) {
-      core.warning(`Failed to get ${encodedPkgName} info from npm registry, status code: ${response.status}`)
+      core.error(`Failed to get ${encodedPkgName} info from npm registry, status code: ${response.status}`)
       continue
     }
     const info = await response.json() as { 'version'?: string }
     const latest = info['version']
     if (!latest) {
-      core.warning(`No version found for ${encodedPkgName}`)
+      core.error(`No version found for ${encodedPkgName}`)
       continue
     }
     core.info(`Latest version of ${encodedPkgName} is ${latest}`)
