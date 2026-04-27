@@ -39,7 +39,7 @@ export class GitHelper {
   private async initConfig(): Promise<void> {
     await exec('git', ['config', '--global', 'user.name', GIT_CONFIG.USER_NAME])
     await exec('git', ['config', '--global', 'user.email', GIT_CONFIG.USER_EMAIL])
-    if (this.token == 'test') {
+    if (this.token === 'test') {
       return
     }
     await exec('git', ['config', '--global', `url.https://${this.token}@github.com/.insteadOf`, 'https://github.com/'])

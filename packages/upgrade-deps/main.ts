@@ -159,7 +159,7 @@ export async function updateDependencies(context: TriggerContext): Promise<void>
   const packageManager = core.getInput('package-manager') || 'npm'
   const deps = core.getMultilineInput('deps', { required: true })
   core.info(`deps: ${JSON.stringify(deps)}`)
-  
+
   if (!deps.length) {
     throw new ActionError(ERROR_MESSAGES.MISSING_DEPS, { trigger: context.trigger })
   }
