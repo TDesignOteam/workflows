@@ -113,9 +113,11 @@ async function getPkgLatestVersion(pkgNames: string[]): Promise<DependencyInfo[]
   const results: DependencyInfo[] = []
   for (const pkg of pkgNames) {
     const { stdout } = await exec.getExecOutput('npm', ['view', pkg, 'version'])
+    const version = stdout.trim()
+    core.info(`Latest version of ${pkg} is ${version}`)
     results.push({
       name: pkg,
-      version: stdout.trim(),
+      version,
     })
   }
   return results
