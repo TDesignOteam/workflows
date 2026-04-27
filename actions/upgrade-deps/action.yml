@@ -1,0 +1,28 @@
+name: Upgrade Dependencies
+description: Upgrade dependencies to specified versions
+
+inputs:
+  token:
+    description: GitHub token
+    required: true
+  dry-run:
+    description: Whether to run in dry-run mode
+    required: false
+    default: false
+  repo:
+    description: Repository name
+    required: false
+  owner:
+    description: Repository owner
+    required: false
+  package-manager:
+    description: Package manager to use (npm, yarn, pnpm)
+    required: false
+    default: npm
+  deps:
+    description: Dependencies to upgrade in format "package1@version1 package2@version2"
+    required: true
+
+runs:
+  using: node24
+  main: ../../packages/upgrade-deps/dist/index.mjs
