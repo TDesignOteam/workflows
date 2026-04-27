@@ -30229,7 +30229,7 @@ async function updateDependencies(context) {
 	const deps = getMultilineInput("deps", {
 		required: true,
 		trimWhitespace: true
-	}).map((dep) => dep.replace(/^['"]|['"]$/g, ""));
+	});
 	info(`deps: ${JSON.stringify(deps)}`);
 	if (!deps.length) throw new ActionError(ERROR_MESSAGES.MISSING_DEPS, { trigger: context.trigger });
 	const depInfos = await getPkgLatestVersion(deps);

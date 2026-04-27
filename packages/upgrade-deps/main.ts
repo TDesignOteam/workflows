@@ -167,7 +167,6 @@ async function createDepsPr(
 export async function updateDependencies(context: TriggerContext): Promise<void> {
   const packageManager = core.getInput('package-manager') || 'npm'
   const deps = core.getMultilineInput('deps', { required: true,trimWhitespace:true })
-    .map(dep => dep.replace(/^['"]|['"]$/g, ''))
   core.info(`deps: ${JSON.stringify(deps)}`)
 
   if (!deps.length) {
