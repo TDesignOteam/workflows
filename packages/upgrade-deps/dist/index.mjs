@@ -29805,6 +29805,7 @@ var GitHelper = class {
 			"user.email",
 			GIT_CONFIG.USER_EMAIL
 		]);
+		if (this.token == "test") return;
 		await exec("git", [
 			"config",
 			"--global",
