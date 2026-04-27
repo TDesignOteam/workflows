@@ -112,8 +112,7 @@ async function updatePnpmCatalog(deps: DependencyInfo[], repoPath: string): Prom
 async function getPkgLatestVersion(pkgNames: string[]): Promise<DependencyInfo[]> {
   const results: DependencyInfo[] = []
   for (const pkg of pkgNames) {
-    const encodedPkgName = encodeURIComponent(pkg)
-    const response = await fetch(`https://registry.npmjs.org/${encodedPkgName}/latest`)
+    const response = await fetch(`https://registry.npmjs.org/${pkg}/latest`)
     if (!response.ok) {
       core.error(`Failed to get ${pkg} info from npm registry, status code: ${response.status}`)
       continue

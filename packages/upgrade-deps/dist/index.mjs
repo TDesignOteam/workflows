@@ -30181,7 +30181,7 @@ async function updatePnpmCatalog(deps, repoPath) {
 async function getPkgLatestVersion(pkgNames) {
 	const results = [];
 	for (const pkg of pkgNames) {
-		const response = await fetch(`https://registry.npmjs.org/${encodeURIComponent(pkg)}/latest`);
+		const response = await fetch(`https://registry.npmjs.org/${pkg}/latest`);
 		if (!response.ok) {
 			error(`Failed to get ${pkg} info from npm registry, status code: ${response.status}`);
 			continue;
