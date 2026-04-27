@@ -9,7 +9,7 @@ import { GitHelper, GithubHelper } from '@workflows/utils'
 
 function getBranchName(deps: Array<{ name: string, version: string }>): string {
   const depsSlug = deps.map(d => `${d.name.replace(/[@:\/\\<>|\*\?\[\]^~`']/g, '-')}-${d.version}`).join('-')
-  return `chore(deps): upgrade-${depsSlug}`
+  return `chore/deps/upgrade-${depsSlug}`
 }
 
 function getPrTitle(deps: Array<{ name: string, version: string }>): string {

@@ -30127,7 +30127,7 @@ var GitHelper = class {
 //#endregion
 //#region main.ts
 function getBranchName(deps) {
-	return `chore(deps): upgrade-${deps.map((d) => `${d.name.replace(/[@:\/\\<>|\*\?\[\]^~`']/g, "-")}-${d.version}`).join("-")}`;
+	return `chore/deps/upgrade-${deps.map((d) => `${d.name.replace(/[@:\/\\<>|\*\?\[\]^~`']/g, "-")}-${d.version}`).join("-")}`;
 }
 function getPrTitle(deps) {
 	return `chore: upgrade ${deps.map((d) => `${d.name} to ${d.version}`).join(", ")}`;
