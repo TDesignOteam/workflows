@@ -22,3 +22,4 @@ jobs:
           owner: Tencent
           deps:
             - '@tdesign/site-components'
+            - '@tdesign/theme-generator'
