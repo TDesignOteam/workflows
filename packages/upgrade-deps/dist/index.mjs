@@ -30223,6 +30223,7 @@ async function createDepsPr(title, branchName, baseBranch, context) {
 async function updateDependencies(context) {
 	const packageManager = getInput("package-manager") || "npm";
 	const deps = getMultilineInput("deps", { required: true });
+	info(`deps: ${JSON.stringify(deps)}`);
 	if (!deps.length) throw new ActionError(ERROR_MESSAGES.MISSING_DEPS, { trigger: context.trigger });
 	const depInfos = await getPkgLatestVersion(deps);
 	if (packageManager !== "npm") await corepackEnable();
