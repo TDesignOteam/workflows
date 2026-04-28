@@ -8,7 +8,7 @@ on:
 
 jobs:
   tdesign-vue:
-    name: test
+    name: tdesign-vue
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6.0.2
@@ -27,7 +27,7 @@ jobs:
             @tdesign/theme-generator
 
   tdesign-vue-next:
-    name: test
+    name: tdesign-vue-next
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6.0.2
@@ -48,7 +48,7 @@ jobs:
             @tdesign/theme-generator
 
   tdesign-flutter:
-    name: test
+    name: tdesign-flutter
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6.0.2

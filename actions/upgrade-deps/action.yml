@@ -30,7 +30,6 @@ inputs:
     description: "Custom PR title (optional, defaults to 'chore(deps): upgrade ...')"
     required: false
     default: ''
-   
 
 runs:
   using: node24

@@ -1,9 +1,8 @@
 import { createRequire } from "node:module";
-import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os$1 from "os";
 import os, { EOL } from "os";
-import * as fs$3 from "fs";
+import * as fs$2 from "fs";
 import { constants, existsSync, promises, readFileSync } from "fs";
 import * as path$2 from "path";
 import * as events from "events";
@@ -15963,9 +15962,9 @@ var __awaiter$6 = function(thisArg, _arguments, P, generator) {
 		step((generator = generator.apply(thisArg, _arguments || [])).next());
 	});
 };
-const { chmod, copyFile, lstat, mkdir, open, readdir, rename, rm, rmdir, stat, symlink, unlink } = fs$3.promises;
+const { chmod, copyFile, lstat, mkdir, open, readdir, rename, rm, rmdir, stat, symlink, unlink } = fs$2.promises;
 const IS_WINDOWS$1 = process.platform === "win32";
-fs$3.constants.O_RDONLY;
+fs$2.constants.O_RDONLY;
 function exists(fsPath) {
 	return __awaiter$6(this, void 0, void 0, function* () {
 		try {
@@ -21939,14 +21938,14 @@ var require_js_yaml = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region ../../node_modules/.pnpm/read-yaml-file@2.1.0/node_modules/read-yaml-file/index.js
 var require_read_yaml_file = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	const fs$2 = __require("fs");
+	const fs$1 = __require("fs");
 	const stripBom = require_strip_bom();
 	const yaml = require_js_yaml();
 	const parse = (data) => yaml.load(stripBom(data));
-	const readYamlFile = (fp) => fs$2.promises.readFile(fp, "utf8").then((data) => parse(data));
+	const readYamlFile = (fp) => fs$1.promises.readFile(fp, "utf8").then((data) => parse(data));
 	module.exports = readYamlFile;
 	module.exports.default = readYamlFile;
-	module.exports.sync = (fp) => parse(fs$2.readFileSync(fp, "utf8"));
+	module.exports.sync = (fp) => parse(fs$1.readFileSync(fp, "utf8"));
 }));
 //#endregion
 //#region ../../node_modules/.pnpm/@pnpm+error@1000.1.0/node_modules/@pnpm/error/lib/index.js
@@ -29414,7 +29413,7 @@ var require_lib$2 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	module.exports.sync = writeFileSync;
 	module.exports._getTmpname = getTmpname;
 	module.exports._cleanupOnExit = cleanupOnExit;
-	const fs$1 = __require("fs");
+	const fs = __require("fs");
 	const MurmurHash3 = require_imurmurhash();
 	const { onExit } = require_cjs();
 	const path$1 = __require("path");
@@ -29435,7 +29434,7 @@ var require_lib$2 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	function cleanupOnExit(tmpfile) {
 		return () => {
 			try {
-				fs$1.unlinkSync(typeof tmpfile === "function" ? tmpfile() : tmpfile);
+				fs.unlinkSync(typeof tmpfile === "function" ? tmpfile() : tmpfile);
 			} catch {}
 		};
 	}
@@ -29462,10 +29461,10 @@ var require_lib$2 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		const absoluteName = path$1.resolve(filename);
 		try {
 			await serializeActiveFile(absoluteName);
-			const truename = await promisify(fs$1.realpath)(filename).catch(() => filename);
+			const truename = await promisify(fs.realpath)(filename).catch(() => filename);
 			tmpfile = getTmpname(truename);
 			if (!options.mode || !options.chown) {
-				const stats = await promisify(fs$1.stat)(truename).catch(() => {});
+				const stats = await promisify(fs.stat)(truename).catch(() => {});
 				if (stats) {
 					if (options.mode == null) options.mode = stats.mode;
 					if (options.chown == null && process.getuid) options.chown = {
@@ -29474,27 +29473,27 @@ var require_lib$2 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 					};
 				}
 			}
-			fd = await promisify(fs$1.open)(tmpfile, "w", options.mode);
+			fd = await promisify(fs.open)(tmpfile, "w", options.mode);
 			if (options.tmpfileCreated) await options.tmpfileCreated(tmpfile);
-			if (ArrayBuffer.isView(data)) await promisify(fs$1.write)(fd, data, 0, data.length, 0);
-			else if (data != null) await promisify(fs$1.write)(fd, String(data), 0, String(options.encoding || "utf8"));
-			if (options.fsync !== false) await promisify(fs$1.fsync)(fd);
-			await promisify(fs$1.close)(fd);
+			if (ArrayBuffer.isView(data)) await promisify(fs.write)(fd, data, 0, data.length, 0);
+			else if (data != null) await promisify(fs.write)(fd, String(data), 0, String(options.encoding || "utf8"));
+			if (options.fsync !== false) await promisify(fs.fsync)(fd);
+			await promisify(fs.close)(fd);
 			fd = null;
-			if (options.chown) await promisify(fs$1.chown)(tmpfile, options.chown.uid, options.chown.gid).catch((err) => {
+			if (options.chown) await promisify(fs.chown)(tmpfile, options.chown.uid, options.chown.gid).catch((err) => {
 				if (!isChownErrOk(err)) throw err;
 			});
-			if (options.mode) await promisify(fs$1.chmod)(tmpfile, options.mode).catch((err) => {
+			if (options.mode) await promisify(fs.chmod)(tmpfile, options.mode).catch((err) => {
 				if (!isChownErrOk(err)) throw err;
 			});
-			await promisify(fs$1.rename)(tmpfile, truename);
+			await promisify(fs.rename)(tmpfile, truename);
 		} finally {
-			if (fd) await promisify(fs$1.close)(fd).catch(
+			if (fd) await promisify(fs.close)(fd).catch(
 				/* istanbul ignore next */
 				() => {}
 			);
 			removeOnExitHandler();
-			await promisify(fs$1.unlink)(tmpfile).catch(() => {});
+			await promisify(fs.unlink)(tmpfile).catch(() => {});
 			activeFiles[absoluteName].shift();
 			if (activeFiles[absoluteName].length > 0) activeFiles[absoluteName][0]();
 			else delete activeFiles[absoluteName];
@@ -29518,11 +29517,11 @@ var require_lib$2 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		if (typeof options === "string") options = { encoding: options };
 		else if (!options) options = {};
 		try {
-			filename = fs$1.realpathSync(filename);
+			filename = fs.realpathSync(filename);
 		} catch (ex) {}
 		const tmpfile = getTmpname(filename);
 		if (!options.mode || !options.chown) try {
-			const stats = fs$1.statSync(filename);
+			const stats = fs.statSync(filename);
 			options = Object.assign({}, options);
 			if (!options.mode) options.mode = stats.mode;
 			if (!options.chown && process.getuid) options.chown = {
@@ -29535,28 +29534,28 @@ var require_lib$2 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		const removeOnExitHandler = onExit(cleanup);
 		let threw = true;
 		try {
-			fd = fs$1.openSync(tmpfile, "w", options.mode || 438);
+			fd = fs.openSync(tmpfile, "w", options.mode || 438);
 			if (options.tmpfileCreated) options.tmpfileCreated(tmpfile);
-			if (ArrayBuffer.isView(data)) fs$1.writeSync(fd, data, 0, data.length, 0);
-			else if (data != null) fs$1.writeSync(fd, String(data), 0, String(options.encoding || "utf8"));
-			if (options.fsync !== false) fs$1.fsyncSync(fd);
-			fs$1.closeSync(fd);
+			if (ArrayBuffer.isView(data)) fs.writeSync(fd, data, 0, data.length, 0);
+			else if (data != null) fs.writeSync(fd, String(data), 0, String(options.encoding || "utf8"));
+			if (options.fsync !== false) fs.fsyncSync(fd);
+			fs.closeSync(fd);
 			fd = null;
 			if (options.chown) try {
-				fs$1.chownSync(tmpfile, options.chown.uid, options.chown.gid);
+				fs.chownSync(tmpfile, options.chown.uid, options.chown.gid);
 			} catch (err) {
 				if (!isChownErrOk(err)) throw err;
 			}
 			if (options.mode) try {
-				fs$1.chmodSync(tmpfile, options.mode);
+				fs.chmodSync(tmpfile, options.mode);
 			} catch (err) {
 				if (!isChownErrOk(err)) throw err;
 			}
-			fs$1.renameSync(tmpfile, filename);
+			fs.renameSync(tmpfile, filename);
 			threw = false;
 		} finally {
 			if (fd) try {
-				fs$1.closeSync(fd);
+				fs.closeSync(fd);
 			} catch (ex) {}
 			removeOnExitHandler();
 			if (threw) cleanup();
@@ -29687,157 +29686,19 @@ var require_lib = /* @__PURE__ */ __commonJSMin(((exports) => {
 		return mod && mod.__esModule ? mod : { "default": mod };
 	};
 	Object.defineProperty(exports, "__esModule", { value: true });
-	exports.updateWorkspaceManifest = updateWorkspaceManifest;
-	const fs_1 = __importDefault(__require("fs"));
-	const path_1 = __importDefault(__require("path"));
-	const util_1 = __importDefault(__require("util"));
-	const workspace_read_manifest_1 = require_lib$4();
-	const constants_1 = require_lib$6();
-	const yaml_document_sync_1 = require_lib$3();
-	const equals_1 = __importDefault(require_equals());
-	const yaml_1 = __importDefault(require_dist$1());
-	const write_file_atomic_1 = __importDefault(require_lib$2());
-	const object_key_sorting_1 = require_lib$1();
-	async function writeManifestFile(dir, manifest) {
-		const manifestStr = manifest.toString({
-			lineWidth: 0,
-			singleQuote: true
-		});
-		await fs_1.default.promises.mkdir(dir, { recursive: true });
-		await (0, write_file_atomic_1.default)(path_1.default.join(dir, constants_1.WORKSPACE_MANIFEST_FILENAME), manifestStr);
-	}
-	async function readManifestRaw(file) {
-		try {
-			return (await fs_1.default.promises.readFile(file)).toString();
-		} catch (err) {
-			if (util_1.default.types.isNativeError(err) && "code" in err && err.code === "ENOENT") return;
-			throw err;
-		}
-	}
-	async function updateWorkspaceManifest(dir, opts) {
-		const workspaceManifestStr = await readManifestRaw(path_1.default.join(dir, constants_1.WORKSPACE_MANIFEST_FILENAME));
-		const document = workspaceManifestStr != null ? yaml_1.default.parseDocument(workspaceManifestStr) : new yaml_1.default.Document();
-		let manifest = document.toJSON();
-		(0, workspace_read_manifest_1.validateWorkspaceManifest)(manifest);
-		manifest ??= {};
-		let shouldBeUpdated = opts.updatedCatalogs != null && addCatalogs(manifest, opts.updatedCatalogs);
-		if (opts.cleanupUnusedCatalogs) shouldBeUpdated = removePackagesFromWorkspaceCatalog(manifest, opts.allProjects ?? []) || shouldBeUpdated;
-		const updatedFields = { ...opts.updatedFields };
-		if (manifest.allowBuilds != null || manifest.onlyBuiltDependencies == null && manifest.ignoredBuiltDependencies == null) {
-			const allowBuilds = { ...manifest.allowBuilds };
-			if (updatedFields.onlyBuiltDependencies != null) for (const pattern of updatedFields.onlyBuiltDependencies) allowBuilds[pattern] = true;
-			if (updatedFields.ignoredBuiltDependencies != null) for (const pattern of updatedFields.ignoredBuiltDependencies) allowBuilds[pattern] = false;
-			if (manifest.allowBuilds != null || Object.keys(allowBuilds).length > 0) updatedFields.allowBuilds = allowBuilds;
-			delete updatedFields.onlyBuiltDependencies;
-			delete updatedFields.ignoredBuiltDependencies;
-		}
-		for (const [key, value] of Object.entries(updatedFields)) if (!(0, equals_1.default)(manifest[key], value)) {
-			shouldBeUpdated = true;
-			if (value == null) delete manifest[key];
-			else manifest[key] = value;
-		}
-		if (opts.updatedOverrides) {
-			manifest.overrides ??= {};
-			for (const [key, value] of Object.entries(opts.updatedOverrides)) if (!(0, equals_1.default)(manifest.overrides[key], value)) {
-				shouldBeUpdated = true;
-				manifest.overrides[key] = value;
-			}
-		}
-		if (!shouldBeUpdated) return;
-		if (Object.keys(manifest).length === 0) {
-			await fs_1.default.promises.rm(path_1.default.join(dir, constants_1.WORKSPACE_MANIFEST_FILENAME));
-			return;
-		}
-		manifest = (0, object_key_sorting_1.sortKeysByPriority)({
-			priority: { packages: 0 },
-			deep: true
-		}, manifest);
-		(0, yaml_document_sync_1.patchDocument)(document, manifest);
-		await writeManifestFile(dir, document);
-	}
-	function addCatalogs(manifest, newCatalogs) {
-		let shouldBeUpdated = false;
-		for (const catalogName in newCatalogs) {
-			let targetCatalog = catalogName === "default" ? manifest.catalog ?? manifest.catalogs?.default : manifest.catalogs?.[catalogName];
-			const targetCatalogWasNil = targetCatalog == null;
-			for (const [dependencyName, specifier] of Object.entries(newCatalogs[catalogName] ?? {})) {
-				if (specifier == null) continue;
-				targetCatalog ??= {};
-				if (targetCatalog[dependencyName] !== specifier) {
-					targetCatalog[dependencyName] = specifier;
-					shouldBeUpdated = true;
-				}
-			}
-			if (targetCatalog == null) continue;
-			if (targetCatalogWasNil) if (catalogName === "default") manifest.catalog = targetCatalog;
-			else {
-				manifest.catalogs ??= {};
-				manifest.catalogs[catalogName] = targetCatalog;
-			}
-		}
-		return shouldBeUpdated;
-	}
-	function removePackagesFromWorkspaceCatalog(manifest, packagesJson) {
-		let shouldBeUpdated = false;
-		if (packagesJson.length === 0 || manifest.catalog == null && manifest.catalogs == null) return shouldBeUpdated;
-		const packageReferences = {};
-		for (const pkg of packagesJson) {
-			const pkgManifest = pkg.manifest;
-			const dependencyTypes = [
-				pkgManifest.dependencies,
-				pkgManifest.devDependencies,
-				pkgManifest.optionalDependencies,
-				pkgManifest.peerDependencies
-			];
-			for (const deps of dependencyTypes) {
-				if (!deps) continue;
-				for (const [pkgName, version] of Object.entries(deps)) {
-					if (!packageReferences[pkgName]) packageReferences[pkgName] = /* @__PURE__ */ new Set();
-					packageReferences[pkgName].add(version);
-				}
-			}
-		}
-		if (manifest.catalog) {
-			const packagesToRemove = Object.keys(manifest.catalog).filter((pkg) => !packageReferences[pkg]?.has("catalog:"));
-			for (const pkg of packagesToRemove) {
-				delete manifest.catalog[pkg];
-				shouldBeUpdated = true;
-			}
-			if (Object.keys(manifest.catalog).length === 0) {
-				delete manifest.catalog;
-				shouldBeUpdated = true;
-			}
-		}
-		if (manifest.catalogs) {
-			const catalogsToRemove = [];
-			for (const [catalogName, catalog] of Object.entries(manifest.catalogs)) {
-				if (!catalog) continue;
-				const packagesToRemove = Object.keys(catalog).filter((pkg) => {
-					const references = packageReferences[pkg];
-					return !references?.has(`catalog:${catalogName}`) && !references?.has("catalog:");
-				});
-				for (const pkg of packagesToRemove) {
-					delete catalog[pkg];
-					shouldBeUpdated = true;
-				}
-				if (Object.keys(catalog).length === 0) {
-					catalogsToRemove.push(catalogName);
-					shouldBeUpdated = true;
-				}
-			}
-			for (const catalogName of catalogsToRemove) delete manifest.catalogs[catalogName];
-			if (Object.keys(manifest.catalogs).length === 0) {
-				delete manifest.catalogs;
-				shouldBeUpdated = true;
-			}
-		}
-		return shouldBeUpdated;
-	}
+	__importDefault(__require("fs"));
+	__importDefault(__require("path"));
+	__importDefault(__require("util"));
+	require_lib$4();
+	require_lib$6();
+	require_lib$3();
+	__importDefault(require_equals());
+	__importDefault(require_dist$1());
+	__importDefault(require_lib$2());
+	require_lib$1();
 }));
-//#endregion
-//#region ../utils/constants.ts
-var import_lib$1 = require_lib$4();
-var import_lib = require_lib();
+require_lib$4();
+require_lib();
 const GIT_CONFIG = {
 	USER_NAME: "tdesign-bot",
 	USER_EMAIL: "tdesign@tencent.com"
@@ -30140,46 +30001,6 @@ var ActionError = class extends Error {
 		if (context) error(`${message} ${JSON.stringify(context)}`);
 	}
 };
-function getUpdatedVersion(currentVersion, newVersion) {
-	const prefix = currentVersion[0];
-	if (prefix && (prefix === "^" || prefix === "~")) return `${prefix}${newVersion}`;
-	return newVersion;
-}
-async function updatePnpmCatalog(deps, repo, targetDir) {
-	let repoPath = repo;
-	if (targetDir) repoPath = path.join(repo, targetDir);
-	const workspaceFile = path.join(repoPath, "pnpm-workspace.yaml");
-	let manifestContent;
-	try {
-		manifestContent = await fs.readFile(workspaceFile, "utf-8");
-	} catch {
-		info(`pnpm-workspace.yaml not found in ${repoPath}, skipping catalog update`);
-		return;
-	}
-	const manifest = await (0, import_lib$1.readWorkspaceManifest)(manifestContent);
-	if (!manifest) {
-		info(`Failed to read pnpm-workspace.yaml, skipping catalog update`);
-		return;
-	}
-	const updatedCatalogs = {};
-	if (manifest.catalog) {
-		const defaultCatalogUpdates = {};
-		for (const dep of deps) if (dep.name in manifest.catalog) defaultCatalogUpdates[dep.name] = getUpdatedVersion(manifest.catalog[dep.name], dep.version);
-		if (Object.keys(defaultCatalogUpdates).length > 0) updatedCatalogs[""] = defaultCatalogUpdates;
-	}
-	if (manifest.catalogs) for (const [catalogName, catalog] of Object.entries(manifest.catalogs)) {
-		const catalogUpdates = {};
-		const typedCatalog = catalog;
-		for (const dep of deps) if (dep.name in typedCatalog) catalogUpdates[dep.name] = getUpdatedVersion(typedCatalog[dep.name], dep.version);
-		if (Object.keys(catalogUpdates).length > 0) updatedCatalogs[catalogName] = catalogUpdates;
-	}
-	if (!(Object.keys(updatedCatalogs).length > 0)) {
-		info(`No matching dependencies found in catalog, skipping update`);
-		return;
-	}
-	await (0, import_lib.updateWorkspaceManifest)(workspaceFile, { updatedCatalogs });
-	info(`Updated pnpm catalog in pnpm-workspace.yaml`);
-}
 async function getPkgLatestVersion(pkgNames) {
 	const results = [];
 	for (const pkg of pkgNames) {
@@ -30252,7 +30073,6 @@ async function updateDependencies(context) {
 	await gitHelper.initSubmodule();
 	const branchName = getBranchName(depInfos);
 	await gitHelper.createBranch(branchName);
-	if (packageManager === "pnpm") await updatePnpmCatalog(depInfos, context.repo, targetDir);
 	await updatePackageDependencies(packageManager, deps, context.repo, targetDir);
 	if (!await gitHelper.isNeedCommit()) {
 		info("No changes to commit");
