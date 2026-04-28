@@ -66,4 +66,3 @@ jobs:
           package-manager: pnpm
           target-dir: tdesign-site
           deps: '@tdesign/site-components'
-            
