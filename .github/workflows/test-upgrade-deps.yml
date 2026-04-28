@@ -42,6 +42,7 @@ jobs:
           repo: tdesign-vue-next
           owner: Tencent
           package-manager: pnpm
+          title: 'chore(deps): Upgrade site-components and theme-generator'
           deps: |
             @tdesign/site-components
             @tdesign/theme-generator

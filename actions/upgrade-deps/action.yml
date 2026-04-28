@@ -26,6 +26,11 @@ inputs:
     description: Target directory to upgrade dependencies
     required: false
     default: ''
+  title:
+    description: Custom PR title (optional, defaults to "chore: upgrade ...")
+    required: false
+    default: ''
+   
 
 runs:
   using: node24

@@ -30230,12 +30230,14 @@ async function createDepsPr(title, branchName, baseBranch, context) {
 async function updateDependencies(context) {
 	const packageManager = getInput("package-manager") || "npm";
 	const targetDir = getInput("target-dir") || "";
+	const customTitle = getInput("title") || "";
 	const deps = getMultilineInput("deps", {
 		required: true,
 		trimWhitespace: true
 	});
 	info(`deps: ${JSON.stringify(deps)}`);
 	info(`target-dir: ${targetDir || "default (repo root)"}`);
+	if (customTitle) info(`custom-title: ${customTitle}`);
 	if (!deps.length) throw new ActionError(ERROR_MESSAGES.MISSING_DEPS, { trigger: context.trigger });
 	const depInfos = await getPkgLatestVersion(deps);
 	info(`depInfos: ${JSON.stringify(depInfos)}`);
@@ -30256,7 +30258,10 @@ async function updateDependencies(context) {
 		info("No changes to commit");
 		return;
 	}
-	const title = getPrTitle(depInfos);
+	startGroup("Changes to commit");
+	await gitHelper.printDiff();
+	endGroup();
+	const title = customTitle || getPrTitle(depInfos);
 	await gitHelper.commit(title);
 	await gitHelper.push(branchName);
 	await createDepsPr(title, branchName, baseBranch, context);

@@ -174,9 +174,13 @@ async function createDepsPr(
 export async function updateDependencies(context: TriggerContext): Promise<void> {
   const packageManager = core.getInput('package-manager') || 'npm'
   const targetDir = core.getInput('target-dir') || ''
+  const customTitle = core.getInput('title') || ''
   const deps = core.getMultilineInput('deps', { required: true, trimWhitespace: true })
   core.info(`deps: ${JSON.stringify(deps)}`)
   core.info(`target-dir: ${targetDir || 'default (repo root)'}`)
+  if (customTitle) {
+    core.info(`custom-title: ${customTitle}`)
+  }
 
   if (!deps.length) {
     throw new ActionError(ERROR_MESSAGES.MISSING_DEPS, { trigger: context.trigger })
@@ -212,7 +216,11 @@ export async function updateDependencies(context: TriggerContext): Promise<void>
     return
   }
 
-  const title = getPrTitle(depInfos)
+  core.startGroup('Changes to commit')
+  await gitHelper.printDiff()
+  core.endGroup()
+
+  const title = customTitle || getPrTitle(depInfos)
   await gitHelper.commit(title)
   await gitHelper.push(branchName)
 
