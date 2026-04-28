@@ -30247,6 +30247,7 @@ async function updateDependencies(context) {
 		dryRun: context.dryRun
 	});
 	const baseBranch = await gitHelper.clone();
+	await gitHelper.initSubmodule();
 	const branchName = getBranchName(depInfos);
 	await gitHelper.createBranch(branchName);
 	if (packageManager === "pnpm") await updatePnpmCatalog(depInfos, context.repo, targetDir);

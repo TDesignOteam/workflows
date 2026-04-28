@@ -197,6 +197,7 @@ export async function updateDependencies(context: TriggerContext): Promise<void>
   })
 
   const baseBranch = await gitHelper.clone()
+  await gitHelper.initSubmodule()
   const branchName = getBranchName(depInfos)
   await gitHelper.createBranch(branchName)
 
