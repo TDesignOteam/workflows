@@ -47,23 +47,23 @@ jobs:
             @tdesign/site-components
             @tdesign/theme-generator
 
-  tdesign-flutter:
-    name: tdesign-flutter
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6.0.2
+  # tdesign-flutter:
+  #   name: tdesign-flutter
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v6.0.2
 
-      - uses: actions/setup-node@v6.3.0
-        with:
-          node-version: 22
+  #     - uses: actions/setup-node@v6.3.0
+  #       with:
+  #         node-version: 22
 
-      - name: test
-        uses: ./actions/upgrade-deps
-        with:
-          token: test
-          dry-run: true
-          repo: tdesign-flutter
-          owner: Tencent
-          package-manager: pnpm
-          target-dir: tdesign-site
-          deps: '@tdesign/site-components'
+  #     - name: test
+  #       uses: ./actions/upgrade-deps
+  #       with:
+  #         token: test
+  #         dry-run: true
+  #         repo: tdesign-flutter
+  #         owner: Tencent
+  #         package-manager: pnpm
+  #         target-dir: tdesign-site
+  #         deps: '@tdesign/site-components'
