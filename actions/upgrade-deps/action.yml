@@ -27,7 +27,7 @@ inputs:
     required: false
     default: ''
   title:
-    description: Custom PR title (optional, defaults to "chore: upgrade ...")
+    description: "Custom PR title (optional, defaults to 'chore(deps): upgrade ...')"
     required: false
     default: ''
    
