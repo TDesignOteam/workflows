@@ -26,6 +26,26 @@ jobs:
             @tdesign/site-components
             @tdesign/theme-generator
 
+  tdesign-vue-next:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - uses: actions/setup-node@v6.3.0
+
+      - name: test
+        uses: ./actions/upgrade-deps
+        with:
+          token: test
+          dry-run: true
+          repo: tdesign-vue-next
+          owner: Tencent
+          package-manager: pnpm
+          deps: |
+            @tdesign/site-components
+            @tdesign/theme-generator
+
   tdesign-flutter:
     name: test
     runs-on: ubuntu-latest
