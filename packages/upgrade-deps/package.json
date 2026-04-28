@@ -10,8 +10,6 @@
     "@actions/core": "catalog:",
     "@actions/exec": "catalog:",
     "@actions/github": "catalog:",
-    "@pnpm/workspace.manifest-writer": "catalog:",
-    "@pnpm/workspace.read-manifest": "catalog:",
     "@workflows/utils": "workspace:*"
   },
   "devDependencies": {
