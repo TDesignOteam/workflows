@@ -22,6 +22,10 @@ inputs:
   deps:
     description: Dependencies to upgrade in format "package1@version1 package2@version2"
     required: true
+  target-dir:
+    description: Target directory to upgrade dependencies
+    required: false
+    default: ''
 
 runs:
   using: node24

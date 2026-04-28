@@ -52,7 +52,11 @@ function getUpdatedVersion(currentVersion: string, newVersion: string): string {
   return newVersion
 }
 
-async function updatePnpmCatalog(deps: DependencyInfo[], repoPath: string): Promise<void> {
+async function updatePnpmCatalog(deps: DependencyInfo[], repo: string, targetDir: string): Promise<void> {
+  let repoPath = repo
+  if (targetDir) {
+    repoPath = path.join(repo, targetDir)
+  }
   const workspaceFile = path.join(repoPath, 'pnpm-workspace.yaml')
 
   let manifestContent: string
@@ -136,8 +140,11 @@ async function corepackEnable(): Promise<void> {
   await exec.exec('corepack', ['enable'])
 }
 
-async function updatePackageDependencies(packageManager: string, deps: string[], repo: string): Promise<void> {
-  const repoPath = `./${repo}`
+async function updatePackageDependencies(packageManager: string, deps: string[], repo: string, targetDir: string): Promise<void> {
+  let repoPath = `./${repo}`
+  if (targetDir) {
+    repoPath = path.join(repoPath, targetDir)
+  }
   if (packageManager === 'pnpm') {
     await exec.exec('pnpm', ['up', ...deps, '--latest'], { cwd: repoPath })
   }
@@ -166,8 +173,10 @@ async function createDepsPr(
 
 export async function updateDependencies(context: TriggerContext): Promise<void> {
   const packageManager = core.getInput('package-manager') || 'npm'
+  const targetDir = core.getInput('target-dir') || ''
   const deps = core.getMultilineInput('deps', { required: true, trimWhitespace: true })
   core.info(`deps: ${JSON.stringify(deps)}`)
+  core.info(`target-dir: ${targetDir || 'default (repo root)'}`)
 
   if (!deps.length) {
     throw new ActionError(ERROR_MESSAGES.MISSING_DEPS, { trigger: context.trigger })
@@ -192,10 +201,10 @@ export async function updateDependencies(context: TriggerContext): Promise<void>
   await gitHelper.createBranch(branchName)
 
   if (packageManager === 'pnpm') {
-    await updatePnpmCatalog(depInfos, context.repo)
+    await updatePnpmCatalog(depInfos, context.repo, targetDir)
   }
 
-  await updatePackageDependencies(packageManager, deps, context.repo)
+  await updatePackageDependencies(packageManager, deps, context.repo, targetDir)
 
   if (!(await gitHelper.isNeedCommit())) {
     core.info('No changes to commit')
