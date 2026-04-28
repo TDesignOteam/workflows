@@ -45,5 +45,5 @@ jobs:
           owner: Tencent
           package-manager: pnpm
           target-dir: tdesign-site
-          deps: @tdesign/site-components
+          deps: '@tdesign/site-components'
             
