@@ -29835,136 +29835,9 @@ var require_lib = /* @__PURE__ */ __commonJSMin(((exports) => {
 	}
 }));
 //#endregion
-//#region ../utils/github-helper.ts
+//#region ../utils/constants.ts
 var import_lib$1 = require_lib$4();
 var import_lib = require_lib();
-var GithubHelper = class {
-	octokit;
-	context;
-	constructor(context) {
-		this.context = context;
-		this.octokit = getOctokit(context.token);
-	}
-	async dryRunLog(methodName, params) {
-		if (!this.context.dryRun) return false;
-		startGroup(`dry-run模式, 不运行${methodName}`);
-		for (const [key, value] of Object.entries(params)) info(`${key}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
-		endGroup();
-		return true;
-	}
-	get defaultRepoParams() {
-		return {
-			owner: this.context.owner,
-			repo: this.context.repo
-		};
-	}
-	async getPrData(prNumber) {
-		try {
-			const { data } = await this.octokit.rest.pulls.get({
-				...this.defaultRepoParams,
-				pull_number: prNumber
-			});
-			return data;
-		} catch (error$3) {
-			error(`获取PR数据失败: ${error$3}`);
-			throw error$3;
-		}
-	}
-	async getIssueData(issueNumber) {
-		try {
-			const { data } = await this.octokit.rest.issues.get({
-				...this.defaultRepoParams,
-				issue_number: issueNumber
-			});
-			return data;
-		} catch (error$5) {
-			error(`获取Issue数据失败: ${error$5}`);
-			throw error$5;
-		}
-	}
-	async getIssueList(params) {
-		try {
-			const { data } = await this.octokit.rest.issues.listForRepo({
-				...params,
-				...this.defaultRepoParams
-			});
-			return data.filter((item) => !item?.pull_request);
-		} catch (error$4) {
-			error(`获取Issue列表失败: ${error$4}`);
-			throw error$4;
-		}
-	}
-	async closeIssue(issueNumber) {
-		if (await this.dryRunLog("closeIssue", { issueNumber })) return;
-		try {
-			await this.octokit.rest.issues.update({
-				...this.defaultRepoParams,
-				issue_number: issueNumber,
-				state: "closed"
-			});
-		} catch (error$6) {
-			error(`关闭Issue失败: ${error$6}`);
-			throw error$6;
-		}
-	}
-	async createPR(title, head, body, base = "develop") {
-		if (await this.dryRunLog("createPR", {
-			title,
-			head,
-			base,
-			body
-		})) return;
-		try {
-			const { data } = await this.octokit.rest.pulls.create({
-				...this.defaultRepoParams,
-				title,
-				head,
-				base,
-				body
-			});
-			return data;
-		} catch (error$1) {
-			error(`创建PR失败: ${error$1}`);
-			throw error$1;
-		}
-	}
-	async addComment(issueNumber, body) {
-		if (await this.dryRunLog("addComment", {
-			issueNumber,
-			body
-		})) return;
-		try {
-			const { data } = await this.octokit.rest.issues.createComment({
-				...this.defaultRepoParams,
-				issue_number: issueNumber,
-				body
-			});
-			return data;
-		} catch (error$2) {
-			error(`添加评论失败: ${error$2}`);
-			throw error$2;
-		}
-	}
-	async addLabels(issueNumber, labels) {
-		if (await this.dryRunLog("addLabels", {
-			issueNumber,
-			labels: labels.join(", ")
-		})) return;
-		try {
-			const { data } = await this.octokit.rest.issues.addLabels({
-				...this.defaultRepoParams,
-				issue_number: issueNumber,
-				labels
-			});
-			return data;
-		} catch (error$7) {
-			error(`添加标签失败: ${error$7}`);
-			throw error$7;
-		}
-	}
-};
-//#endregion
-//#region ../utils/constants.ts
 const GIT_CONFIG = {
 	USER_NAME: "tdesign-bot",
 	USER_EMAIL: "tdesign@tencent.com"
@@ -30125,9 +29998,136 @@ var GitHelper = class {
 	}
 };
 //#endregion
+//#region ../utils/github-helper.ts
+var GithubHelper = class {
+	octokit;
+	context;
+	constructor(context) {
+		this.context = context;
+		this.octokit = getOctokit(context.token);
+	}
+	async dryRunLog(methodName, params) {
+		if (!this.context.dryRun) return false;
+		startGroup(`dry-run模式, 不运行${methodName}`);
+		for (const [key, value] of Object.entries(params)) info(`${key}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
+		endGroup();
+		return true;
+	}
+	get defaultRepoParams() {
+		return {
+			owner: this.context.owner,
+			repo: this.context.repo
+		};
+	}
+	async getPrData(prNumber) {
+		try {
+			const { data } = await this.octokit.rest.pulls.get({
+				...this.defaultRepoParams,
+				pull_number: prNumber
+			});
+			return data;
+		} catch (error$3) {
+			error(`获取PR数据失败: ${error$3}`);
+			throw error$3;
+		}
+	}
+	async getIssueData(issueNumber) {
+		try {
+			const { data } = await this.octokit.rest.issues.get({
+				...this.defaultRepoParams,
+				issue_number: issueNumber
+			});
+			return data;
+		} catch (error$5) {
+			error(`获取Issue数据失败: ${error$5}`);
+			throw error$5;
+		}
+	}
+	async getIssueList(params) {
+		try {
+			const { data } = await this.octokit.rest.issues.listForRepo({
+				...params,
+				...this.defaultRepoParams
+			});
+			return data.filter((item) => !item?.pull_request);
+		} catch (error$4) {
+			error(`获取Issue列表失败: ${error$4}`);
+			throw error$4;
+		}
+	}
+	async closeIssue(issueNumber) {
+		if (await this.dryRunLog("closeIssue", { issueNumber })) return;
+		try {
+			await this.octokit.rest.issues.update({
+				...this.defaultRepoParams,
+				issue_number: issueNumber,
+				state: "closed"
+			});
+		} catch (error$6) {
+			error(`关闭Issue失败: ${error$6}`);
+			throw error$6;
+		}
+	}
+	async createPR(title, head, body, base = "develop") {
+		if (await this.dryRunLog("createPR", {
+			title,
+			head,
+			base,
+			body
+		})) return;
+		try {
+			const { data } = await this.octokit.rest.pulls.create({
+				...this.defaultRepoParams,
+				title,
+				head,
+				base,
+				body
+			});
+			return data;
+		} catch (error$1) {
+			error(`创建PR失败: ${error$1}`);
+			throw error$1;
+		}
+	}
+	async addComment(issueNumber, body) {
+		if (await this.dryRunLog("addComment", {
+			issueNumber,
+			body
+		})) return;
+		try {
+			const { data } = await this.octokit.rest.issues.createComment({
+				...this.defaultRepoParams,
+				issue_number: issueNumber,
+				body
+			});
+			return data;
+		} catch (error$2) {
+			error(`添加评论失败: ${error$2}`);
+			throw error$2;
+		}
+	}
+	async addLabels(issueNumber, labels) {
+		if (await this.dryRunLog("addLabels", {
+			issueNumber,
+			labels: labels.join(", ")
+		})) return;
+		try {
+			const { data } = await this.octokit.rest.issues.addLabels({
+				...this.defaultRepoParams,
+				issue_number: issueNumber,
+				labels
+			});
+			return data;
+		} catch (error$7) {
+			error(`添加标签失败: ${error$7}`);
+			throw error$7;
+		}
+	}
+};
+//#endregion
 //#region main.ts
 function getBranchName(deps) {
-	return `chore/deps/upgrade-${deps.map((d) => `${d.name.replace(/[@:\/\\<>|\*\?\[\]^~`']/g, "-")}-${d.version}`).join("-")}`;
+	return `chore/deps/upgrade-${deps.map((d) => `${d.name.replace(/@/g, "").replace(/\//g, "-")}-${d.version}`).join("-")}`;
 }
 function getPrTitle(deps) {
 	return `chore: upgrade ${deps.map((d) => `${d.name} to ${d.version}`).join(", ")}`;
@@ -30186,7 +30186,7 @@ async function getPkgLatestVersion(pkgNames) {
 			error(`Failed to get ${pkg} info from npm registry, status code: ${response.status}`);
 			continue;
 		}
-		const latest = (await response.json())["version"];
+		const latest = (await response.json()).version;
 		if (!latest) {
 			error(`No version found for ${pkg}`);
 			continue;

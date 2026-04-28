@@ -8,7 +8,7 @@ import { readWorkspaceManifest } from '@pnpm/workspace.read-manifest'
 import { GitHelper, GithubHelper } from '@workflows/utils'
 
 function getBranchName(deps: Array<{ name: string, version: string }>): string {
-  const depsSlug = deps.map(d => `${d.name.replace(/[@:\/\\<>|\*\?\[\]^~`']/g, '-')}-${d.version}`).join('-')
+  const depsSlug = deps.map(d => `${d.name.replace(/@/g, '').replace(/\//g, '-')}-${d.version}`).join('-')
   return `chore/deps/upgrade-${depsSlug}`
 }
 
@@ -117,8 +117,8 @@ async function getPkgLatestVersion(pkgNames: string[]): Promise<DependencyInfo[]
       core.error(`Failed to get ${pkg} info from npm registry, status code: ${response.status}`)
       continue
     }
-    const info = await response.json() as { 'version'?: string }
-    const latest = info['version']
+    const info = await response.json() as { version?: string }
+    const latest = info.version
     if (!latest) {
       core.error(`No version found for ${pkg}`)
       continue
@@ -166,7 +166,7 @@ async function createDepsPr(
 
 export async function updateDependencies(context: TriggerContext): Promise<void> {
   const packageManager = core.getInput('package-manager') || 'npm'
-  const deps = core.getMultilineInput('deps', { required: true,trimWhitespace:true })
+  const deps = core.getMultilineInput('deps', { required: true, trimWhitespace: true })
   core.info(`deps: ${JSON.stringify(deps)}`)
 
   if (!deps.length) {
