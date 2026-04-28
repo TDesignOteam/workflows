@@ -41,6 +41,7 @@ jobs:
           dry-run: true
           repo: tdesign-flutter
           owner: Tencent
+          package-manager: pnpm
           target-dir: tdesign-site
           deps: |
             @tdesign/site-components
