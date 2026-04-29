@@ -1,0 +1,69 @@
+name: test-upgrade-deps
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - packages/upgrade-deps/dist/*
+
+jobs:
+  tdesign-vue:
+    name: tdesign-vue
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - uses: actions/setup-node@v6.3.0
+
+      - name: test
+        uses: ./actions/upgrade-deps
+        with:
+          token: test
+          dry-run: true
+          repo: tdesign-vue
+          owner: Tencent
+          deps: |
+            @tdesign/site-components
+            @tdesign/theme-generator
+
+  tdesign-vue-next:
+    name: tdesign-vue-next
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - uses: actions/setup-node@v6.3.0
+
+      - name: test
+        uses: ./actions/upgrade-deps
+        with:
+          token: test
+          dry-run: true
+          repo: tdesign-vue-next
+          owner: Tencent
+          package-manager: pnpm
+          title: 'chore(deps): Upgrade site-components and theme-generator'
+          deps: |
+            @tdesign/site-components
+            @tdesign/theme-generator
+
+  # tdesign-flutter:
+  #   name: tdesign-flutter
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v6.0.2
+
+  #     - uses: actions/setup-node@v6.3.0
+  #       with:
+  #         node-version: 22
+
+  #     - name: test
+  #       uses: ./actions/upgrade-deps
+  #       with:
+  #         token: test
+  #         dry-run: true
+  #         repo: tdesign-flutter
+  #         owner: Tencent
+  #         package-manager: pnpm
+  #         target-dir: tdesign-site
+  #         deps: '@tdesign/site-components'

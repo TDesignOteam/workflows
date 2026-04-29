@@ -1,12 +1,14 @@
 import { createRequire } from "node:module";
+import * as path from "node:path";
 import * as os$1 from "os";
 import os, { EOL } from "os";
 import * as fs from "fs";
 import { constants, existsSync, promises, readFileSync } from "fs";
-import * as path from "path";
+import * as path$1 from "path";
 import * as events from "events";
-import "child_process";
-import "timers";
+import { StringDecoder } from "string_decoder";
+import * as child from "child_process";
+import { setTimeout as setTimeout$1 } from "timers";
 //#region \0rolldown/runtime.js
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -12060,7 +12062,7 @@ var require_util$4 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	const { getEncoding } = require_encoding();
 	const { serializeAMimeType, parseMIMEType } = require_data_url();
 	const { types: types$1 } = __require("node:util");
-	const { StringDecoder } = __require("string_decoder");
+	const { StringDecoder: StringDecoder$1 } = __require("string_decoder");
 	const { btoa } = __require("node:buffer");
 	/** @type {PropertyDescriptor} */
 	const staticPropertyDescriptors = {
@@ -12156,7 +12158,7 @@ var require_util$4 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 				const parsed = parseMIMEType(mimeType || "application/octet-stream");
 				if (parsed !== "failure") dataURL += serializeAMimeType(parsed);
 				dataURL += ";base64,";
-				const decoder = new StringDecoder("latin1");
+				const decoder = new StringDecoder$1("latin1");
 				for (const chunk of bytes) dataURL += btoa(decoder.write(chunk));
 				dataURL += btoa(decoder.end());
 				return dataURL;
@@ -12174,7 +12176,7 @@ var require_util$4 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			case "ArrayBuffer": return combineByteSequences(bytes).buffer;
 			case "BinaryString": {
 				let binaryString = "";
-				const decoder = new StringDecoder("latin1");
+				const decoder = new StringDecoder$1("latin1");
 				for (const chunk of bytes) binaryString += decoder.write(chunk);
 				binaryString += decoder.end();
 				return binaryString;
@@ -15961,6 +15963,17 @@ var __awaiter$6 = function(thisArg, _arguments, P, generator) {
 const { chmod, copyFile, lstat, mkdir, open, readdir, rename, rm, rmdir, stat, symlink, unlink } = fs.promises;
 const IS_WINDOWS$1 = process.platform === "win32";
 fs.constants.O_RDONLY;
+function exists(fsPath) {
+	return __awaiter$6(this, void 0, void 0, function* () {
+		try {
+			yield stat(fsPath);
+		} catch (err) {
+			if (err.code === "ENOENT") return false;
+			throw err;
+		}
+		return true;
+	});
+}
 /**
 * On OSX/Linux, true if path starts with '/'. On Windows, true for paths like:
 * \, \hello, \\hello\share, C:, and C:\hello (and corresponding alternate separator cases).
@@ -15987,7 +16000,7 @@ function tryGetExecutablePath(filePath, extensions) {
 		}
 		if (stats && stats.isFile()) {
 			if (IS_WINDOWS$1) {
-				const upperExt = path.extname(filePath).toUpperCase();
+				const upperExt = path$1.extname(filePath).toUpperCase();
 				if (extensions.some((validExt) => validExt.toUpperCase() === upperExt)) return filePath;
 			} else if (isUnixExecutable(stats)) return filePath;
 		}
@@ -16003,10 +16016,10 @@ function tryGetExecutablePath(filePath, extensions) {
 			if (stats && stats.isFile()) {
 				if (IS_WINDOWS$1) {
 					try {
-						const directory = path.dirname(filePath);
-						const upperName = path.basename(filePath).toUpperCase();
+						const directory = path$1.dirname(filePath);
+						const upperName = path$1.basename(filePath).toUpperCase();
 						for (const actualName of yield readdir(directory)) if (upperName === actualName.toUpperCase()) {
-							filePath = path.join(directory, actualName);
+							filePath = path$1.join(directory, actualName);
 							break;
 						}
 					} catch (err) {
@@ -16091,29 +16104,472 @@ function findInPath(tool) {
 		if (!tool) throw new Error("parameter 'tool' is required");
 		const extensions = [];
 		if (IS_WINDOWS$1 && process.env["PATHEXT"]) {
-			for (const extension of process.env["PATHEXT"].split(path.delimiter)) if (extension) extensions.push(extension);
+			for (const extension of process.env["PATHEXT"].split(path$1.delimiter)) if (extension) extensions.push(extension);
 		}
 		if (isRooted(tool)) {
 			const filePath = yield tryGetExecutablePath(tool, extensions);
 			if (filePath) return [filePath];
 			return [];
 		}
-		if (tool.includes(path.sep)) return [];
+		if (tool.includes(path$1.sep)) return [];
 		const directories = [];
 		if (process.env.PATH) {
-			for (const p of process.env.PATH.split(path.delimiter)) if (p) directories.push(p);
+			for (const p of process.env.PATH.split(path$1.delimiter)) if (p) directories.push(p);
 		}
 		const matches = [];
 		for (const directory of directories) {
-			const filePath = yield tryGetExecutablePath(path.join(directory, tool), extensions);
+			const filePath = yield tryGetExecutablePath(path$1.join(directory, tool), extensions);
 			if (filePath) matches.push(filePath);
 		}
 		return matches;
 	});
 }
-process.platform;
-events.EventEmitter;
-events.EventEmitter;
+//#endregion
+//#region ../../node_modules/.pnpm/@actions+exec@3.0.0/node_modules/@actions/exec/lib/toolrunner.js
+var __awaiter$4 = function(thisArg, _arguments, P, generator) {
+	function adopt(value) {
+		return value instanceof P ? value : new P(function(resolve) {
+			resolve(value);
+		});
+	}
+	return new (P || (P = Promise))(function(resolve, reject) {
+		function fulfilled(value) {
+			try {
+				step(generator.next(value));
+			} catch (e) {
+				reject(e);
+			}
+		}
+		function rejected(value) {
+			try {
+				step(generator["throw"](value));
+			} catch (e) {
+				reject(e);
+			}
+		}
+		function step(result) {
+			result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+		}
+		step((generator = generator.apply(thisArg, _arguments || [])).next());
+	});
+};
+const IS_WINDOWS = process.platform === "win32";
+var ToolRunner = class extends events.EventEmitter {
+	constructor(toolPath, args, options) {
+		super();
+		if (!toolPath) throw new Error("Parameter 'toolPath' cannot be null or empty.");
+		this.toolPath = toolPath;
+		this.args = args || [];
+		this.options = options || {};
+	}
+	_debug(message) {
+		if (this.options.listeners && this.options.listeners.debug) this.options.listeners.debug(message);
+	}
+	_getCommandString(options, noPrefix) {
+		const toolPath = this._getSpawnFileName();
+		const args = this._getSpawnArgs(options);
+		let cmd = noPrefix ? "" : "[command]";
+		if (IS_WINDOWS) if (this._isCmdFile()) {
+			cmd += toolPath;
+			for (const a of args) cmd += ` ${a}`;
+		} else if (options.windowsVerbatimArguments) {
+			cmd += `"${toolPath}"`;
+			for (const a of args) cmd += ` ${a}`;
+		} else {
+			cmd += this._windowsQuoteCmdArg(toolPath);
+			for (const a of args) cmd += ` ${this._windowsQuoteCmdArg(a)}`;
+		}
+		else {
+			cmd += toolPath;
+			for (const a of args) cmd += ` ${a}`;
+		}
+		return cmd;
+	}
+	_processLineBuffer(data, strBuffer, onLine) {
+		try {
+			let s = strBuffer + data.toString();
+			let n = s.indexOf(os$1.EOL);
+			while (n > -1) {
+				onLine(s.substring(0, n));
+				s = s.substring(n + os$1.EOL.length);
+				n = s.indexOf(os$1.EOL);
+			}
+			return s;
+		} catch (err) {
+			this._debug(`error processing line. Failed with error ${err}`);
+			return "";
+		}
+	}
+	_getSpawnFileName() {
+		if (IS_WINDOWS) {
+			if (this._isCmdFile()) return process.env["COMSPEC"] || "cmd.exe";
+		}
+		return this.toolPath;
+	}
+	_getSpawnArgs(options) {
+		if (IS_WINDOWS) {
+			if (this._isCmdFile()) {
+				let argline = `/D /S /C "${this._windowsQuoteCmdArg(this.toolPath)}`;
+				for (const a of this.args) {
+					argline += " ";
+					argline += options.windowsVerbatimArguments ? a : this._windowsQuoteCmdArg(a);
+				}
+				argline += "\"";
+				return [argline];
+			}
+		}
+		return this.args;
+	}
+	_endsWith(str, end) {
+		return str.endsWith(end);
+	}
+	_isCmdFile() {
+		const upperToolPath = this.toolPath.toUpperCase();
+		return this._endsWith(upperToolPath, ".CMD") || this._endsWith(upperToolPath, ".BAT");
+	}
+	_windowsQuoteCmdArg(arg) {
+		if (!this._isCmdFile()) return this._uvQuoteCmdArg(arg);
+		if (!arg) return "\"\"";
+		const cmdSpecialChars = [
+			" ",
+			"	",
+			"&",
+			"(",
+			")",
+			"[",
+			"]",
+			"{",
+			"}",
+			"^",
+			"=",
+			";",
+			"!",
+			"'",
+			"+",
+			",",
+			"`",
+			"~",
+			"|",
+			"<",
+			">",
+			"\""
+		];
+		let needsQuotes = false;
+		for (const char of arg) if (cmdSpecialChars.some((x) => x === char)) {
+			needsQuotes = true;
+			break;
+		}
+		if (!needsQuotes) return arg;
+		let reverse = "\"";
+		let quoteHit = true;
+		for (let i = arg.length; i > 0; i--) {
+			reverse += arg[i - 1];
+			if (quoteHit && arg[i - 1] === "\\") reverse += "\\";
+			else if (arg[i - 1] === "\"") {
+				quoteHit = true;
+				reverse += "\"";
+			} else quoteHit = false;
+		}
+		reverse += "\"";
+		return reverse.split("").reverse().join("");
+	}
+	_uvQuoteCmdArg(arg) {
+		if (!arg) return "\"\"";
+		if (!arg.includes(" ") && !arg.includes("	") && !arg.includes("\"")) return arg;
+		if (!arg.includes("\"") && !arg.includes("\\")) return `"${arg}"`;
+		let reverse = "\"";
+		let quoteHit = true;
+		for (let i = arg.length; i > 0; i--) {
+			reverse += arg[i - 1];
+			if (quoteHit && arg[i - 1] === "\\") reverse += "\\";
+			else if (arg[i - 1] === "\"") {
+				quoteHit = true;
+				reverse += "\\";
+			} else quoteHit = false;
+		}
+		reverse += "\"";
+		return reverse.split("").reverse().join("");
+	}
+	_cloneExecOptions(options) {
+		options = options || {};
+		const result = {
+			cwd: options.cwd || process.cwd(),
+			env: options.env || process.env,
+			silent: options.silent || false,
+			windowsVerbatimArguments: options.windowsVerbatimArguments || false,
+			failOnStdErr: options.failOnStdErr || false,
+			ignoreReturnCode: options.ignoreReturnCode || false,
+			delay: options.delay || 1e4
+		};
+		result.outStream = options.outStream || process.stdout;
+		result.errStream = options.errStream || process.stderr;
+		return result;
+	}
+	_getSpawnOptions(options, toolPath) {
+		options = options || {};
+		const result = {};
+		result.cwd = options.cwd;
+		result.env = options.env;
+		result["windowsVerbatimArguments"] = options.windowsVerbatimArguments || this._isCmdFile();
+		if (options.windowsVerbatimArguments) result.argv0 = `"${toolPath}"`;
+		return result;
+	}
+	/**
+	* Exec a tool.
+	* Output will be streamed to the live console.
+	* Returns promise with return code
+	*
+	* @param     tool     path to tool to exec
+	* @param     options  optional exec options.  See ExecOptions
+	* @returns   number
+	*/
+	exec() {
+		return __awaiter$4(this, void 0, void 0, function* () {
+			if (!isRooted(this.toolPath) && (this.toolPath.includes("/") || IS_WINDOWS && this.toolPath.includes("\\"))) this.toolPath = path$1.resolve(process.cwd(), this.options.cwd || process.cwd(), this.toolPath);
+			this.toolPath = yield which(this.toolPath, true);
+			return new Promise((resolve, reject) => __awaiter$4(this, void 0, void 0, function* () {
+				this._debug(`exec tool: ${this.toolPath}`);
+				this._debug("arguments:");
+				for (const arg of this.args) this._debug(`   ${arg}`);
+				const optionsNonNull = this._cloneExecOptions(this.options);
+				if (!optionsNonNull.silent && optionsNonNull.outStream) optionsNonNull.outStream.write(this._getCommandString(optionsNonNull) + os$1.EOL);
+				const state = new ExecState(optionsNonNull, this.toolPath);
+				state.on("debug", (message) => {
+					this._debug(message);
+				});
+				if (this.options.cwd && !(yield exists(this.options.cwd))) return reject(/* @__PURE__ */ new Error(`The cwd: ${this.options.cwd} does not exist!`));
+				const fileName = this._getSpawnFileName();
+				const cp = child.spawn(fileName, this._getSpawnArgs(optionsNonNull), this._getSpawnOptions(this.options, fileName));
+				let stdbuffer = "";
+				if (cp.stdout) cp.stdout.on("data", (data) => {
+					if (this.options.listeners && this.options.listeners.stdout) this.options.listeners.stdout(data);
+					if (!optionsNonNull.silent && optionsNonNull.outStream) optionsNonNull.outStream.write(data);
+					stdbuffer = this._processLineBuffer(data, stdbuffer, (line) => {
+						if (this.options.listeners && this.options.listeners.stdline) this.options.listeners.stdline(line);
+					});
+				});
+				let errbuffer = "";
+				if (cp.stderr) cp.stderr.on("data", (data) => {
+					state.processStderr = true;
+					if (this.options.listeners && this.options.listeners.stderr) this.options.listeners.stderr(data);
+					if (!optionsNonNull.silent && optionsNonNull.errStream && optionsNonNull.outStream) (optionsNonNull.failOnStdErr ? optionsNonNull.errStream : optionsNonNull.outStream).write(data);
+					errbuffer = this._processLineBuffer(data, errbuffer, (line) => {
+						if (this.options.listeners && this.options.listeners.errline) this.options.listeners.errline(line);
+					});
+				});
+				cp.on("error", (err) => {
+					state.processError = err.message;
+					state.processExited = true;
+					state.processClosed = true;
+					state.CheckComplete();
+				});
+				cp.on("exit", (code) => {
+					state.processExitCode = code;
+					state.processExited = true;
+					this._debug(`Exit code ${code} received from tool '${this.toolPath}'`);
+					state.CheckComplete();
+				});
+				cp.on("close", (code) => {
+					state.processExitCode = code;
+					state.processExited = true;
+					state.processClosed = true;
+					this._debug(`STDIO streams have closed for tool '${this.toolPath}'`);
+					state.CheckComplete();
+				});
+				state.on("done", (error, exitCode) => {
+					if (stdbuffer.length > 0) this.emit("stdline", stdbuffer);
+					if (errbuffer.length > 0) this.emit("errline", errbuffer);
+					cp.removeAllListeners();
+					if (error) reject(error);
+					else resolve(exitCode);
+				});
+				if (this.options.input) {
+					if (!cp.stdin) throw new Error("child process missing stdin");
+					cp.stdin.end(this.options.input);
+				}
+			}));
+		});
+	}
+};
+/**
+* Convert an arg string to an array of args. Handles escaping
+*
+* @param    argString   string of arguments
+* @returns  string[]    array of arguments
+*/
+function argStringToArray(argString) {
+	const args = [];
+	let inQuotes = false;
+	let escaped = false;
+	let arg = "";
+	function append(c) {
+		if (escaped && c !== "\"") arg += "\\";
+		arg += c;
+		escaped = false;
+	}
+	for (let i = 0; i < argString.length; i++) {
+		const c = argString.charAt(i);
+		if (c === "\"") {
+			if (!escaped) inQuotes = !inQuotes;
+			else append(c);
+			continue;
+		}
+		if (c === "\\" && escaped) {
+			append(c);
+			continue;
+		}
+		if (c === "\\" && inQuotes) {
+			escaped = true;
+			continue;
+		}
+		if (c === " " && !inQuotes) {
+			if (arg.length > 0) {
+				args.push(arg);
+				arg = "";
+			}
+			continue;
+		}
+		append(c);
+	}
+	if (arg.length > 0) args.push(arg.trim());
+	return args;
+}
+var ExecState = class ExecState extends events.EventEmitter {
+	constructor(options, toolPath) {
+		super();
+		this.processClosed = false;
+		this.processError = "";
+		this.processExitCode = 0;
+		this.processExited = false;
+		this.processStderr = false;
+		this.delay = 1e4;
+		this.done = false;
+		this.timeout = null;
+		if (!toolPath) throw new Error("toolPath must not be empty");
+		this.options = options;
+		this.toolPath = toolPath;
+		if (options.delay) this.delay = options.delay;
+	}
+	CheckComplete() {
+		if (this.done) return;
+		if (this.processClosed) this._setResult();
+		else if (this.processExited) this.timeout = setTimeout$1(ExecState.HandleTimeout, this.delay, this);
+	}
+	_debug(message) {
+		this.emit("debug", message);
+	}
+	_setResult() {
+		let error;
+		if (this.processExited) {
+			if (this.processError) error = /* @__PURE__ */ new Error(`There was an error when attempting to execute the process '${this.toolPath}'. This may indicate the process failed to start. Error: ${this.processError}`);
+			else if (this.processExitCode !== 0 && !this.options.ignoreReturnCode) error = /* @__PURE__ */ new Error(`The process '${this.toolPath}' failed with exit code ${this.processExitCode}`);
+			else if (this.processStderr && this.options.failOnStdErr) error = /* @__PURE__ */ new Error(`The process '${this.toolPath}' failed because one or more lines were written to the STDERR stream`);
+		}
+		if (this.timeout) {
+			clearTimeout(this.timeout);
+			this.timeout = null;
+		}
+		this.done = true;
+		this.emit("done", error, this.processExitCode);
+	}
+	static HandleTimeout(state) {
+		if (state.done) return;
+		if (!state.processClosed && state.processExited) {
+			const message = `The STDIO streams did not close within ${state.delay / 1e3} seconds of the exit event from process '${state.toolPath}'. This may indicate a child process inherited the STDIO streams and has not yet exited.`;
+			state._debug(message);
+		}
+		state._setResult();
+	}
+};
+//#endregion
+//#region ../../node_modules/.pnpm/@actions+exec@3.0.0/node_modules/@actions/exec/lib/exec.js
+var __awaiter$3 = function(thisArg, _arguments, P, generator) {
+	function adopt(value) {
+		return value instanceof P ? value : new P(function(resolve) {
+			resolve(value);
+		});
+	}
+	return new (P || (P = Promise))(function(resolve, reject) {
+		function fulfilled(value) {
+			try {
+				step(generator.next(value));
+			} catch (e) {
+				reject(e);
+			}
+		}
+		function rejected(value) {
+			try {
+				step(generator["throw"](value));
+			} catch (e) {
+				reject(e);
+			}
+		}
+		function step(result) {
+			result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+		}
+		step((generator = generator.apply(thisArg, _arguments || [])).next());
+	});
+};
+/**
+* Exec a command.
+* Output will be streamed to the live console.
+* Returns promise with return code
+*
+* @param     commandLine        command to execute (can include additional args). Must be correctly escaped.
+* @param     args               optional arguments for tool. Escaping is handled by the lib.
+* @param     options            optional exec options.  See ExecOptions
+* @returns   Promise<number>    exit code
+*/
+function exec(commandLine, args, options) {
+	return __awaiter$3(this, void 0, void 0, function* () {
+		const commandArgs = argStringToArray(commandLine);
+		if (commandArgs.length === 0) throw new Error(`Parameter 'commandLine' cannot be null or empty.`);
+		const toolPath = commandArgs[0];
+		args = commandArgs.slice(1).concat(args || []);
+		return new ToolRunner(toolPath, args, options).exec();
+	});
+}
+/**
+* Exec a command and get the output.
+* Output will be streamed to the live console.
+* Returns promise with the exit code and collected stdout and stderr
+*
+* @param     commandLine           command to execute (can include additional args). Must be correctly escaped.
+* @param     args                  optional arguments for tool. Escaping is handled by the lib.
+* @param     options               optional exec options.  See ExecOptions
+* @returns   Promise<ExecOutput>   exit code, stdout, and stderr
+*/
+function getExecOutput(commandLine, args, options) {
+	return __awaiter$3(this, void 0, void 0, function* () {
+		var _a, _b;
+		let stdout = "";
+		let stderr = "";
+		const stdoutDecoder = new StringDecoder("utf8");
+		const stderrDecoder = new StringDecoder("utf8");
+		const originalStdoutListener = (_a = options === null || options === void 0 ? void 0 : options.listeners) === null || _a === void 0 ? void 0 : _a.stdout;
+		const originalStdErrListener = (_b = options === null || options === void 0 ? void 0 : options.listeners) === null || _b === void 0 ? void 0 : _b.stderr;
+		const stdErrListener = (data) => {
+			stderr += stderrDecoder.write(data);
+			if (originalStdErrListener) originalStdErrListener(data);
+		};
+		const stdOutListener = (data) => {
+			stdout += stdoutDecoder.write(data);
+			if (originalStdoutListener) originalStdoutListener(data);
+		};
+		const listeners = Object.assign(Object.assign({}, options === null || options === void 0 ? void 0 : options.listeners), {
+			stdout: stdOutListener,
+			stderr: stdErrListener
+		});
+		const exitCode = yield exec(commandLine, args, Object.assign(Object.assign({}, options), { listeners }));
+		stdout += stdoutDecoder.end();
+		stderr += stderrDecoder.end();
+		return {
+			exitCode,
+			stdout,
+			stderr
+		};
+	});
+}
 os.platform();
 os.arch();
 /**
@@ -16146,6 +16602,19 @@ function getInput(name, options) {
 	return val.trim();
 }
 /**
+* Gets the values of an multiline input.  Each value is also trimmed.
+*
+* @param     name     name of the input to get
+* @param     options  optional. See InputOptions.
+* @returns   string[]
+*
+*/
+function getMultilineInput(name, options) {
+	const inputs = getInput(name, options).split("\n").filter((x) => x !== "");
+	if (options && options.trimWhitespace === false) return inputs;
+	return inputs.map((input) => input.trim());
+}
+/**
 * Gets the input value of the boolean type in the YAML 1.2 "core schema" specification.
 * Support boolean input list: `true | True | TRUE | false | False | FALSE` .
 * The return value is also in boolean type.
@@ -16170,13 +16639,6 @@ function getBooleanInput(name, options) {
 	if (trueValue.includes(val)) return true;
 	if (falseValue.includes(val)) return false;
 	throw new TypeError(`Input does not meet YAML 1.2 "Core Schema" specification: ${name}\nSupport boolean input list: \`true | True | TRUE | false | False | FALSE\``);
-}
-/**
-* Writes debug message to user log
-* @param message debug message
-*/
-function debug(message) {
-	issueCommand("debug", {}, message);
 }
 /**
 * Adds an error issue
@@ -19283,6 +19745,167 @@ function getOctokit(token, options, ...additionalPlugins) {
 	return new (GitHub.plugin(...additionalPlugins))(getOctokitOptions(token, options));
 }
 //#endregion
+//#region ../utils/constants.ts
+const GIT_CONFIG = {
+	USER_NAME: "tdesign-bot",
+	USER_EMAIL: "tdesign@tencent.com"
+};
+//#endregion
+//#region ../utils/git-helper.ts
+var GitHelper = class {
+	token;
+	owner;
+	repo;
+	repoPath;
+	dryRun;
+	constructor(context) {
+		this.token = context.token;
+		this.owner = context.owner;
+		this.repo = context.repo;
+		this.dryRun = context.dryRun;
+		this.repoPath = context.repoPath ?? `./${context.repo}`;
+	}
+	isDryRun() {
+		return this.dryRun;
+	}
+	logDryRunInfo(action, details) {
+		if (this.isDryRun()) info(`[DRY-RUN] ${details ? `${action}: ${JSON.stringify(details)}` : action}`);
+	}
+	async initConfig() {
+		await exec("git", [
+			"config",
+			"--global",
+			"user.name",
+			GIT_CONFIG.USER_NAME
+		]);
+		await exec("git", [
+			"config",
+			"--global",
+			"user.email",
+			GIT_CONFIG.USER_EMAIL
+		]);
+		if (this.token === "test") return;
+		await exec("git", [
+			"config",
+			"--global",
+			`url.https://${this.token}@github.com/.insteadOf`,
+			"https://github.com/"
+		]);
+	}
+	async getConflictFiles() {
+		const { stdout } = await getExecOutput("git", [
+			"diff",
+			"--name-only",
+			"--diff-filter=U"
+		], { cwd: this.repoPath });
+		return stdout.split("\n").map((line) => line.trim()).filter(Boolean);
+	}
+	get repoUrl() {
+		return `https://github.com/${this.owner}/${this.repo}.git`;
+	}
+	async clone() {
+		await this.initConfig();
+		info(this.repoUrl);
+		await exec("ls", ["-al"]);
+		await exec("git", [
+			"clone",
+			this.repoUrl,
+			this.repoPath
+		]);
+		await exec("ls", ["-al"]);
+		const { stdout } = await getExecOutput("git", [
+			"rev-parse",
+			"--abbrev-ref",
+			"HEAD"
+		], { cwd: this.repoPath });
+		info(`当前分支: ${stdout.trim()}`);
+		return stdout.trim();
+	}
+	async createBranch(branch) {
+		await exec("git", [
+			"checkout",
+			"-b",
+			branch
+		], { cwd: this.repoPath });
+	}
+	async checkoutBranch(branch) {
+		await exec("git", ["checkout", branch], { cwd: this.repoPath });
+	}
+	async checkoutPr(prNumber) {
+		await exec("git", [
+			"fetch",
+			"origin",
+			`pull/${prNumber}/head:pr-${prNumber}`
+		], { cwd: this.repoPath });
+		await exec("git", ["checkout", `pr-${prNumber}`], { cwd: this.repoPath });
+	}
+	async addRemote(name, url) {
+		await exec("git", [
+			"remote",
+			"add",
+			name,
+			url
+		], { cwd: this.repoPath });
+		await exec("git", ["fetch", name], { cwd: this.repoPath });
+	}
+	async setUpstream(remote, branch) {
+		await exec("git", [
+			"branch",
+			"--set-upstream-to",
+			`${remote}/${branch}`
+		], { cwd: this.repoPath });
+	}
+	async commit(message) {
+		await exec("git", [
+			"commit",
+			"-am",
+			message,
+			"--no-verify"
+		], { cwd: this.repoPath });
+	}
+	async push(branch, forkOwner) {
+		if (this.isDryRun()) {
+			this.logDryRunInfo("git push", {
+				branch,
+				forkOwner
+			});
+			return;
+		}
+		if (forkOwner) await exec("git", [
+			"push",
+			forkOwner,
+			`HEAD:${branch}`
+		], { cwd: this.repoPath });
+		else await exec("git", [
+			"push",
+			"origin",
+			branch
+		], { cwd: this.repoPath });
+	}
+	async initSubmodule() {
+		await exec("git", [
+			"submodule",
+			"update",
+			"--init",
+			"--recursive"
+		], { cwd: this.repoPath });
+	}
+	async updateSubmodule() {
+		await exec("git", [
+			"submodule",
+			"update",
+			"--remote"
+		], { cwd: this.repoPath });
+	}
+	async isNeedCommit() {
+		const { stdout } = await getExecOutput("git", ["status", "--porcelain"], { cwd: this.repoPath });
+		return stdout.trim() !== "";
+	}
+	async printDiff() {
+		await exec("git", ["diff"], { cwd: this.repoPath });
+	}
+};
+//#endregion
 //#region ../utils/github-helper.ts
 var GithubHelper = class {
 	octokit;
@@ -19311,9 +19934,9 @@ var GithubHelper = class {
 				pull_number: prNumber
 			});
 			return data;
-		} catch (error$3) {
-			error(`获取PR数据失败: ${error$3}`);
-			throw error$3;
+		} catch (error$4) {
+			error(`获取PR数据失败: ${error$4}`);
+			throw error$4;
 		}
 	}
 	async getIssueData(issueNumber) {
@@ -19323,9 +19946,9 @@ var GithubHelper = class {
 				issue_number: issueNumber
 			});
 			return data;
-		} catch (error$5) {
-			error(`获取Issue数据失败: ${error$5}`);
-			throw error$5;
+		} catch (error$6) {
+			error(`获取Issue数据失败: ${error$6}`);
+			throw error$6;
 		}
 	}
 	async getIssueList(params) {
@@ -19335,9 +19958,9 @@ var GithubHelper = class {
 				...this.defaultRepoParams
 			});
 			return data.filter((item) => !item?.pull_request);
-		} catch (error$4) {
-			error(`获取Issue列表失败: ${error$4}`);
-			throw error$4;
+		} catch (error$5) {
+			error(`获取Issue列表失败: ${error$5}`);
+			throw error$5;
 		}
 	}
 	async closeIssue(issueNumber) {
@@ -19348,9 +19971,9 @@ var GithubHelper = class {
 				issue_number: issueNumber,
 				state: "closed"
 			});
-		} catch (error$6) {
-			error(`关闭Issue失败: ${error$6}`);
-			throw error$6;
+		} catch (error$7) {
+			error(`关闭Issue失败: ${error$7}`);
+			throw error$7;
 		}
 	}
 	async createPR(title, head, body, base = "develop") {
@@ -19369,9 +19992,9 @@ var GithubHelper = class {
 				body
 			});
 			return data;
-		} catch (error$1) {
-			error(`创建PR失败: ${error$1}`);
-			throw error$1;
+		} catch (error$2) {
+			error(`创建PR失败: ${error$2}`);
+			throw error$2;
 		}
 	}
 	async addComment(issueNumber, body) {
@@ -19386,9 +20009,9 @@ var GithubHelper = class {
 				body
 			});
 			return data;
-		} catch (error$2) {
-			error(`添加评论失败: ${error$2}`);
-			throw error$2;
+		} catch (error$3) {
+			error(`添加评论失败: ${error$3}`);
+			throw error$3;
 		}
 	}
 	async addLabels(issueNumber, labels) {
@@ -19403,43 +20026,133 @@ var GithubHelper = class {
 				labels
 			});
 			return data;
-		} catch (error$7) {
-			error(`添加标签失败: ${error$7}`);
-			throw error$7;
+		} catch (error$8) {
+			error(`添加标签失败: ${error$8}`);
+			throw error$8;
 		}
 	}
 };
 //#endregion
-//#region index.ts
+//#region main.ts
+const PACKAGE_MANAGER_COMMANDS = {
+	pnpm: {
+		cmd: "pnpm",
+		args: ["up", "--latest"]
+	},
+	yarn: {
+		cmd: "yarn",
+		args: ["upgrade", "--latest"]
+	},
+	npm: {
+		cmd: "npm",
+		args: ["update"]
+	}
+};
+function getBranchName(deps) {
+	return `chore/deps/upgrade-${deps.map((d) => `${d.name.replace(/@/g, "").replace(/\//g, "-")}-${d.version}`).join("-")}`;
+}
+function getPrTitle(deps) {
+	return `chore: upgrade ${deps.map((d) => `${d.name} to ${d.version}`).join(", ")}`;
+}
+function getRepoPath(repo, targetDir) {
+	const base = `./${repo}`;
+	return targetDir ? path.join(base, targetDir) : base;
+}
+async function fetchPackageVersion(pkg) {
+	try {
+		const response = await fetch(`https://registry.npmjs.org/${pkg}/latest`);
+		if (!response.ok) {
+			error(`Failed to get ${pkg} info from npm registry, status code: ${response.status}`);
+			return null;
+		}
+		const { version } = await response.json();
+		if (!version) {
+			error(`No version found for ${pkg}`);
+			return null;
+		}
+		info(`Latest version of ${pkg} is ${version}`);
+		return {
+			name: pkg,
+			version
+		};
+	} catch (error$1) {
+		error(`Error fetching ${pkg}: ${error$1}`);
+		return null;
+	}
+}
+async function getPkgLatestVersions(pkgNames) {
+	return (await Promise.all(pkgNames.map(fetchPackageVersion))).filter((r) => r !== null);
+}
+async function updatePackageDependencies(packageManager, deps, repo, targetDir) {
+	const repoPath = getRepoPath(repo, targetDir);
+	const { cmd, args } = PACKAGE_MANAGER_COMMANDS[packageManager] ?? PACKAGE_MANAGER_COMMANDS.npm;
+	await exec(cmd, [...args, ...deps], { cwd: repoPath });
+}
+async function createDepsPr(title, branchName, baseBranch, context) {
+	await new GithubHelper({
+		owner: context.owner,
+		repo: context.repo,
+		token: context.token,
+		dryRun: context.dryRun
+	}).createPR(title, branchName, title, baseBranch);
+}
+async function updateDependencies(context) {
+	const packageManager = getInput("package-manager") || "npm";
+	const targetDir = getInput("target-dir") || "";
+	const customTitle = getInput("title") || "";
+	const deps = getMultilineInput("deps", {
+		required: true,
+		trimWhitespace: true
+	});
+	info(`deps: ${JSON.stringify(deps)}`);
+	info(`target-dir: ${targetDir || "default (repo root)"}`);
+	if (customTitle) info(`custom-title: ${customTitle}`);
+	if (!deps.length) throw new Error("Missing deps input");
+	const depInfos = await getPkgLatestVersions(deps);
+	info(`depInfos: ${JSON.stringify(depInfos)}`);
+	if (packageManager !== "npm") await exec("corepack", ["enable"]);
+	const gitHelper = new GitHelper({
+		repo: context.repo,
+		owner: context.owner,
+		token: context.token,
+		dryRun: context.dryRun
+	});
+	const baseBranch = await gitHelper.clone();
+	await gitHelper.initSubmodule();
+	const branchName = getBranchName(depInfos);
+	await gitHelper.createBranch(branchName);
+	await updatePackageDependencies(packageManager, deps, context.repo, targetDir);
+	if (!await gitHelper.isNeedCommit()) {
+		info("No changes to commit");
+		return;
+	}
+	startGroup("Changes to commit");
+	await gitHelper.printDiff();
+	endGroup();
+	const title = customTitle || getPrTitle(depInfos);
+	await gitHelper.commit(title);
+	await gitHelper.push(branchName);
+	await createDepsPr(title, branchName, baseBranch, context);
+}
 async function main() {
 	const repo = getInput("repo") || context.repo.repo;
 	const owner = getInput("owner") || context.repo.owner;
-	const token = getInput("token") || "";
-	const dryRun = getBooleanInput("dry-run") || false;
-	const label = getInput("label");
-	const version = getInput("version");
-	startGroup("close-release-issue");
-	info("close-release-issue");
+	const token = getInput("token", { required: true });
+	const dryRun = getBooleanInput("dry-run");
+	startGroup("upgrade-deps");
 	info(`repo: ${repo}`);
 	info(`owner: ${owner}`);
 	endGroup();
-	const githubHelper = new GithubHelper({
-		owner,
+	await updateDependencies({
 		repo,
+		owner,
 		token,
-		dryRun
+		dryRun,
+		trigger: context.eventName
 	});
-	const issues = await githubHelper.getIssueList({
-		state: "open",
-		label
-	});
-	debug(`issues: ${JSON.stringify(issues, null, 2)}`);
-	const comment = `此问题 [${version}](${`https://github.com/${owner}/${repo}/releases/tag/${version}`}) 版本已处理发布,请升级版本使用，如有问题请重新新建 issue 进行反馈，谢谢。`;
-	for (const issue of issues) {
-		await githubHelper.closeIssue(issue.number);
-		await githubHelper.addComment(issue.number, comment);
-	}
 }
+//#endregion
+//#region index.ts
 main();
 //#endregion
 export {};
