@@ -8,7 +8,7 @@ export default defineConfig({
       '@actions/core',
       '@actions/exec',
       '@actions/github',
-      '@workflows/utils'
+      '@workflows/utils',
     ],
     onlyBundle: [
       '@actions/core',

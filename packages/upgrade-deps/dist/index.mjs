@@ -19934,9 +19934,9 @@ var GithubHelper = class {
 				pull_number: prNumber
 			});
 			return data;
-		} catch (error$3) {
-			error(`获取PR数据失败: ${error$3}`);
-			throw error$3;
+		} catch (error$4) {
+			error(`获取PR数据失败: ${error$4}`);
+			throw error$4;
 		}
 	}
 	async getIssueData(issueNumber) {
@@ -19946,9 +19946,9 @@ var GithubHelper = class {
 				issue_number: issueNumber
 			});
 			return data;
-		} catch (error$5) {
-			error(`获取Issue数据失败: ${error$5}`);
-			throw error$5;
+		} catch (error$6) {
+			error(`获取Issue数据失败: ${error$6}`);
+			throw error$6;
 		}
 	}
 	async getIssueList(params) {
@@ -19958,9 +19958,9 @@ var GithubHelper = class {
 				...this.defaultRepoParams
 			});
 			return data.filter((item) => !item?.pull_request);
-		} catch (error$4) {
-			error(`获取Issue列表失败: ${error$4}`);
-			throw error$4;
+		} catch (error$5) {
+			error(`获取Issue列表失败: ${error$5}`);
+			throw error$5;
 		}
 	}
 	async closeIssue(issueNumber) {
@@ -19971,9 +19971,9 @@ var GithubHelper = class {
 				issue_number: issueNumber,
 				state: "closed"
 			});
-		} catch (error$6) {
-			error(`关闭Issue失败: ${error$6}`);
-			throw error$6;
+		} catch (error$7) {
+			error(`关闭Issue失败: ${error$7}`);
+			throw error$7;
 		}
 	}
 	async createPR(title, head, body, base = "develop") {
@@ -19992,9 +19992,9 @@ var GithubHelper = class {
 				body
 			});
 			return data;
-		} catch (error$1) {
-			error(`创建PR失败: ${error$1}`);
-			throw error$1;
+		} catch (error$2) {
+			error(`创建PR失败: ${error$2}`);
+			throw error$2;
 		}
 	}
 	async addComment(issueNumber, body) {
@@ -20009,9 +20009,9 @@ var GithubHelper = class {
 				body
 			});
 			return data;
-		} catch (error$2) {
-			error(`添加评论失败: ${error$2}`);
-			throw error$2;
+		} catch (error$3) {
+			error(`添加评论失败: ${error$3}`);
+			throw error$3;
 		}
 	}
 	async addLabels(issueNumber, labels) {
@@ -20026,66 +20026,67 @@ var GithubHelper = class {
 				labels
 			});
 			return data;
-		} catch (error$7) {
-			error(`添加标签失败: ${error$7}`);
-			throw error$7;
+		} catch (error$8) {
+			error(`添加标签失败: ${error$8}`);
+			throw error$8;
 		}
 	}
 };
 //#endregion
 //#region main.ts
+const PACKAGE_MANAGER_COMMANDS = {
+	pnpm: {
+		cmd: "pnpm",
+		args: ["up", "--latest"]
+	},
+	yarn: {
+		cmd: "yarn",
+		args: ["upgrade", "--latest"]
+	},
+	npm: {
+		cmd: "npm",
+		args: ["update"]
+	}
+};
 function getBranchName(deps) {
 	return `chore/deps/upgrade-${deps.map((d) => `${d.name.replace(/@/g, "").replace(/\//g, "-")}-${d.version}`).join("-")}`;
 }
 function getPrTitle(deps) {
 	return `chore: upgrade ${deps.map((d) => `${d.name} to ${d.version}`).join(", ")}`;
 }
-const ERROR_MESSAGES = { MISSING_DEPS: "Missing deps input" };
-var ActionError = class extends Error {
-	constructor(message, context) {
-		super(message);
-		this.name = "ActionError";
-		if (context) error(`${message} ${JSON.stringify(context)}`);
-	}
-};
-async function getPkgLatestVersion(pkgNames) {
-	const results = [];
-	for (const pkg of pkgNames) {
+function getRepoPath(repo, targetDir) {
+	const base = `./${repo}`;
+	return targetDir ? path.join(base, targetDir) : base;
+}
+async function fetchPackageVersion(pkg) {
+	try {
 		const response = await fetch(`https://registry.npmjs.org/${pkg}/latest`);
 		if (!response.ok) {
 			error(`Failed to get ${pkg} info from npm registry, status code: ${response.status}`);
-			continue;
+			return null;
 		}
-		const latest = (await response.json()).version;
-		if (!latest) {
+		const { version } = await response.json();
+		if (!version) {
 			error(`No version found for ${pkg}`);
-			continue;
+			return null;
 		}
-		info(`Latest version of ${pkg} is ${latest}`);
-		results.push({
+		info(`Latest version of ${pkg} is ${version}`);
+		return {
 			name: pkg,
-			version: latest
-		});
+			version
+		};
+	} catch (error$1) {
+		error(`Error fetching ${pkg}: ${error$1}`);
+		return null;
 	}
-	return results;
 }
-async function corepackEnable() {
-	await exec("corepack", ["enable"]);
+async function getPkgLatestVersions(pkgNames) {
+	return (await Promise.all(pkgNames.map(fetchPackageVersion))).filter((r) => r !== null);
 }
 async function updatePackageDependencies(packageManager, deps, repo, targetDir) {
-	let repoPath = `./${repo}`;
-	if (targetDir) repoPath = path.join(repoPath, targetDir);
-	if (packageManager === "pnpm") await exec("pnpm", [
-		"up",
-		...deps,
-		"--latest"
-	], { cwd: repoPath });
-	else if (packageManager === "yarn") await exec("yarn", [
-		"upgrade",
-		...deps,
-		"--latest"
-	], { cwd: repoPath });
-	else await exec("npm", ["update", ...deps], { cwd: repoPath });
+	const repoPath = getRepoPath(repo, targetDir);
+	const { cmd, args } = PACKAGE_MANAGER_COMMANDS[packageManager] ?? PACKAGE_MANAGER_COMMANDS.npm;
+	await exec(cmd, [...args, ...deps], { cwd: repoPath });
 }
 async function createDepsPr(title, branchName, baseBranch, context) {
 	await new GithubHelper({
@@ -20106,10 +20107,10 @@ async function updateDependencies(context) {
 	info(`deps: ${JSON.stringify(deps)}`);
 	info(`target-dir: ${targetDir || "default (repo root)"}`);
 	if (customTitle) info(`custom-title: ${customTitle}`);
-	if (!deps.length) throw new ActionError(ERROR_MESSAGES.MISSING_DEPS, { trigger: context.trigger });
-	const depInfos = await getPkgLatestVersion(deps);
+	if (!deps.length) throw new Error("Missing deps input");
+	const depInfos = await getPkgLatestVersions(deps);
 	info(`depInfos: ${JSON.stringify(depInfos)}`);
-	if (packageManager !== "npm") await corepackEnable();
+	if (packageManager !== "npm") await exec("corepack", ["enable"]);
 	const gitHelper = new GitHelper({
 		repo: context.repo,
 		owner: context.owner,

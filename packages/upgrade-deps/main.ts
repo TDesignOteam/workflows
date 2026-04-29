@@ -4,30 +4,6 @@ import * as exec from '@actions/exec'
 import * as github from '@actions/github'
 import { GitHelper, GithubHelper } from '@workflows/utils'
 
-function getBranchName(deps: Array<{ name: string, version: string }>): string {
-  const depsSlug = deps.map(d => `${d.name.replace(/@/g, '').replace(/\//g, '-')}-${d.version}`).join('-')
-  return `chore/deps/upgrade-${depsSlug}`
-}
-
-function getPrTitle(deps: Array<{ name: string, version: string }>): string {
-  const depList = deps.map(d => `${d.name} to ${d.version}`).join(', ')
-  return `chore: upgrade ${depList}`
-}
-
-const ERROR_MESSAGES = {
-  MISSING_DEPS: 'Missing deps input',
-}
-
-class ActionError extends Error {
-  constructor(message: string, context?: Record<string, unknown>) {
-    super(message)
-    this.name = 'ActionError'
-    if (context) {
-      core.error(`${message} ${JSON.stringify(context)}`)
-    }
-  }
-}
-
 interface TriggerContext {
   repo: string
   owner: string
@@ -41,47 +17,57 @@ interface DependencyInfo {
   version: string
 }
 
-async function getPkgLatestVersion(pkgNames: string[]): Promise<DependencyInfo[]> {
-  const results: DependencyInfo[] = []
-  for (const pkg of pkgNames) {
+const PACKAGE_MANAGER_COMMANDS: Record<string, { cmd: string, args: string[] }> = {
+  pnpm: { cmd: 'pnpm', args: ['up', '--latest'] },
+  yarn: { cmd: 'yarn', args: ['upgrade', '--latest'] },
+  npm: { cmd: 'npm', args: ['update'] },
+}
+
+function getBranchName(deps: DependencyInfo[]): string {
+  const depsSlug = deps.map(d => `${d.name.replace(/@/g, '').replace(/\//g, '-')}-${d.version}`).join('-')
+  return `chore/deps/upgrade-${depsSlug}`
+}
+
+function getPrTitle(deps: DependencyInfo[]): string {
+  const depList = deps.map(d => `${d.name} to ${d.version}`).join(', ')
+  return `chore: upgrade ${depList}`
+}
+
+function getRepoPath(repo: string, targetDir: string): string {
+  const base = `./${repo}`
+  return targetDir ? path.join(base, targetDir) : base
+}
+
+async function fetchPackageVersion(pkg: string): Promise<DependencyInfo | null> {
+  try {
     const response = await fetch(`https://registry.npmjs.org/${pkg}/latest`)
     if (!response.ok) {
       core.error(`Failed to get ${pkg} info from npm registry, status code: ${response.status}`)
-      continue
+      return null
     }
-    const info = await response.json() as { version?: string }
-    const latest = info.version
-    if (!latest) {
+    const { version } = await response.json() as { version?: string }
+    if (!version) {
       core.error(`No version found for ${pkg}`)
-      continue
+      return null
     }
-    core.info(`Latest version of ${pkg} is ${latest}`)
-    results.push({
-      name: pkg,
-      version: latest,
-    })
+    core.info(`Latest version of ${pkg} is ${version}`)
+    return { name: pkg, version }
   }
-  return results
+  catch (error) {
+    core.error(`Error fetching ${pkg}: ${error}`)
+    return null
+  }
 }
 
-async function corepackEnable(): Promise<void> {
-  await exec.exec('corepack', ['enable'])
+async function getPkgLatestVersions(pkgNames: string[]): Promise<DependencyInfo[]> {
+  const results = await Promise.all(pkgNames.map(fetchPackageVersion))
+  return results.filter((r): r is DependencyInfo => r !== null)
 }
 
 async function updatePackageDependencies(packageManager: string, deps: string[], repo: string, targetDir: string): Promise<void> {
-  let repoPath = `./${repo}`
-  if (targetDir) {
-    repoPath = path.join(repoPath, targetDir)
-  }
-  if (packageManager === 'pnpm') {
-    await exec.exec('pnpm', ['up', ...deps, '--latest'], { cwd: repoPath })
-  }
-  else if (packageManager === 'yarn') {
-    await exec.exec('yarn', ['upgrade', ...deps, '--latest'], { cwd: repoPath })
-  }
-  else {
-    await exec.exec('npm', ['update', ...deps], { cwd: repoPath })
-  }
+  const repoPath = getRepoPath(repo, targetDir)
+  const { cmd, args } = PACKAGE_MANAGER_COMMANDS[packageManager] ?? PACKAGE_MANAGER_COMMANDS.npm
+  await exec.exec(cmd, [...args, ...deps], { cwd: repoPath })
 }
 
 async function createDepsPr(
@@ -104,6 +90,7 @@ export async function updateDependencies(context: TriggerContext): Promise<void>
   const targetDir = core.getInput('target-dir') || ''
   const customTitle = core.getInput('title') || ''
   const deps = core.getMultilineInput('deps', { required: true, trimWhitespace: true })
+
   core.info(`deps: ${JSON.stringify(deps)}`)
   core.info(`target-dir: ${targetDir || 'default (repo root)'}`)
   if (customTitle) {
@@ -111,14 +98,14 @@ export async function updateDependencies(context: TriggerContext): Promise<void>
   }
 
   if (!deps.length) {
-    throw new ActionError(ERROR_MESSAGES.MISSING_DEPS, { trigger: context.trigger })
+    throw new Error('Missing deps input')
   }
 
-  const depInfos = await getPkgLatestVersion(deps)
+  const depInfos = await getPkgLatestVersions(deps)
   core.info(`depInfos: ${JSON.stringify(depInfos)}`)
 
   if (packageManager !== 'npm') {
-    await corepackEnable()
+    await exec.exec('corepack', ['enable'])
   }
 
   const gitHelper = new GitHelper({
@@ -132,10 +119,6 @@ export async function updateDependencies(context: TriggerContext): Promise<void>
   await gitHelper.initSubmodule()
   const branchName = getBranchName(depInfos)
   await gitHelper.createBranch(branchName)
-
-  // if (packageManager === 'pnpm') {
-  //   await updatePnpmCatalog(depInfos, context.repo, targetDir)
-  // }
 
   await updatePackageDependencies(packageManager, deps, context.repo, targetDir)
 
@@ -151,7 +134,6 @@ export async function updateDependencies(context: TriggerContext): Promise<void>
   const title = customTitle || getPrTitle(depInfos)
   await gitHelper.commit(title)
   await gitHelper.push(branchName)
-
   await createDepsPr(title, branchName, baseBranch, context)
 }
 
