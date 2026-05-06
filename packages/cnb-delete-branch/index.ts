@@ -20,7 +20,9 @@ async function main(): Promise<void> {
     }
 
     // 步骤 1: 查询所有 open PRs
+    core.info('查询所有 open PRs...')
     const prs = await client.Pulls.ListPulls({ repo, state: 'open' })
+    core.info(`查询到 ${prs.length} 个 open PRs`)
     // 步骤 2: 过滤并关闭与该分支关联的 PRs（CNB 不允许直接删除有 open PR 的分支）
     const branchPRs = prs.filter((pr) => {
       const headRef = pr.head.ref.replace(/^refs\/heads\//, '')
@@ -29,24 +31,39 @@ async function main(): Promise<void> {
     core.info(`找到 ${branchPRs.length} 个与分支 "${branch}" 关联的 open PR`)
     for (const pr of branchPRs) {
       core.info(`关闭 PR #${pr.number} (head.ref: ${pr.head.ref})`)
-      await client.Pulls.PatchPull({ repo, number: pr.number, update_pull_request_form: {
-        state: 'closed',
-        title: pr.title,
-        body: pr.body,
-      } })
+      try {
+        await client.Pulls.PatchPull({ repo, number: pr.number, update_pull_request_form: {
+          state: 'closed',
+          title: pr.title,
+          body: pr.body,
+        } })
+      } catch (prError) {
+        core.warning(`关闭 PR #${pr.number} 失败: ${prError instanceof Error ? prError.message : String(prError)}`)
+      }
     }
 
     // 步骤 3: 删除分支
     core.info(`删除分支 "${branch}"...`)
-    await client.repo.git.branches.delete({
-      repo,
-      branch,
-    })
-
-    core.info('分支删除完成')
+    try {
+      await client.repo.git.branches.delete({
+        repo,
+        branch,
+      })
+      core.info('分支删除完成')
+    } catch (deleteError) {
+      // 如果是分支不存在，跳过即可
+      if (deleteError instanceof Error && deleteError.message.includes('branch not found')) {
+        core.warning(`分支 "${branch}" 不存在，跳过删除`)
+      } else {
+        throw deleteError
+      }
+    }
   }
   catch (error) {
     core.error(`Error: ${error instanceof Error ? error.message : String(error)}`)
+    if (error instanceof Error && error.stack) {
+      core.debug(error.stack)
+    }
     core.setFailed(`cnb-delete-branch failed: ${error instanceof Error ? error.message : String(error)}`)
   }
 }
