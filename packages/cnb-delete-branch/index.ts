@@ -53,7 +53,8 @@ async function main(): Promise<void> {
       core.info('分支删除完成')
     }
     catch (deleteError) {
-      if (deleteError?.name === 'HttpError' && deleteError?.response?.status === 404) {
+      if (deleteError?.name === 'HTTPError' && deleteError?.response?.status === 404) {
+        core.warning(deleteError?.message)
         core.warning(`分支 "${branch}" 不存在，跳过删除`)
       }
       else {
