@@ -1,13 +1,15 @@
 catalogMode: prefer
 
+cleanupUnusedCatalogs: true
+
 shellEmulator: true
 
 trustPolicy: no-downgrade
-
 packages:
   - packages/*
 catalog:
   '@actions/core': ^3.0.1
+  '@actions/exec': ^3.0.0
   '@actions/github': ^9.1.1
   '@antfu/eslint-config': ^8.2.0
   '@octokit/plugin-rest-endpoint-methods': ^17.0.0
