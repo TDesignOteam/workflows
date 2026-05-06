@@ -26569,8 +26569,9 @@ async function main() {
 			});
 			info("分支删除完成");
 		} catch (deleteError) {
-			if (deleteError?.name === "HTTPError" && deleteError?.response?.status === 404) {
-				warning(deleteError?.message);
+			const err = deleteError;
+			if (err?.name === "HTTPError" && err?.response?.status === 404) {
+				warning(err?.message);
 				warning(`分支 "${branch}" 不存在，跳过删除`);
 			} else throw deleteError;
 		}
