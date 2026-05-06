@@ -26569,7 +26569,7 @@ async function main() {
 			});
 			info("分支删除完成");
 		} catch (deleteError) {
-			if (deleteError instanceof Error && deleteError.message.includes("branch not found")) warning(`分支 "${branch}" 不存在，跳过删除`);
+			if (deleteError?.name === "HttpError" && deleteError?.response?.status === 404) warning(`分支 "${branch}" 不存在，跳过删除`);
 			else throw deleteError;
 		}
 	} catch (error$1) {

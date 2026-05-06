@@ -37,7 +37,8 @@ async function main(): Promise<void> {
           title: pr.title,
           body: pr.body,
         } })
-      } catch (prError) {
+      }
+      catch (prError) {
         core.warning(`关闭 PR #${pr.number} 失败: ${prError instanceof Error ? prError.message : String(prError)}`)
       }
     }
@@ -50,11 +51,12 @@ async function main(): Promise<void> {
         branch,
       })
       core.info('分支删除完成')
-    } catch (deleteError) {
-      // 如果是分支不存在，跳过即可
-      if (deleteError instanceof Error && deleteError.message.includes('branch not found')) {
+    }
+    catch (deleteError) {
+      if (deleteError?.name === 'HttpError' && deleteError?.response?.status === 404) {
         core.warning(`分支 "${branch}" 不存在，跳过删除`)
-      } else {
+      }
+      else {
         throw deleteError
       }
     }
