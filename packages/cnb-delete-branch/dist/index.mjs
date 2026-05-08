@@ -26569,11 +26569,7 @@ async function main() {
 			});
 			info("分支删除完成");
 		} catch (deleteError) {
-			const err = deleteError;
-			if (err?.name === "HTTPError" && err?.response?.status === 404) {
-				warning(err?.message);
-				warning(`分支 "${branch}" 不存在，跳过删除`);
-			} else throw deleteError;
+			warning(`删除分支 "${branch}" 失败: ${deleteError instanceof Error ? deleteError.message : String(deleteError)}`);
 		}
 	} catch (error$1) {
 		error(`Error: ${error$1 instanceof Error ? error$1.message : String(error$1)}`);
