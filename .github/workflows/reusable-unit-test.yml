@@ -32,7 +32,7 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: pnpm/action-setup@v4.4.0
+      - uses: pnpm/action-setup@v6.0.6
         if: ${{ inputs.package-manager == 'pnpm' }}
 
       - uses: actions/setup-node@v6.4.0
@@ -45,7 +45,7 @@ jobs:
       - run: ${{ inputs.package-manager }} run lint
       - run: ${{ inputs.package-manager }} run test
       # upload report to codecov
-      - uses: codecov/codecov-action@v2
+      - uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 
@@ -57,7 +57,7 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: pnpm/action-setup@v4.4.0
+      - uses: pnpm/action-setup@v6.0.6
         if: ${{ inputs.package-manager == 'pnpm' }}
 
       - uses: actions/setup-node@v6.4.0
@@ -98,7 +98,7 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: pnpm/action-setup@v4.4.0
+      - uses: pnpm/action-setup@v6.0.6
         if: ${{ inputs.package-manager == 'pnpm' }}
 
       - uses: actions/setup-node@v6.4.0
