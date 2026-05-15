@@ -12,61 +12,98 @@ interface TriggerContext {
   trigger: string
 }
 
-interface DependencyInfo {
+export interface DependencyInfo {
   name: string
   version: string
 }
 
-const PACKAGE_MANAGER_COMMANDS: Record<string, { cmd: string, args: string[] }> = {
+const PACKAGE_MANAGER_COMMANDS = {
   pnpm: { cmd: 'pnpm', args: ['up', '--latest'] },
   yarn: { cmd: 'yarn', args: ['upgrade', '--latest'] },
-  npm: { cmd: 'npm', args: ['update'] },
+  npm: { cmd: 'npm', args: ['install'] },
+} as const
+
+type PackageManager = keyof typeof PACKAGE_MANAGER_COMMANDS
+
+function slugify(value: string): string {
+  return value.replace(/@/g, '').replace(/[^\w.-]+/g, '-').replace(/^-+|-+$/g, '')
 }
 
-function getBranchName(deps: DependencyInfo[]): string {
-  const depsSlug = deps.map(d => `${d.name.replace(/@/g, '').replace(/\//g, '-')}-${d.version}`).join('-')
+export function getBranchName(deps: DependencyInfo[]): string {
+  const depsSlug = deps.map(d => `${slugify(d.name)}-${slugify(d.version)}`).join('-')
   return `chore/deps/upgrade-${depsSlug}`
 }
 
-function getPrTitle(deps: DependencyInfo[]): string {
+export function getPrTitle(deps: DependencyInfo[]): string {
   const depList = deps.map(d => `${d.name} to ${d.version}`).join(', ')
   return `chore: upgrade ${depList}`
 }
 
-function getRepoPath(repo: string, targetDir: string): string {
+export function getRepoPath(repo: string, targetDir: string): string {
   const base = `./${repo}`
   return targetDir ? path.join(base, targetDir) : base
 }
 
-async function fetchPackageVersion(pkg: string): Promise<DependencyInfo | null> {
+export function parseDependencyName(spec: string): string {
+  const value = spec.trim()
+  if (!value)
+    throw new Error('Empty dependency name')
+
+  const versionSeparator = value.startsWith('@')
+    ? value.indexOf('@', value.indexOf('/') + 1)
+    : value.lastIndexOf('@')
+
+  if (versionSeparator > 0)
+    throw new Error(`Dependency versions are not supported: ${spec}. Please pass package names only.`)
+
+  return value
+}
+
+export function parseDependencyInputs(inputs: string[]): string[] {
+  const deps = inputs
+    .flatMap(input => input.split(/\s+/))
+    .map(item => item.trim())
+    .filter(Boolean)
+    .map(parseDependencyName)
+
+  if (!deps.length)
+    throw new Error('Missing deps input')
+
+  return deps
+}
+
+export function validatePackageManager(packageManager: string): PackageManager {
+  if (packageManager in PACKAGE_MANAGER_COMMANDS)
+    return packageManager as PackageManager
+
+  throw new Error(`Unsupported package-manager "${packageManager}". Supported values: npm, yarn, pnpm.`)
+}
+
+export async function fetchPackageVersion(pkg: string): Promise<DependencyInfo> {
   try {
     const response = await fetch(`https://registry.npmjs.org/${pkg}/latest`)
     if (!response.ok) {
-      core.error(`Failed to get ${pkg} info from npm registry, status code: ${response.status}`)
-      return null
+      throw new Error(`status code: ${response.status}`)
     }
     const { version } = await response.json() as { version?: string }
     if (!version) {
-      core.error(`No version found for ${pkg}`)
-      return null
+      throw new Error('no version found')
     }
     core.info(`Latest version of ${pkg} is ${version}`)
     return { name: pkg, version }
   }
   catch (error) {
-    core.error(`Error fetching ${pkg}: ${error}`)
-    return null
+    throw new Error(`Failed to get ${pkg} info from npm registry: ${error instanceof Error ? error.message : String(error)}`)
   }
 }
 
-async function getPkgLatestVersions(pkgNames: string[]): Promise<DependencyInfo[]> {
-  const results = await Promise.all(pkgNames.map(fetchPackageVersion))
-  return results.filter((r): r is DependencyInfo => r !== null)
+export async function resolveDependencyInfos(deps: string[]): Promise<DependencyInfo[]> {
+  return Promise.all(deps.map(fetchPackageVersion))
 }
 
-async function updatePackageDependencies(packageManager: string, deps: string[], repo: string, targetDir: string): Promise<void> {
+export async function updatePackageDependencies(packageManager: PackageManager, deps: string[], repo: string, targetDir: string): Promise<void> {
   const repoPath = getRepoPath(repo, targetDir)
-  const { cmd, args } = PACKAGE_MANAGER_COMMANDS[packageManager] ?? PACKAGE_MANAGER_COMMANDS.npm
+  const { cmd, args } = PACKAGE_MANAGER_COMMANDS[packageManager]
   await exec.exec(cmd, [...args, ...deps], { cwd: repoPath })
 }
 
@@ -86,10 +123,10 @@ async function createDepsPr(
 }
 
 export async function updateDependencies(context: TriggerContext): Promise<void> {
-  const packageManager = core.getInput('package-manager') || 'npm'
+  const packageManager = validatePackageManager(core.getInput('package-manager') || 'npm')
   const targetDir = core.getInput('target-dir') || ''
   const customTitle = core.getInput('title') || ''
-  const deps = core.getMultilineInput('deps', { required: true, trimWhitespace: true })
+  const deps = parseDependencyInputs(core.getMultilineInput('deps', { required: true, trimWhitespace: true }))
 
   core.info(`deps: ${JSON.stringify(deps)}`)
   core.info(`target-dir: ${targetDir || 'default (repo root)'}`)
@@ -97,11 +134,7 @@ export async function updateDependencies(context: TriggerContext): Promise<void>
     core.info(`custom-title: ${customTitle}`)
   }
 
-  if (!deps.length) {
-    throw new Error('Missing deps input')
-  }
-
-  const depInfos = await getPkgLatestVersions(deps)
+  const depInfos = await resolveDependencyInfos(deps)
   core.info(`depInfos: ${JSON.stringify(depInfos)}`)
 
   if (packageManager !== 'npm') {
