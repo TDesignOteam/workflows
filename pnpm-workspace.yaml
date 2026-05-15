@@ -17,3 +17,4 @@ catalog:
   '@typescript/native-preview': 7.0.0-dev.20260515.1
   eslint: ^10.3.0
   tsdown: ^0.22.0
+  vitest: ^4.1.6

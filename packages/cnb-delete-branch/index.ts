@@ -1,4 +1,6 @@
 import type { PullRequest } from './types'
+import process from 'node:process'
+import { pathToFileURL } from 'node:url'
 import * as core from '@actions/core'
 
 const CNB_API_URL = 'https://api.cnb.cool'
@@ -9,7 +11,7 @@ interface CNBResponse<T> {
   data?: T
 }
 
-class CNBRequestError extends Error {
+export class CNBRequestError extends Error {
   constructor(message: string, public status: number) {
     super(message)
     this.name = 'CNBRequestError'
@@ -28,19 +30,19 @@ function parseJson<T>(text: string): T | undefined {
   }
 }
 
-function encodePath(value: string): string {
+export function encodePath(value: string): string {
   return value.split('/').map(encodeURIComponent).join('/')
 }
 
-function getPullRepoPath(pr: PullRequest): string | undefined {
+export function getPullRepoPath(pr: PullRequest): string | undefined {
   return pr.head?.repo?.path
 }
 
-function getPullBranchName(pr: PullRequest): string | undefined {
+export function getPullBranchName(pr: PullRequest): string | undefined {
   return pr.head?.ref?.replace(/^refs\/heads\//, '')
 }
 
-async function fetchCNB<T>(
+export async function fetchCNB<T>(
   token: string,
   path: string,
   options?: RequestInit,
@@ -74,7 +76,7 @@ async function fetchCNB<T>(
   }
 }
 
-async function listPulls(token: string, repo: string, state: string): Promise<PullRequest[]> {
+export async function listPulls(token: string, repo: string, state: string): Promise<PullRequest[]> {
   const pulls: PullRequest[] = []
 
   for (let page = 1; ; page += 1) {
@@ -94,7 +96,7 @@ async function listPulls(token: string, repo: string, state: string): Promise<Pu
   return pulls
 }
 
-async function patchPull(
+export async function patchPull(
   token: string,
   repo: string,
   number: string,
@@ -107,7 +109,7 @@ async function patchPull(
   return Boolean(result)
 }
 
-async function deleteBranch(token: string, repo: string, branch: string): Promise<boolean> {
+export async function deleteBranch(token: string, repo: string, branch: string): Promise<boolean> {
   try {
     await fetchCNB(token, `/${encodePath(repo)}/-/git/branches/${encodePath(branch)}`, {
       method: 'DELETE',
@@ -122,7 +124,7 @@ async function deleteBranch(token: string, repo: string, branch: string): Promis
   }
 }
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
   const repo = core.getInput('repo', { required: true })
   const branch = core.getInput('branch', { required: true })
   const token = core.getInput('token', { required: true })
@@ -175,6 +177,8 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error) => {
-  core.setFailed(`cnb-delete-branch failed: ${error instanceof Error ? error.message : String(error)}`)
-})
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    core.setFailed(`cnb-delete-branch failed: ${error instanceof Error ? error.message : String(error)}`)
+  })
+}
