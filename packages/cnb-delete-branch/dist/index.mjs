@@ -16133,8 +16133,21 @@ function endGroup() {
 //#endregion
 //#region index.ts
 const CNB_API_URL = "https://api.cnb.cool";
+function parseJson(text) {
+	if (!text) return void 0;
+	try {
+		return JSON.parse(text);
+	} catch {
+		return;
+	}
+}
+function encodePath(value) {
+	return value.split("/").map(encodeURIComponent).join("/");
+}
 async function fetchCNB(token, path, options) {
 	const url = `${CNB_API_URL}/api/v1${path}`;
+	const method = options?.method || "GET";
+	info(`[CNB] ${method} ${path}`);
 	const response = await fetch(url, {
 		...options,
 		headers: {
@@ -16143,25 +16156,32 @@ async function fetchCNB(token, path, options) {
 			...options?.headers
 		}
 	});
+	const text = await response.text();
 	if (!response.ok) {
-		const message = (await response.json().catch(() => void 0))?.errmsg || `CNB API ${response.status}: ${response.statusText}`;
-		if (response.status === 500) throw new Error(message);
-		warning(message);
+		const requestMessage = `[CNB] ${method} ${path} failed: ${parseJson(text)?.errmsg || `CNB API ${response.status}: ${response.statusText}`}`;
+		if (response.status === 500) throw new Error(requestMessage);
+		warning(requestMessage);
 		return;
 	}
-	return response.json();
+	info(`[CNB] ${method} ${path} succeeded: ${response.status}`);
+	return {
+		status: response.status,
+		data: parseJson(text)
+	};
 }
 async function listPulls(token, repo, state) {
-	return await fetchCNB(token, `/${repo}/-/pulls?state=${state}`) || [];
+	return (await fetchCNB(token, `/${repo}/-/pulls?state=${state}`))?.data || [];
 }
 async function patchPull(token, repo, number, data) {
-	await fetchCNB(token, `/${repo}/-/pulls/${number}`, {
+	const result = await fetchCNB(token, `/${repo}/-/pulls/${number}`, {
 		method: "PATCH",
 		body: JSON.stringify(data)
 	});
+	return Boolean(result);
 }
 async function deleteBranch(token, repo, branch) {
-	await fetchCNB(token, `/${repo}/-/git/branches/${encodeURIComponent(branch)}`, { method: "DELETE" });
+	const result = await fetchCNB(token, `/${repo}/-/git/branches/${encodePath(branch)}`, { method: "DELETE" });
+	return Boolean(result);
 }
 async function main() {
 	const repo = getInput("repo", { required: true });
@@ -16172,14 +16192,29 @@ async function main() {
 	info(`Branch: ${branch}`);
 	endGroup();
 	try {
-		const branchPRs = (await listPulls(token, repo, "open")).filter((pr) => pr.head.ref.replace(/^refs\/heads\//, "") === branch && pr.head.repo.path === repo);
-		for (const pr of branchPRs) await patchPull(token, repo, pr.number, {
-			state: "closed",
-			title: pr.title,
-			body: pr.body
-		}).catch((e) => warning(`PR #${pr.number}: ${e.message}`));
-		await deleteBranch(token, repo, branch);
-		info(`Branch "${branch}" deleted`);
+		info("Step 1/4: list open pull requests");
+		const prs = await listPulls(token, repo, "open");
+		info(`Open pull requests: ${prs.length}`);
+		info("Step 2/4: find pull requests from target branch");
+		const branchPRs = prs.filter((pr) => pr.head.ref.replace(/^refs\/heads\//, "") === branch && pr.head.repo.path === repo);
+		if (branchPRs.length) info(`Matched pull requests: ${branchPRs.map((pr) => `#${pr.number}`).join(", ")}`);
+		else info(`No open pull requests found for branch "${branch}"`);
+		info("Step 3/4: close matched pull requests");
+		for (const pr of branchPRs) {
+			info(`Closing PR #${pr.number}: ${pr.title}`);
+			if (await patchPull(token, repo, pr.number, {
+				state: "closed",
+				title: pr.title,
+				body: pr.body
+			}).catch((e) => {
+				warning(`Close PR #${pr.number} failed: ${e.message}`);
+				return false;
+			})) info(`PR #${pr.number} closed`);
+		}
+		if (!branchPRs.length) info("Skip closing pull requests");
+		info("Step 4/4: delete target branch");
+		if (await deleteBranch(token, repo, branch)) info(`Branch "${branch}" deleted`);
+		else warning(`Branch "${branch}" was not deleted. It may not exist, or the token may not have access.`);
 	} catch (error) {
 		setFailed(error instanceof Error ? error.message : String(error));
 	}
