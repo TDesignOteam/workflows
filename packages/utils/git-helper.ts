@@ -92,7 +92,8 @@ export class GitHelper {
   }
 
   async commit(message: string): Promise<void> {
-    await exec('git', ['commit', '-am', message, '--no-verify'], { cwd: this.repoPath })
+    await exec('git', ['add', '-A'], { cwd: this.repoPath })
+    await exec('git', ['commit', '-m', message, '--no-verify'], { cwd: this.repoPath })
   }
 
   async push(branch: string, forkOwner?: string): Promise<void> {
