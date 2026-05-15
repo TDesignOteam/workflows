@@ -11,9 +11,9 @@ catalog:
   '@actions/core': ^3.0.1
   '@actions/exec': ^3.0.0
   '@actions/github': ^9.1.1
-  '@antfu/eslint-config': ^8.2.0
+  '@antfu/eslint-config': ^8.3.0
   '@octokit/plugin-rest-endpoint-methods': ^17.0.0
-  '@types/node': ^24.12.3
-  '@typescript/native-preview': 7.0.0-dev.20260508.1
+  '@types/node': ^24.12.4
+  '@typescript/native-preview': 7.0.0-dev.20260515.1
   eslint: ^10.3.0
   tsdown: ^0.22.0
