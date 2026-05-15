@@ -6,8 +6,7 @@
     "build": "tsdown"
   },
   "dependencies": {
-    "@actions/core": "catalog:",
-    "node-cnb": "catalog:"
+    "@actions/core": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
