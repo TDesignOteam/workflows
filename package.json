@@ -7,11 +7,13 @@
     "build": "pnpm -r run build",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
+    "test": "vitest run",
     "typecheck": "tsgo --noEmit"
   },
   "devDependencies": {
     "@antfu/eslint-config": "catalog:",
     "@typescript/native-preview": "catalog:",
-    "eslint": "catalog:"
+    "eslint": "catalog:",
+    "vitest": "catalog:"
   }
 }

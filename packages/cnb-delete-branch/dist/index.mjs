@@ -1,4 +1,6 @@
 import { createRequire } from "node:module";
+import process$1 from "node:process";
+import { pathToFileURL } from "node:url";
 import * as os$1 from "os";
 import os, { EOL } from "os";
 import * as fs from "fs";
@@ -16234,8 +16236,8 @@ async function main() {
 		setFailed(error instanceof Error ? error.message : String(error));
 	}
 }
-main().catch((error) => {
+if (process$1.argv[1] && import.meta.url === pathToFileURL(process$1.argv[1]).href) main().catch((error) => {
 	setFailed(`cnb-delete-branch failed: ${error instanceof Error ? error.message : String(error)}`);
 });
 //#endregion
-export {};
+export { CNBRequestError, deleteBranch, encodePath, fetchCNB, getPullBranchName, getPullRepoPath, listPulls, main, patchPull };
