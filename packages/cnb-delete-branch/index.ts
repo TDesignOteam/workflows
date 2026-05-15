@@ -2,10 +2,18 @@ import type { PullRequest } from './types'
 import * as core from '@actions/core'
 
 const CNB_API_URL = 'https://api.cnb.cool'
+const PULL_PAGE_SIZE = 100
 
 interface CNBResponse<T> {
   status: number
   data?: T
+}
+
+class CNBRequestError extends Error {
+  constructor(message: string, public status: number) {
+    super(message)
+    this.name = 'CNBRequestError'
+  }
 }
 
 function parseJson<T>(text: string): T | undefined {
@@ -25,14 +33,18 @@ function encodePath(value: string): string {
 }
 
 function getPullRepoPath(pr: PullRequest): string | undefined {
-  return pr.head.repo.path
+  return pr.head?.repo?.path
+}
+
+function getPullBranchName(pr: PullRequest): string | undefined {
+  return pr.head?.ref?.replace(/^refs\/heads\//, '')
 }
 
 async function fetchCNB<T>(
   token: string,
   path: string,
   options?: RequestInit,
-): Promise<CNBResponse<T> | undefined> {
+): Promise<CNBResponse<T>> {
   const url = `${CNB_API_URL}${path}`
   const method = options?.method || 'GET'
   core.info(`[CNB] ${method} ${path}`)
@@ -40,6 +52,7 @@ async function fetchCNB<T>(
   const response = await fetch(url, {
     ...options,
     headers: {
+      'Accept': 'application/json',
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
       ...options?.headers,
@@ -51,10 +64,7 @@ async function fetchCNB<T>(
     const err = parseJson<{ errcode?: number, errmsg?: string }>(text)
     const message = err?.errmsg || `CNB API ${response.status}: ${response.statusText}`
     const requestMessage = `[CNB] ${method} ${path} failed: ${message}`
-    if (response.status === 500)
-      throw new Error(requestMessage)
-    core.warning(requestMessage)
-    return undefined
+    throw new CNBRequestError(requestMessage, response.status)
   }
 
   core.info(`[CNB] ${method} ${path} succeeded: ${response.status}`)
@@ -65,8 +75,23 @@ async function fetchCNB<T>(
 }
 
 async function listPulls(token: string, repo: string, state: string): Promise<PullRequest[]> {
-  const result = await fetchCNB<PullRequest[]>(token, `/repos/${encodePath(repo)}/pulls?state=${encodeURIComponent(state)}`)
-  return result?.data || []
+  const pulls: PullRequest[] = []
+
+  for (let page = 1; ; page += 1) {
+    const params = new URLSearchParams({
+      state,
+      page: String(page),
+      page_size: String(PULL_PAGE_SIZE),
+    })
+    const result = await fetchCNB<PullRequest[]>(token, `/${encodePath(repo)}/-/pulls?${params.toString()}`)
+    const pagePulls = result.data || []
+    pulls.push(...pagePulls)
+
+    if (pagePulls.length < PULL_PAGE_SIZE)
+      break
+  }
+
+  return pulls
 }
 
 async function patchPull(
@@ -75,7 +100,7 @@ async function patchPull(
   number: string,
   data: { state: string },
 ): Promise<boolean> {
-  const result = await fetchCNB(token, `/repos/${encodePath(repo)}/pulls/${encodeURIComponent(number)}`, {
+  const result = await fetchCNB(token, `/${encodePath(repo)}/-/pulls/${encodeURIComponent(number)}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   })
@@ -83,10 +108,18 @@ async function patchPull(
 }
 
 async function deleteBranch(token: string, repo: string, branch: string): Promise<boolean> {
-  const result = await fetchCNB(token, `/repos/${encodePath(repo)}/branches/${encodePath(branch)}`, {
-    method: 'DELETE',
-  })
-  return Boolean(result)
+  try {
+    await fetchCNB(token, `/${encodePath(repo)}/-/git/branches/${encodePath(branch)}`, {
+      method: 'DELETE',
+    })
+    return true
+  }
+  catch (error) {
+    if (error instanceof CNBRequestError && error.status === 404)
+      return false
+
+    throw error
+  }
 }
 
 async function main(): Promise<void> {
@@ -108,7 +141,8 @@ async function main(): Promise<void> {
     const branchPRs = prs.filter(
       (pr) => {
         const headRepo = getPullRepoPath(pr)
-        return pr.head.ref.replace(/^refs\/heads\//, '') === branch && (!headRepo || headRepo === repo)
+        const headBranch = getPullBranchName(pr)
+        return headBranch === branch && (!headRepo || headRepo === repo)
       },
     )
     if (branchPRs.length) {
@@ -122,10 +156,6 @@ async function main(): Promise<void> {
     for (const pr of branchPRs) {
       core.info(`Closing PR #${pr.number}: ${pr.title}`)
       const closed = await patchPull(token, repo, pr.number, { state: 'closed' })
-        .catch((e) => {
-          core.warning(`Close PR #${pr.number} failed: ${e.message}`)
-          return false
-        })
       if (closed)
         core.info(`PR #${pr.number} closed`)
     }
@@ -137,7 +167,7 @@ async function main(): Promise<void> {
     if (deleted)
       core.info(`Branch "${branch}" deleted`)
     else
-      core.warning(`Branch "${branch}" was not deleted. It may not exist, or the token may not have access.`)
+      core.info(`Branch "${branch}" does not exist; skip delete`)
   }
   catch (error) {
     const message = error instanceof Error ? error.message : String(error)

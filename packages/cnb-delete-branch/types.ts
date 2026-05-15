@@ -16,7 +16,7 @@ export interface Repo {
 
 export interface PullRef {
   ref: string
-  repo: Repo
+  repo?: Repo | null
   sha: string
 }
 
@@ -30,12 +30,12 @@ export interface Label {
 export interface PullRequest {
   assignees: User[]
   author: User
-  base: PullRef
+  base?: PullRef | null
   blocked_on: string
   body: string
   comment_count: number
   created_at: string
-  head: PullRef
+  head?: PullRef | null
   is_wip: boolean
   labels: Label[]
   last_acted_at: string
