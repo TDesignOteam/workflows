@@ -16144,8 +16144,11 @@ function parseJson(text) {
 function encodePath(value) {
 	return value.split("/").map(encodeURIComponent).join("/");
 }
+function getPullRepoPath(pr) {
+	return pr.head.repo.path;
+}
 async function fetchCNB(token, path, options) {
-	const url = `${CNB_API_URL}/api/v1${path}`;
+	const url = `${CNB_API_URL}${path}`;
 	const method = options?.method || "GET";
 	info(`[CNB] ${method} ${path}`);
 	const response = await fetch(url, {
@@ -16170,17 +16173,17 @@ async function fetchCNB(token, path, options) {
 	};
 }
 async function listPulls(token, repo, state) {
-	return (await fetchCNB(token, `/${repo}/-/pulls?state=${state}`))?.data || [];
+	return (await fetchCNB(token, `/repos/${encodePath(repo)}/pulls?state=${encodeURIComponent(state)}`))?.data || [];
 }
 async function patchPull(token, repo, number, data) {
-	const result = await fetchCNB(token, `/${repo}/-/pulls/${number}`, {
+	const result = await fetchCNB(token, `/repos/${encodePath(repo)}/pulls/${encodeURIComponent(number)}`, {
 		method: "PATCH",
 		body: JSON.stringify(data)
 	});
 	return Boolean(result);
 }
 async function deleteBranch(token, repo, branch) {
-	const result = await fetchCNB(token, `/${repo}/-/git/branches/${encodePath(branch)}`, { method: "DELETE" });
+	const result = await fetchCNB(token, `/repos/${encodePath(repo)}/branches/${encodePath(branch)}`, { method: "DELETE" });
 	return Boolean(result);
 }
 async function main() {
@@ -16196,17 +16199,16 @@ async function main() {
 		const prs = await listPulls(token, repo, "open");
 		info(`Open pull requests: ${prs.length}`);
 		info("Step 2/4: find pull requests from target branch");
-		const branchPRs = prs.filter((pr) => pr.head.ref.replace(/^refs\/heads\//, "") === branch && pr.head.repo.path === repo);
+		const branchPRs = prs.filter((pr) => {
+			const headRepo = getPullRepoPath(pr);
+			return pr.head.ref.replace(/^refs\/heads\//, "") === branch && (!headRepo || headRepo === repo);
+		});
 		if (branchPRs.length) info(`Matched pull requests: ${branchPRs.map((pr) => `#${pr.number}`).join(", ")}`);
 		else info(`No open pull requests found for branch "${branch}"`);
 		info("Step 3/4: close matched pull requests");
 		for (const pr of branchPRs) {
 			info(`Closing PR #${pr.number}: ${pr.title}`);
-			if (await patchPull(token, repo, pr.number, {
-				state: "closed",
-				title: pr.title,
-				body: pr.body
-			}).catch((e) => {
+			if (await patchPull(token, repo, pr.number, { state: "closed" }).catch((e) => {
 				warning(`Close PR #${pr.number} failed: ${e.message}`);
 				return false;
 			})) info(`PR #${pr.number} closed`);
