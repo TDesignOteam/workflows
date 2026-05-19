@@ -1,0 +1,26 @@
+name: Maintain One Comment
+description: Create or update one issue or pull request comment identified by a marker
+
+inputs:
+  token:
+    description: GitHub token
+    required: true
+  number:
+    description: Issue or pull request number
+    required: true
+  body:
+    description: Comment body
+    required: true
+  body-include:
+    description: Marker used to find the existing comment
+    required: false
+  repo:
+    description: Repository name
+    required: false
+  owner:
+    description: Repository owner
+    required: false
+
+runs:
+  using: node24
+  main: ../../packages/maintain-one-comment/dist/index.mjs
