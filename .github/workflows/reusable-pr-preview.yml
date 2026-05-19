@@ -14,7 +14,7 @@ jobs:
       github.event.workflow_run.conclusion == 'success'
     steps:
       - name: download pr artifact
-        uses: dawidd6/action-download-artifact@v21
+        uses: dawidd6/action-download-artifact@b6e2e70617bc3265edd6dab6c906732b2f1ae151 # v21
         with:
           workflow: ${{ github.event.workflow_run.workflow_id }}
           run_id: ${{ github.event.workflow_run.id }}
@@ -23,7 +23,7 @@ jobs:
         id: pr
         run: echo "id=$(<pr-id.txt)" >> $GITHUB_OUTPUT
       - name: download _site artifact
-        uses: dawidd6/action-download-artifact@v21
+        uses: dawidd6/action-download-artifact@b6e2e70617bc3265edd6dab6c906732b2f1ae151 # v21
         with:
           workflow: ${{ github.event.workflow_run.workflow_id }}
           run_id: ${{ github.event.workflow_run.id }}
@@ -41,7 +41,7 @@ jobs:
           echo the preview URL is $DEPLOY_DOMAIN
           echo "url=$DEPLOY_DOMAIN" >> $GITHUB_OUTPUT
       - name: update status comment
-        uses: TDesignOteam/workflows/actions/maintain-one-comment@main
+        uses: TDesignOteam/workflows/actions/maintain-one-comment@26aafb4b9b9a3e9ebd030d89c1a1ff2436c4781e # main
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           body: |
@@ -56,7 +56,7 @@ jobs:
 
       - name: The job failed
         if: ${{ failure() }}
-        uses: TDesignOteam/workflows/actions/maintain-one-comment@main
+        uses: TDesignOteam/workflows/actions/maintain-one-comment@26aafb4b9b9a3e9ebd030d89c1a1ff2436c4781e # main
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           body: |
@@ -72,7 +72,7 @@ jobs:
       github.event.workflow_run.conclusion == 'failure'
     steps:
       - name: download pr artifact
-        uses: dawidd6/action-download-artifact@v21
+        uses: dawidd6/action-download-artifact@b6e2e70617bc3265edd6dab6c906732b2f1ae151 # v21
         with:
           workflow: ${{ github.event.workflow_run.workflow_id }}
           run_id: ${{ github.event.workflow_run.id }}
@@ -81,7 +81,7 @@ jobs:
         id: pr
         run: echo "id=$(<pr-id.txt)" >> $GITHUB_OUTPUT
       - name: The job failed
-        uses: TDesignOteam/workflows/actions/maintain-one-comment@main
+        uses: TDesignOteam/workflows/actions/maintain-one-comment@26aafb4b9b9a3e9ebd030d89c1a1ff2436c4781e # main
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           body: |

@@ -54,11 +54,11 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.ref_type == 'tag' && !inputs.publish-npm
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           submodules: recursive
 
-      - uses: actions/setup-node@v6.4.0
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: ${{ inputs.node-version-file == '' && inputs.node-version || null }}
           node-version-file: ${{ inputs.node-version-file != '' && inputs.node-version-file || null }}
@@ -67,7 +67,7 @@ jobs:
 
       - run: ${{ inputs.package-manager }} run build
 
-      - uses: actions/setup-node@v6.4.0
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 24
 
@@ -79,7 +79,7 @@ jobs:
 
       - name: npm publish
         if: ${{ inputs.package-manager  == 'npm'}}
-        uses: JS-DevTools/npm-publish@v4
+        uses: JS-DevTools/npm-publish@0fd2f4369c5d6bcfcde6091a7c527d810b9b5c3f # v4
         with:
           tag: ${{ steps.tag.outputs.tag }}
 
@@ -91,14 +91,14 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.ref_type == 'tag' && !inputs.publish-tag-website
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           submodules: recursive
 
-      - uses: pnpm/action-setup@v6.0.8
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
         if: ${{ inputs.package-manager == 'pnpm' }}
 
-      - uses: actions/setup-node@v6.4.0
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: ${{ inputs.node-version-file == '' && inputs.node-version || null }}
           node-version-file: ${{ inputs.node-version-file != '' && inputs.node-version-file || null }}
@@ -116,7 +116,7 @@ jobs:
           tag_name=${ref_name//./_}
           echo "domain=https://$tag_name-$project_name.surge.sh" >> $GITHUB_OUTPUT
 
-      - uses: TDesignOteam/workflows/actions/setup-surge@main
+      - uses: TDesignOteam/workflows/actions/setup-surge@26aafb4b9b9a3e9ebd030d89c1a1ff2436c4781e # main
         with:
           project: _site
           domain: ${{ steps.domain.outputs.domain }}
@@ -126,7 +126,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.ref_type == 'tag' && !inputs.publish-official-website
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: main
           fetch-depth: 0
