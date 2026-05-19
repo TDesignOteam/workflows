@@ -19754,13 +19754,13 @@ function getOctokit(token, options, ...additionalPlugins) {
 	return new (GitHub.plugin(...additionalPlugins))(getOctokitOptions(token, options));
 }
 //#endregion
-//#region ../utils/constants.ts
+//#region ../../packages/utils/constants.ts
 const GIT_CONFIG = {
 	USER_NAME: "tdesign-bot",
 	USER_EMAIL: "tdesign@tencent.com"
 };
 //#endregion
-//#region ../utils/git-helper.ts
+//#region ../../packages/utils/git-helper.ts
 var GitHelper = class {
 	token;
 	owner;
@@ -19916,7 +19916,7 @@ var GitHelper = class {
 	}
 };
 //#endregion
-//#region ../utils/github-helper.ts
+//#region ../../packages/utils/github-helper.ts
 var GithubHelper = class {
 	octokit;
 	context;

@@ -25,4 +25,4 @@ inputs:
 
 runs:
   using: node24
-  main: ../../packages/close-release-issue/dist/index.mjs
+  main: dist/index.mjs

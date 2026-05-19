@@ -4,7 +4,7 @@ on:
     branches:
       - main
     paths:
-      - packages/close-release-issue/dist/*
+      - actions/close-release-issue/dist/*
 
 jobs:
   test:

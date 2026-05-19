@@ -4,7 +4,7 @@ on:
     branches:
       - main
     paths:
-      - packages/upgrade-deps/dist/*
+      - actions/upgrade-deps/dist/*
 
 jobs:
   tdesign-vue:

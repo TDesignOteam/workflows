@@ -5,7 +5,9 @@ cleanupUnusedCatalogs: true
 shellEmulator: true
 
 trustPolicy: no-downgrade
+
 packages:
+  - actions/*
   - packages/*
 catalog:
   '@actions/core': ^3.0.1
