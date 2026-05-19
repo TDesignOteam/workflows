@@ -19283,7 +19283,7 @@ function getOctokit(token, options, ...additionalPlugins) {
 	return new (GitHub.plugin(...additionalPlugins))(getOctokitOptions(token, options));
 }
 //#endregion
-//#region ../utils/github-helper.ts
+//#region ../../packages/utils/github-helper.ts
 var GithubHelper = class {
 	octokit;
 	context;

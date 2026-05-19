@@ -33,4 +33,4 @@ inputs:
 
 runs:
   using: node24
-  main: ../../packages/upgrade-deps/dist/index.mjs
+  main: dist/index.mjs
