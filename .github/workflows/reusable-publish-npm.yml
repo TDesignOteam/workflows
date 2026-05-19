@@ -3,7 +3,7 @@ name: reusable-publish-npm
 on:
   workflow_call:
     secrets:
-      PERSONAL_TOKEN:
+      TDESIGN_BOT_TOKEN:
         required: false
 
       TDESIGN_SURGE_TOKEN:
@@ -130,7 +130,7 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-          token: ${{ secrets.PERSONAL_TOKEN }}
+          token: ${{ secrets.TDESIGN_BOT_TOKEN }}
           submodules: recursive
 
       - name: update official website
