@@ -1,0 +1,17 @@
+{
+  "name": "maintain-one-comment",
+  "type": "module",
+  "main": "index.ts",
+  "scripts": {
+    "build": "tsdown"
+  },
+  "dependencies": {
+    "@actions/core": "catalog:",
+    "@actions/github": "catalog:"
+  },
+  "devDependencies": {
+    "@octokit/plugin-rest-endpoint-methods": "catalog:",
+    "@types/node": "catalog:",
+    "tsdown": "catalog:"
+  }
+}
