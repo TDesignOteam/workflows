@@ -41,7 +41,7 @@ jobs:
           echo the preview URL is $DEPLOY_DOMAIN
           echo "url=$DEPLOY_DOMAIN" >> $GITHUB_OUTPUT
       - name: update status comment
-        uses: TDesignOteam/workflows/actions/maintain-one-comment@26aafb4b9b9a3e9ebd030d89c1a1ff2436c4781e # main
+        uses: TDesignOteam/workflows/actions/maintain-one-comment@c052be113452e0d8eca12d48d1922d80eceeecd3 # main
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           body: |
@@ -56,7 +56,7 @@ jobs:
 
       - name: The job failed
         if: ${{ failure() }}
-        uses: TDesignOteam/workflows/actions/maintain-one-comment@26aafb4b9b9a3e9ebd030d89c1a1ff2436c4781e # main
+        uses: TDesignOteam/workflows/actions/maintain-one-comment@c052be113452e0d8eca12d48d1922d80eceeecd3 # main
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           body: |
@@ -81,7 +81,7 @@ jobs:
         id: pr
         run: echo "id=$(<pr-id.txt)" >> $GITHUB_OUTPUT
       - name: The job failed
-        uses: TDesignOteam/workflows/actions/maintain-one-comment@26aafb4b9b9a3e9ebd030d89c1a1ff2436c4781e # main
+        uses: TDesignOteam/workflows/actions/maintain-one-comment@c052be113452e0d8eca12d48d1922d80eceeecd3 # main
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           body: |
