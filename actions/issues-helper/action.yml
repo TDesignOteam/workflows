@@ -1,0 +1,123 @@
+name: Issues Helper
+description: A GitHub Action that helps you automatically manage issues
+author: xrkffgg
+
+branding:
+  icon: message-square
+  color: black
+
+inputs:
+  actions:
+    description: Comma-separated action names
+    required: true
+  token:
+    description: GitHub token
+    default: ${{ github.token }}
+  repo:
+    description: Repository name in owner/repo format
+  issue-number:
+    description: Issue number
+  comment-id:
+    description: Comment ID
+  body:
+    description: Issue body
+  title:
+    description: Issue title
+  assignees:
+    description: Issue assignees
+  random-to:
+    description: Random assignee count
+  close-reason:
+    description: Issue close reason
+  labels:
+    description: Issue labels
+  label-name:
+    description: Label name to create
+  label-color:
+    description: 'Label color, defaults to #ededed'
+  label-desc:
+    description: Label description
+  state:
+    description: Issue state
+  update-mode:
+    description: Body update mode
+  emoji:
+    description: Issue reaction emojis
+  direction:
+    description: Query direction
+  comment-auth:
+    description: Comment author filter
+  assignee-includes:
+    description: Assignee filter
+  body-includes:
+    description: Body filter
+  title-excludes:
+    description: Remove these terms before checking title emptiness
+  title-includes:
+    description: Title filter
+  issue-creator:
+    description: Issue creator filter
+  issue-assignee:
+    description: Issue assignee filter
+  issue-mentioned:
+    description: Issue mentioned user filter
+  issue-emoji:
+    description: Welcome reaction emojis
+  issue-state:
+    description: Issue state filter
+  inactive-day:
+    description: Inactive day threshold
+  inactive-mode:
+    description: Inactive time source
+  lock-reason:
+    description: Lock reason
+  inactive-label:
+    description: Label added by inactive check
+  exclude-labels:
+    description: Labels to exclude when querying issues
+  assign-command:
+    description: Assign command prefix
+  duplicate-command:
+    description: Duplicate command prefix
+  duplicate-labels:
+    description: Labels added when marking duplicate
+  require-permission:
+    description: Minimum permission to run mark actions
+  remove-labels:
+    description: Labels to remove when marking duplicate
+  close-issue:
+    description: Whether to close duplicate issues
+  show-thanks:
+    description: Whether to print the thanks banner
+    required: false
+    default: 'true'
+  create-issue-if-not-exist:
+    description: Create a new issue if none are found
+  exclude-issue-numbers:
+    description: Issues excluded from inactive check
+
+outputs:
+  issue-number:
+    description: Issue number
+  issue-title:
+    description: Issue title
+  issue-body:
+    description: Issue body
+  issue-labels:
+    description: Issue labels
+  issue-assignees:
+    description: Issue assignees
+  issue-state:
+    description: Issue state
+  comment-id:
+    description: Created comment ID
+  comments:
+    description: Queried comments
+  issues:
+    description: Queried issues
+  check-result:
+    description: Issue check result
+
+runs:
+  using: node24
+  main: dist/index.mjs
