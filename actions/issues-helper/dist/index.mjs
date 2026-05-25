@@ -19422,6 +19422,22 @@ async function setIssueLabels(octokit, params, labels) {
 		labels: addLabels
 	});
 }
+async function closeDuplicateIssue(octokit, params, isPullRequest) {
+	if (isPullRequest) {
+		await octokit.rest.pulls.update({
+			owner: params.owner,
+			repo: params.repo,
+			pull_number: params.issue_number,
+			state: "closed"
+		});
+		return;
+	}
+	await octokit.rest.issues.update({
+		...params,
+		state: "closed",
+		state_reason: getCloseReason()
+	});
+}
 async function markDuplicate(octokit) {
 	if (context.eventName !== "issue_comment" || !["created", "edited"].includes(String(context.payload.action))) {
 		warning("[mark-duplicate] only supports issue_comment created/edited events");
@@ -19464,11 +19480,7 @@ async function markDuplicate(octokit) {
 	const labels = splitInput(getInput("labels"));
 	const nextLabels = labels.length ? labels : [...getLabelNames(issue.labels).filter((label) => !removeLabels.includes(label)), ...duplicateLabels];
 	if (nextLabels.length) await setIssueLabels(octokit, params, nextLabels);
-	if (getInput("close-issue") === "true") await octokit.rest.issues.update({
-		...params,
-		state: "closed",
-		state_reason: getCloseReason()
-	});
+	if (getInput("close-issue") === "true") await closeDuplicateIssue(octokit, params, Boolean(issue.pull_request));
 	info("[mark-duplicate] done");
 }
 async function runAction(action, octokit) {

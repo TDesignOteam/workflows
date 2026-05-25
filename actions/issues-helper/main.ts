@@ -190,6 +190,24 @@ async function setIssueLabels(octokit: Octokit, params: ReturnType<typeof getIss
   }
 }
 
+async function closeDuplicateIssue(octokit: Octokit, params: ReturnType<typeof getIssueParams>, isPullRequest: boolean) {
+  if (isPullRequest) {
+    await octokit.rest.pulls.update({
+      owner: params.owner,
+      repo: params.repo,
+      pull_number: params.issue_number,
+      state: 'closed',
+    })
+    return
+  }
+
+  await octokit.rest.issues.update({
+    ...params,
+    state: 'closed',
+    state_reason: getCloseReason(),
+  })
+}
+
 async function markDuplicate(octokit: Octokit) {
   if (github.context.eventName !== 'issue_comment' || !['created', 'edited'].includes(String(github.context.payload.action))) {
     core.warning('[mark-duplicate] only supports issue_comment created/edited events')
@@ -249,11 +267,7 @@ async function markDuplicate(octokit: Octokit) {
     await setIssueLabels(octokit, params, nextLabels)
 
   if (core.getInput('close-issue') === 'true') {
-    await octokit.rest.issues.update({
-      ...params,
-      state: 'closed',
-      state_reason: getCloseReason(),
-    })
+    await closeDuplicateIssue(octokit, params, Boolean(issue.pull_request))
   }
 
   core.info('[mark-duplicate] done')
