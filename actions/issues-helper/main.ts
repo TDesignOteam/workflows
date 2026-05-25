@@ -92,11 +92,8 @@ function getAssigneeNames(assignees?: Array<{ login?: string | null }> | null): 
 }
 
 function isDuplicateComment(body: string): boolean {
-  if (!body.startsWith('Duplicate of'))
-    return false
-
   const [duplicate, of] = body.split(' ')
-  return duplicate === 'Duplicate' && of === 'of'
+  return duplicate?.toLowerCase() === 'duplicate' && of?.toLowerCase() === 'of'
 }
 
 function hasRequiredPermission(permission: string, requiredPermission: string): boolean {

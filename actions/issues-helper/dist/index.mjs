@@ -19351,9 +19351,8 @@ function getAssigneeNames(assignees) {
 	return (assignees || []).map((assignee) => assignee.login || "").filter(Boolean);
 }
 function isDuplicateComment(body) {
-	if (!body.startsWith("Duplicate of")) return false;
 	const [duplicate, of] = body.split(" ");
-	return duplicate === "Duplicate" && of === "of";
+	return duplicate?.toLowerCase() === "duplicate" && of?.toLowerCase() === "of";
 }
 function hasRequiredPermission(permission, requiredPermission) {
 	const requiredRank = permissionRanks[requiredPermission] ?? permissionRanks.write;
