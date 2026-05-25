@@ -16159,32 +16159,6 @@ function getInput(name, options) {
 	return val.trim();
 }
 /**
-* Gets the input value of the boolean type in the YAML 1.2 "core schema" specification.
-* Support boolean input list: `true | True | TRUE | false | False | FALSE` .
-* The return value is also in boolean type.
-* ref: https://yaml.org/spec/1.2/spec.html#id2804923
-*
-* @param     name     name of the input to get
-* @param     options  optional. See InputOptions.
-* @returns   boolean
-*/
-function getBooleanInput(name, options) {
-	const trueValue = [
-		"true",
-		"True",
-		"TRUE"
-	];
-	const falseValue = [
-		"false",
-		"False",
-		"FALSE"
-	];
-	const val = getInput(name, options);
-	if (trueValue.includes(val)) return true;
-	if (falseValue.includes(val)) return false;
-	throw new TypeError(`Input does not meet YAML 1.2 "Core Schema" specification: ${name}\nSupport boolean input list: \`true | True | TRUE | false | False | FALSE\``);
-}
-/**
 * Sets the value of an output.
 *
 * @param     name     name of the output to set
@@ -19317,11 +19291,14 @@ const reactionContents = new Set([
 	"rocket",
 	"eyes"
 ]);
-const duplicateAuthorAssociations = new Set([
-	"COLLABORATOR",
-	"MEMBER",
-	"OWNER"
-]);
+const permissionRanks = {
+	none: 0,
+	read: 1,
+	triage: 1,
+	write: 2,
+	maintain: 2,
+	admin: 3
+};
 function splitInput(value) {
 	return value.split(",").map((item) => item.trim()).filter(Boolean);
 }
@@ -19332,6 +19309,15 @@ function getActions() {
 	});
 }
 function getRepoParams() {
+	const repoInput = getInput("repo");
+	if (repoInput) {
+		const [owner, repo] = repoInput.split("/");
+		if (!owner || !repo) throw new Error(`Invalid repo "${repoInput}"`);
+		return {
+			owner,
+			repo
+		};
+	}
 	return {
 		owner: context.repo.owner,
 		repo: context.repo.repo
@@ -19352,6 +19338,27 @@ function getIssueParams() {
 function isReactionContent(value) {
 	return reactionContents.has(value);
 }
+function getCloseReason() {
+	return getInput("close-reason") === "completed" ? "completed" : "not_planned";
+}
+function getIssueState(value) {
+	return value === "closed" ? "closed" : "open";
+}
+function getLabelNames(labels) {
+	return labels.map((label) => typeof label === "string" ? label : label.name || "").filter(Boolean);
+}
+function getAssigneeNames(assignees) {
+	return (assignees || []).map((assignee) => assignee.login || "").filter(Boolean);
+}
+function isDuplicateComment(body) {
+	if (!body.startsWith("Duplicate of")) return false;
+	const [duplicate, of] = body.split(" ");
+	return duplicate === "Duplicate" && of === "of";
+}
+function hasRequiredPermission(permission, requiredPermission) {
+	const requiredRank = permissionRanks[requiredPermission] ?? permissionRanks.write;
+	return (permissionRanks[permission] ?? permissionRanks.none) >= requiredRank;
+}
 async function createCommentReactions(octokit, commentId) {
 	const reactions = splitInput(getInput("emoji"));
 	if (!reactions.length) return;
@@ -19368,7 +19375,11 @@ async function createCommentReactions(octokit, commentId) {
 	}
 }
 async function createComment(octokit) {
-	const body = getInput("body", { required: true });
+	const body = getInput("body");
+	if (!body) {
+		warning("[create-comment] body is empty");
+		return;
+	}
 	const { data: comment } = await octokit.rest.issues.createComment({
 		...getIssueParams(),
 		body
@@ -19378,16 +19389,37 @@ async function createComment(octokit) {
 }
 async function updateIssue(octokit) {
 	const params = getIssueParams();
-	const body = getInput("body", { required: true });
+	const title = getInput("title");
+	const body = getInput("body");
+	const state = getInput("state");
+	const labels = splitInput(getInput("labels"));
+	const assignees = splitInput(getInput("assignees"));
 	const updateMode = getInput("update-mode") === "append" ? "append" : "replace";
-	let nextBody = body;
-	if (updateMode === "append") {
-		const { data: issue } = await octokit.rest.issues.get(params);
-		nextBody = issue.body ? `${issue.body}\n${body}` : body;
-	}
+	const { data: issue } = await octokit.rest.issues.get(params);
+	const nextBody = body ? updateMode === "append" ? `${issue.body || ""}\n${body}` : body : issue.body || "";
+	const nextState = state === "closed" || state === "open" ? state : getIssueState(issue.state);
 	await octokit.rest.issues.update({
 		...params,
-		body: nextBody
+		assignees: assignees.length ? assignees : getAssigneeNames(issue.assignees),
+		body: nextBody,
+		labels: labels.length ? labels : getLabelNames(issue.labels),
+		state: nextState,
+		title: title || issue.title
+	});
+}
+async function setIssueLabels(octokit, params, labels) {
+	const { data: issue } = await octokit.rest.issues.get(params);
+	const baseLabels = getLabelNames(issue.labels);
+	const nextLabels = [...new Set(labels)];
+	const removeLabels = baseLabels.filter((label) => !nextLabels.includes(label));
+	const addLabels = nextLabels.filter((label) => !baseLabels.includes(label));
+	for (const label of removeLabels) await octokit.rest.issues.removeLabel({
+		...params,
+		name: label
+	});
+	if (addLabels.length) await octokit.rest.issues.addLabels({
+		...params,
+		labels: addLabels
 	});
 }
 async function markDuplicate(octokit) {
@@ -19397,25 +19429,47 @@ async function markDuplicate(octokit) {
 	}
 	const comment = context.payload.comment;
 	const body = comment?.body || "";
-	if (!/[Dd]uplicate\s+of\s+#\d+/.test(body)) {
+	const duplicateCommand = getInput("duplicate-command");
+	const isCommand = duplicateCommand && body.startsWith(duplicateCommand) && body.split(" ")[0] === duplicateCommand;
+	if (body.includes("?") || !(isCommand || isDuplicateComment(body))) {
 		info("[mark-duplicate] comment is not a duplicate marker");
 		return;
 	}
-	const authorAssociation = comment?.author_association || "";
-	if (!duplicateAuthorAssociations.has(authorAssociation)) {
-		info(`[mark-duplicate] skipping commenter association "${authorAssociation}"`);
+	const commentUser = comment?.user?.login;
+	if (!commentUser) {
+		info("[mark-duplicate] missing commenter");
 		return;
 	}
+	const { data } = await octokit.rest.repos.getCollaboratorPermissionLevel({
+		...getRepoParams(),
+		username: commentUser
+	});
+	const requiredPermission = getInput("require-permission") || "write";
+	if (!hasRequiredPermission(data.permission, requiredPermission)) {
+		info(`[mark-duplicate] the user ${commentUser} is not allowed`);
+		return;
+	}
+	if (isCommand && comment?.id) {
+		await octokit.rest.issues.updateComment({
+			...getRepoParams(),
+			comment_id: comment.id,
+			body: body.replace(duplicateCommand, "Duplicate of")
+		});
+		await createCommentReactions(octokit, comment.id);
+	} else if (comment?.id) await createCommentReactions(octokit, comment.id);
 	const params = getIssueParams();
+	const { data: issue } = await octokit.rest.issues.get(params);
+	const removeLabels = splitInput(getInput("remove-labels"));
 	const duplicateLabels = splitInput(getInput("duplicate-labels") || "duplicate");
-	if (duplicateLabels.length) await octokit.rest.issues.addLabels({
+	const labels = splitInput(getInput("labels"));
+	const nextLabels = labels.length ? labels : [...getLabelNames(issue.labels).filter((label) => !removeLabels.includes(label)), ...duplicateLabels];
+	if (nextLabels.length) await setIssueLabels(octokit, params, nextLabels);
+	if (getInput("close-issue") === "true") await octokit.rest.issues.update({
 		...params,
-		labels: duplicateLabels
+		state: "closed",
+		state_reason: getCloseReason()
 	});
-	if (getBooleanInput("close-issue")) await octokit.rest.issues.update({
-		...params,
-		state: "closed"
-	});
+	info("[mark-duplicate] done");
 }
 async function runAction(action, octokit) {
 	switch (action) {

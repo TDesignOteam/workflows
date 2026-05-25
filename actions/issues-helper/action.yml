@@ -12,21 +12,41 @@ inputs:
   token:
     description: GitHub token
     required: true
+  repo:
+    description: Repository in owner/repo format
   issue-number:
     description: Issue number
   body:
     description: Comment or issue body
+  title:
+    description: Issue title
+  state:
+    description: Issue state. Supported values are open and closed
+  labels:
+    description: Issue labels
+  assignees:
+    description: Issue assignees
   update-mode:
     description: Body update mode. Supported values are replace and append
     default: replace
   emoji:
     description: Issue reaction emojis
+  duplicate-command:
+    description: Simple command used to mark duplicate issues
   duplicate-labels:
     description: Labels added when marking duplicate
     default: duplicate
+  remove-labels:
+    description: Labels removed when marking duplicate
+  require-permission:
+    description: Permission required to mark duplicate. Supported values are admin, write, read, and none
+    default: write
   close-issue:
     description: Whether to close duplicate issues
     default: 'false'
+  close-reason:
+    description: Reason for closing duplicate issues. Supported values are not_planned and completed
+    default: not_planned
 
 outputs:
   comment-id:
