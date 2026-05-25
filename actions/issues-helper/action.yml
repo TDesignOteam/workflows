@@ -11,7 +11,7 @@ inputs:
     required: true
   token:
     description: GitHub token
-    required: true
+    default: ${{ github.token }}
   repo:
     description: Repository in owner/repo format
   issue-number:

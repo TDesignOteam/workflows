@@ -19485,7 +19485,7 @@ async function runAction(action, octokit) {
 	}
 }
 async function main() {
-	const octokit = getOctokit(getInput("token", { required: true }));
+	const octokit = getOctokit(getInput("token"));
 	for (const action of getActions()) await runAction(action, octokit);
 }
 //#endregion

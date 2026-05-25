@@ -274,7 +274,7 @@ async function runAction(action: ActionName, octokit: Octokit) {
 }
 
 export async function main(): Promise<void> {
-  const octokit = github.getOctokit(core.getInput('token', { required: true }))
+  const octokit = github.getOctokit(core.getInput('token'))
 
   for (const action of getActions())
     await runAction(action, octokit)
