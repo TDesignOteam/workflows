@@ -1,0 +1,16 @@
+{
+  "name": "issues-helper",
+  "type": "module",
+  "main": "index.ts",
+  "scripts": {
+    "build": "tsdown"
+  },
+  "dependencies": {
+    "@actions/core": "catalog:",
+    "@actions/github": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsdown": "catalog:"
+  }
+}

@@ -17,6 +17,7 @@ TDesign 共享的 GitHub Actions 工作流。
 | `check-email` | 检查 commit 邮箱是否符合规范（不能是 @tencent.com） |
 | `close-release-issue` | 合并 release 分支时关闭带有特定标签的 issues |
 | `cnb-delete-branch` | 删除 CNB 分支前先关闭关联的 PR |
+| `issues-helper` | GitHub issue 管理工具，支持创建评论、更新 issue、标记重复 issue |
 | `maintain-one-comment` | 为 issue/PR 维护一条唯一评论，重复执行时更新而不是新增 |
 | `setup-flutter` | 设置 Flutter 环境 |
 | `setup-surge` | 部署到 Surge |
