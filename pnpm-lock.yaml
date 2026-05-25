@@ -103,7 +103,7 @@ importers:
         version: 24.12.4
       tsdown:
         specifier: 'catalog:'
-        version: 0.22.0(@typescript/native-preview@7.0.0-dev.20260515.1)(typescript@5.9.3)
+        version: 0.22.0(@typescript/native-preview@7.0.0-dev.20260523.1)(typescript@5.9.3)
 
   actions/maintain-one-comment:
     dependencies:
