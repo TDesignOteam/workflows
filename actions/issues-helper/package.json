@@ -10,7 +10,6 @@
     "@actions/github": "catalog:"
   },
   "devDependencies": {
-    "@octokit/plugin-rest-endpoint-methods": "catalog:",
     "@types/node": "catalog:",
     "tsdown": "catalog:"
   }

@@ -16152,7 +16152,7 @@ var ExitCode;
 * @param     options  optional. See InputOptions.
 * @returns   string
 */
-function getInput$1(name, options) {
+function getInput(name, options) {
 	const val = process.env[`INPUT_${name.replace(/ /g, "_").toUpperCase()}`] || "";
 	if (options && options.required && !val) throw new Error(`Input required and not supplied: ${name}`);
 	if (options && options.trimWhitespace === false) return val;
@@ -16168,7 +16168,7 @@ function getInput$1(name, options) {
 * @param     options  optional. See InputOptions.
 * @returns   boolean
 */
-function getBooleanInput$1(name, options) {
+function getBooleanInput(name, options) {
 	const trueValue = [
 		"true",
 		"True",
@@ -16179,7 +16179,7 @@ function getBooleanInput$1(name, options) {
 		"False",
 		"FALSE"
 	];
-	const val = getInput$1(name, options);
+	const val = getInput(name, options);
 	if (trueValue.includes(val)) return true;
 	if (falseValue.includes(val)) return false;
 	throw new TypeError(`Input does not meet YAML 1.2 "Core Schema" specification: ${name}\nSupport boolean input list: \`true | True | TRUE | false | False | FALSE\``);
@@ -16190,7 +16190,7 @@ function getBooleanInput$1(name, options) {
 * @param     name     name of the output to set
 * @param     value    value to store. Non-string values will be converted to a string via JSON.stringify
 */
-function setOutput$1(name, value) {
+function setOutput(name, value) {
 	if (process.env["GITHUB_OUTPUT"] || "") return issueFileCommand("OUTPUT", prepareKeyValueMessage(name, value));
 	process.stdout.write(os$1.EOL);
 	issueCommand("set-output", { name }, toCommandValue(value));
@@ -16217,14 +16217,14 @@ function error(message, properties = {}) {
 * @param message warning issue message. Errors will be converted to string via toString()
 * @param properties optional properties to add to the annotation.
 */
-function warning$1(message, properties = {}) {
+function warning(message, properties = {}) {
 	issueCommand("warning", toCommandProperties(properties), message instanceof Error ? message.toString() : message);
 }
 /**
 * Writes info to log with console.log.
 * @param message info message
 */
-function info$1(message) {
+function info(message) {
 	process.stdout.write(message + os$1.EOL);
 }
 //#endregion
@@ -19301,852 +19301,138 @@ function getOctokit(token, options, ...additionalPlugins) {
 	return new (GitHub.plugin(...additionalPlugins))(getOctokitOptions(token, options));
 }
 //#endregion
-//#region const.ts
-const EEmoji = {
-	"+1": "+1",
-	"-1": "-1",
-	"laugh": "laugh",
-	"confused": "confused",
-	"heart": "heart",
-	"hooray": "hooray",
-	"rocket": "rocket",
-	"eyes": "eyes"
-};
-const EConst = { ExcludeEmpty: "$exclude-empty" };
-const THANKS = "Thanks for using issues-helper.";
-//#endregion
-//#region core/index.ts
-function baseInfo(message) {
-	info$1(message);
+//#region main.ts
+const actionNames = new Set([
+	"create-comment",
+	"update-issue",
+	"mark-duplicate"
+]);
+const reactionContents = new Set([
+	"+1",
+	"-1",
+	"laugh",
+	"confused",
+	"heart",
+	"hooray",
+	"rocket",
+	"eyes"
+]);
+const duplicateAuthorAssociations = new Set([
+	"COLLABORATOR",
+	"MEMBER",
+	"OWNER"
+]);
+function splitInput(value) {
+	return value.split(",").map((item) => item.trim()).filter(Boolean);
 }
-function info(message) {
-	info$1(`[issues-helper] ${message}`);
-}
-function warning(message) {
-	warning$1(`[issues-helper] ${message}`);
-}
-const getInput = getInput$1;
-const getBooleanInput = getBooleanInput$1;
-const setOutput = setOutput$1;
-//#endregion
-//#region util/index.ts
-function sampleSize(values, size) {
-	const arr = [...values];
-	for (let index = arr.length - 1; index > 0; index -= 1) {
-		const randomIndex = Math.floor(Math.random() * (index + 1));
-		[arr[index], arr[randomIndex]] = [arr[randomIndex], arr[index]];
-	}
-	return arr.slice(0, size);
-}
-function dealStringToArr(para) {
-	const arr = [];
-	if (para) para.split(",").forEach((item) => {
-		if (item.trim()) arr.push(item.trim());
+function getActions() {
+	return splitInput(getInput("actions", { required: true })).map((action) => {
+		if (!actionNames.has(action)) throw new Error(`Unsupported action "${action}"`);
+		return action;
 	});
-	return arr;
 }
-function dealRandomAssignees(assignees, randomTo) {
-	let arr = dealStringToArr(assignees);
-	if (randomTo && Number(randomTo) > 0 && Number(randomTo) < arr.length) arr = sampleSize(arr, Number(randomTo));
-	return arr;
+function getRepoParams() {
+	return {
+		owner: context.repo.owner,
+		repo: context.repo.repo
+	};
 }
-function matchKeyword(content = "", keywords) {
-	return keywords.some((item) => content.toLowerCase().includes(item));
-}
-function replaceStr2Arr(str, replace, split) {
-	return str.replace(replace, "").trim().split(split).reduce((result, item) => item ? [...result, item.trim()] : result, []);
-}
-function checkPermission(required, permission) {
-	const permissions = [
-		"read",
-		"write",
-		"admin"
-	];
-	return permissions.indexOf(required) <= permissions.indexOf(permission);
-}
-//#endregion
-//#region helper/base.ts
-let ICE$1;
-function initBaseICE(issueCoreEngine) {
-	ICE$1 = issueCoreEngine;
-}
-async function doAddAssignees(assignees) {
-	await ICE$1.addAssignees(assignees);
-	info(`[doAddAssignees] [${assignees}] success!`);
-}
-async function doAddLabels(labels, issueNumber) {
-	if (issueNumber) ICE$1.setIssueNumber(issueNumber);
-	await ICE$1.addLabels(labels);
-	info(`[doAddLabels] [${labels}] success!`);
-}
-async function doCloseIssue(reason, issueNumber) {
-	if (issueNumber) ICE$1.setIssueNumber(issueNumber);
-	await ICE$1.closeIssue(reason);
-	info("[doCloseIssue] success!");
-}
-async function doCreateComment(body, emoji, issueNumber) {
-	if (body) {
-		if (issueNumber) ICE$1.setIssueNumber(issueNumber);
-		const commentId = await ICE$1.createComment(body);
-		info(`[doCreateComment] [${body}] success!`);
-		setOutput("comment-id", commentId);
-		if (emoji) await doCreateCommentEmoji(commentId, emoji);
-	} else warning("[doCreateComment] body is empty!");
-}
-async function doCreateCommentEmoji(_commentId, emoji) {
-	const commentId = _commentId || getInput("comment-id");
-	if (emoji && commentId) {
-		await ICE$1.createCommentEmoji(Number(commentId), dealStringToArr(emoji));
-		info(`[doCreateCommentEmoji] [${emoji}] success!`);
-	} else warning("[doCreateCommentEmoji] emoji or commentId is empty!");
-}
-async function doCreateIssue(title, body, labels, assignees, emoji) {
-	if (title) {
-		const issueNumber = await ICE$1.createIssue(title, body, labels, assignees);
-		info(`[doCreateIssue] [${title}] success!`);
-		setOutput("issue-number", issueNumber);
-		if (emoji) {
-			ICE$1.setIssueNumber(issueNumber);
-			await ICE$1.createIssueEmoji(dealStringToArr(emoji));
-			info(`[createIssueEmoji] [${emoji}] success!`);
-		}
-	} else warning("[doCreateIssue] title is empty!");
-}
-async function doCreateLabel() {
-	const name = getInput("label-name");
-	const color = getInput("label-color");
-	const description = getInput("label-desc");
-	if (name) {
-		await ICE$1.createLabel(name, color, description);
-		info(`[doCreateLabel] [${name}] success!`);
-	} else warning("[doCreateLabel] label-name is empty!");
-}
-async function doDeleteComment(_commentId) {
-	const commentId = _commentId || getInput("comment-id");
-	if (commentId) {
-		await ICE$1.deleteComment(Number(commentId));
-		info(`[doDeleteComment] [${commentId}] success!`);
-	} else warning("[doDeleteComment] commentId is empty!");
-}
-async function doGetIssue() {
-	const { number, title, body, state, labels, assignees } = await ICE$1.getIssue();
-	setOutput("issue-number", number);
-	setOutput("issue-title", title || "");
-	setOutput("issue-body", body || "");
-	setOutput("issue-state", state);
-	setOutput("issue-labels", labels.length ? labels.map(({ name }) => name).join(",") : "");
-	setOutput("issue-assignees", assignees.length ? assignees.map(({ login }) => login).join(",") : "");
-}
-async function doLockIssue(issueNumber) {
-	if (issueNumber) ICE$1.setIssueNumber(issueNumber);
-	const lockReason = getInput("lock-reason") || "";
-	if (lockReason && ![
-		"off-topic",
-		"too heated",
-		"resolved",
-		"spam"
-	].includes(lockReason)) {
-		warning("[doLockIssue] lock-reason is illegal!");
-		return;
-	}
-	await ICE$1.lockIssue(lockReason);
-	info("[doLockIssue] success!");
-}
-async function doOpenIssue() {
-	await ICE$1.openIssue();
-	info("[doOpenIssue] success!");
-}
-async function doRemoveAssignees(assignees) {
-	await ICE$1.removeAssignees(assignees);
-	info(`[doRemoveAssignees] [${assignees}] success!`);
-}
-async function doRemoveLabels(labels) {
-	await ICE$1.removeLabels(labels);
-	info(`[doRemoveLabels] [${labels}] success!`);
-}
-async function doSetLabels(labels) {
-	await ICE$1.setLabels(labels);
-	info(`[doSetLabels] [${labels}] success!`);
-}
-async function doUnlockIssue() {
-	await ICE$1.unlockIssue();
-	info("[doUnlockIssue] success!");
-}
-async function doUpdateComment(_commentId, body, updateMode, emoji) {
-	const commentId = _commentId || getInput("comment-id");
-	if (commentId) {
-		await ICE$1.updateComment(Number(commentId), body, updateMode);
-		info(`[doUpdateComment] [${commentId}] success!`);
-		if (emoji) await doCreateCommentEmoji(Number(commentId), emoji);
-	} else warning("[doUpdateComment] commentId is empty!");
-}
-async function doUpdateIssue(issueNumber, state, title, body, updateMode, labels, assignees) {
-	if (issueNumber) ICE$1.setIssueNumber(issueNumber);
-	await ICE$1.updateIssue(state, title, body, updateMode, labels, assignees);
-	info("[doUpdateIssue] success!");
-}
-//#endregion
-//#region helper/advanced.ts
-let ICE;
-function initAdvancedICE(issueCoreEngine) {
-	ICE = issueCoreEngine;
-}
-function parseTimestamp(value) {
-	if (!value) return null;
-	const timestamp = Date.parse(value);
-	return Number.isNaN(timestamp) ? null : timestamp;
-}
-async function doQueryIssues(state, creator, ignoreLabels) {
-	const params = { state };
-	const issueCreator = getInput("issue-creator");
-	const issueAssignee = getInput("issue-assignee");
-	const issueMentioned = getInput("issue-mentioned");
-	if (issueCreator) params.creator = issueCreator;
-	if (issueAssignee) params.assignee = issueAssignee;
-	if (issueMentioned) params.mentioned = issueMentioned;
-	const labels = getInput("labels");
-	if (labels && !ignoreLabels) params.labels = labels;
-	if (creator) params.creator = creator;
-	const issuesList = await ICE.listIssues(params);
-	const issues = [];
-	const issueNumbers = [];
-	if (issuesList.length) {
-		const excludeLabels = getInput("exclude-labels") || "";
-		const bodyIncludes = getInput("body-includes");
-		const titleIncludes = getInput("title-includes");
-		const excludeLabelsArr = dealStringToArr(excludeLabels);
-		const bodyIncludesArr = dealStringToArr(bodyIncludes);
-		const titleIncludesArr = dealStringToArr(titleIncludes);
-		const inactiveDay = getInput("inactive-day");
-		const inactiveMode = dealStringToArr(getInput("inactive-mode"));
-		for (const issue of issuesList) {
-			const bodyCheck = bodyIncludesArr.length > 0 ? bodyIncludesArr.some((body) => (issue.body ?? "").includes(body)) : true;
-			const titleCheck = titleIncludesArr.length > 0 ? titleIncludesArr.some((title) => (issue.title ?? "").includes(title)) : true;
-			if (!bodyCheck || !titleCheck || issue.pull_request !== void 0) continue;
-			if (excludeLabelsArr.length) {
-				if (issue.labels.length) {
-					if (issue.labels.some((label) => excludeLabelsArr.includes(label.name))) continue;
-				} else if (excludeLabelsArr.includes(EConst.ExcludeEmpty)) continue;
-			}
-			if (inactiveDay) {
-				const lastTime = Date.now() - Number(inactiveDay) * 24 * 60 * 60 * 1e3;
-				let checkTime = null;
-				for (const mode of inactiveMode) {
-					if (checkTime !== null) break;
-					if (mode === "comment" || mode === "comment-created") {
-						ICE.setIssueNumber(issue.number);
-						const comments = await ICE.listComments();
-						if (comments.length) checkTime = parseTimestamp(comments[comments.length - 1][mode === "comment" ? "updated_at" : "created_at"]);
-					}
-					if (mode === "issue-created") checkTime = parseTimestamp(issue.created_at);
-				}
-				if (!checkTime) checkTime = parseTimestamp(issue.updated_at);
-				if (checkTime && checkTime <= lastTime) {
-					issues.push(issue);
-					issueNumbers.push(issue.number);
-				}
-			} else {
-				issues.push(issue);
-				issueNumbers.push(issue.number);
-			}
-		}
-	}
-	info(`[doQueryIssues] issueNumbers is ---> ${JSON.stringify(issueNumbers)}`);
-	return issues;
-}
-async function doCheckInactive(body, emoji) {
-	let issueState = getInput("issue-state");
-	if (issueState !== "all" && issueState !== "closed") issueState = "open";
-	const issues = await doQueryIssues(issueState);
-	if (issues.length) {
-		const inactiveLabel = getInput("inactive-label") || "inactive";
-		const excludeIssueNumbers = dealStringToArr(getInput("exclude-issue-numbers") || "").map(Number);
-		const hasInactiveLabelIssueNumbers = [];
-		for (const issue of issues) {
-			const { labels, number } = issue;
-			if (excludeIssueNumbers.includes(number)) continue;
-			if (!labels.map(({ name }) => name).includes(inactiveLabel)) {
-				info(`[doCheckInactive] Doing ---> ${number}`);
-				await doAddLabels([inactiveLabel], number);
-				if (body) await doCreateComment(body, emoji, number);
-			} else hasInactiveLabelIssueNumbers.push(number);
-		}
-		if (hasInactiveLabelIssueNumbers.length) info(`[doCheckInactive] These issues already has ${inactiveLabel} label! ${JSON.stringify(hasInactiveLabelIssueNumbers)} total ${hasInactiveLabelIssueNumbers.length}`);
-	} else info("[doCheckInactive] Query issues empty!");
-}
-async function doCheckIssue() {
-	let checkResult = true;
-	const issue = await ICE.getIssue();
-	const assigneeIncludes = getInput("assignee-includes");
-	if (assigneeIncludes) {
-		const assigneesCheck = dealStringToArr(assigneeIncludes);
-		let checkAssignee = false;
-		issue.assignees.forEach((item) => {
-			if (checkResult && !checkAssignee && assigneesCheck.includes(item.login)) {
-				checkResult = true;
-				checkAssignee = true;
-			}
-		});
-		if (!checkAssignee) checkResult = false;
-	}
-	const titleRemove = getInput("title-excludes");
-	if (checkResult && titleRemove) {
-		const removes = dealStringToArr(titleRemove);
-		let text = issue.title ?? "";
-		removes.forEach((item) => {
-			text = text.replace(item, "");
-		});
-		if (text.trim().length === 0) checkResult = false;
-	}
-	const titleIncludes = getInput("title-includes");
-	if (checkResult && titleIncludes) {
-		const titleArr = titleIncludes.split("/");
-		const keyword1 = dealStringToArr(titleArr[0]);
-		const keyword2 = dealStringToArr(titleArr[1] || "");
-		checkResult = keyword2.length ? matchKeyword(issue.title ?? "", keyword1) && matchKeyword(issue.title ?? "", keyword2) : matchKeyword(issue.title ?? "", keyword1);
-	}
-	const bodyIncludes = getInput("body-includes");
-	if (checkResult && bodyIncludes) {
-		const bodyArr = bodyIncludes.split("/");
-		const keyword1 = dealStringToArr(bodyArr[0]);
-		const keyword2 = dealStringToArr(bodyArr[1] || "");
-		checkResult = keyword2.length ? matchKeyword(issue.body ?? "", keyword1) && matchKeyword(issue.body ?? "", keyword2) : matchKeyword(issue.body ?? "", keyword1);
-	}
-	info(`[doCheckIssue] result is [${checkResult}]`);
-	setOutput("check-result", checkResult);
-}
-async function doCloseIssues(body, closeReason, emoji) {
-	const issues = await doQueryIssues("open");
-	if (issues.length) for (const { number } of issues) {
-		info(`[doCloseIssues] Doing ---> ${number}`);
-		if (body) await doCreateComment(body, emoji, number);
-		await doCloseIssue(closeReason, number);
-	}
-	else info("[doCloseIssues] Query issues empty!");
-}
-async function doFindComments() {
-	const commentList = await ICE.listComments();
-	info("[doFindComments] success!");
-	const comments = [];
-	if (commentList.length) {
-		const commentAuth = getInput("comment-auth");
-		const bodyIncludes = getInput("body-includes");
-		const direction = getInput("direction") === "desc" ? "desc" : "asc";
-		const bodyIncludesArr = dealStringToArr(bodyIncludes);
-		for (const comment of commentList) {
-			const checkUser = commentAuth ? comment.user.login === commentAuth : true;
-			const checkBody = bodyIncludesArr.length > 0 ? bodyIncludesArr.some((text) => (comment.body ?? "").includes(text)) : true;
-			if (checkUser && checkBody) comments.push({
-				id: comment.id,
-				auth: comment.user.login,
-				body: comment.body,
-				created: comment.created_at,
-				updated: comment.updated_at
-			});
-		}
-		if (direction === "desc") comments.reverse();
-		setOutput("comments", JSON.stringify(comments));
-		info(`[doFindComments] comments --> ${JSON.stringify(comments)}`);
-	} else info("[doFindComments] Query comments empty!");
-}
-async function doFindIssues() {
-	let issueState = getInput("issue-state");
-	if (issueState !== "all" && issueState !== "closed") issueState = "open";
-	const issueList = await doQueryIssues(issueState);
-	let issues = [];
-	if (issueList.length) {
-		const direction = getInput("direction") === "desc" ? "desc" : "asc";
-		issues = issueList.map((issue) => {
-			return {
-				auth: issue.user.login,
-				number: issue.number,
-				title: issue.title ?? "",
-				body: issue.body ?? "",
-				state: issue.state,
-				assignees: issue.assignees.map((val) => val.login),
-				created: issue.created_at,
-				updated: issue.updated_at
-			};
-		});
-		if (direction === "desc") issues.reverse();
-		info(`[doFindIssues] issues --> ${JSON.stringify(issues)}`);
-	} else {
-		info("[doFindIssues] Query issues empty!");
-		if (getInput("create-issue-if-not-exist")) await doCreateIssue(getInput("title-includes") || "New issue by AC find-issues", getInput("body-includes") || "", dealStringToArr(getInput("labels") || ""));
-	}
-	setOutput("issues", JSON.stringify(issues));
-}
-async function doLockIssues(body, emoji) {
-	let issueState = getInput("issue-state");
-	if (issueState !== "all" && issueState !== "closed") issueState = "open";
-	const issues = await doQueryIssues(issueState);
-	if (issues.length) {
-		const hasLockedIssueNumbers = [];
-		for (const { number, locked } of issues) if (!locked) {
-			info(`[doLockIssues] Doing ---> ${number}`);
-			if (body) await doCreateComment(body, emoji, number);
-			await doLockIssue(number);
-		} else hasLockedIssueNumbers.push(number);
-		if (hasLockedIssueNumbers.length) info(`[doLockIssues] Locked issues ---> ${JSON.stringify(hasLockedIssueNumbers)} total ${hasLockedIssueNumbers.length}`);
-	} else info("[doLockIssues] Query issues empty!");
-}
-async function doMarkAssignees(comment) {
-	const assignCommand = getInput("assign-command") || "/assign";
-	if (comment.body.startsWith(assignCommand)) {
-		const { body, user } = comment;
-		const assigns = replaceStr2Arr(body, assignCommand, "@");
-		if (!checkPermission(getInput("require-permission") || "write", await ICE.getUserPermission(user.login))) {
-			info(`[doMarkAssignees] The user ${user.login} is not allow!`);
-			return;
-		}
-		await doAddAssignees(assigns);
-		info("[doMarkAssignees] Done!");
-	} else info("[doMarkAssignees] The issues ignore!");
-}
-async function doMarkDuplicate(comment, closeReason, labels, emoji) {
-	const duplicateCommand = getInput("duplicate-command");
-	const duplicateLabels = getInput("duplicate-labels");
-	const removeLabels = getInput("remove-labels") || "";
-	const closeIssue = getInput("close-issue");
-	const requirePermission = getInput("require-permission") || "write";
-	const commentId = comment.id;
-	const commentBody = comment.body;
-	const commentUser = comment.user.login;
-	const ifCommandInput = !!duplicateCommand;
-	if (!commentBody.includes("?") && (ifCommandInput && commentBody.startsWith(duplicateCommand) && commentBody.split(" ")[0] === duplicateCommand || checkDuplicate(commentBody))) {
-		if (!checkPermission(requirePermission, await ICE.getUserPermission(commentUser))) {
-			info(`[doMarkDuplicate] The user ${commentUser} is not allow!`);
-			return;
-		}
-		if (ifCommandInput) await doUpdateComment(commentId, commentBody.replace(duplicateCommand, "Duplicate of"), "replace", emoji);
-		else if (emoji) await doCreateCommentEmoji(commentId, emoji);
-		const issue = await ICE.getIssue();
-		let newLabels = [];
-		if (issue.labels.length > 0) newLabels = issue.labels.map(({ name }) => name).filter((name) => !dealStringToArr(removeLabels).includes(name));
-		if (duplicateLabels) newLabels = [...newLabels, ...dealStringToArr(duplicateLabels)];
-		if (labels?.length) newLabels = [...labels];
-		if (newLabels.length > 0) await doSetLabels(newLabels);
-		if (closeIssue === "true") await doCloseIssue(closeReason);
-		info("[doMarkDuplicate] Done!");
-	} else warning("This comment body should start with 'duplicate-command' or 'Duplicate of' and not include '?'");
-}
-async function doToggleLabels(labels = []) {
-	const baseLabels = (await ICE.getIssue()).labels.map(({ name }) => name);
-	const addLabels = [];
-	const removeLabels = [];
-	for (const label of labels) if (baseLabels.includes(label)) removeLabels.push(label);
-	else addLabels.push(label);
-	if (removeLabels.length) await doRemoveLabels(removeLabels);
-	if (addLabels.length) await doAddLabels(addLabels);
-	info("[doToggleLabels] Done!");
-}
-async function doWelcome(auth, issueNumber, body, labels, assignees, emoji) {
-	info(`[doWelcome] [${auth}]`);
-	const issues = await doQueryIssues("all", auth, true);
-	if (issues.length === 0 || issues.length === 1 && issues[0].number === issueNumber) {
-		if (body) await doCreateComment(body, emoji);
-		if (assignees?.length) await doAddAssignees(assignees);
-		if (labels?.length) await doAddLabels(labels);
-		const issueEmoji = getInput("issue-emoji");
-		if (issueEmoji) await ICE.createIssueEmoji(dealStringToArr(issueEmoji));
-	} else info(`[doWelcome] ${auth} is not first time!`);
-}
-//#endregion
-//#region issue/issue.ts
-function ensureIssueNumber(issueNumber) {
-	if (!issueNumber) throw new Error("Missing issue number");
+function getIssueNumber() {
+	const issueNumberInput = getInput("issue-number");
+	const issueNumber = issueNumberInput ? Number.parseInt(issueNumberInput, 10) : context.issue.number;
+	if (!Number.isInteger(issueNumber) || issueNumber <= 0) throw new Error("Missing issue number");
 	return issueNumber;
 }
-var IssueCoreEngine = class {
-	owner;
-	repo;
-	issueNumber;
-	octokit;
-	constructor(info) {
-		if (!info.owner || !info.repo) throw new Error("Init failed, need owner and repo");
-		this.owner = info.owner;
-		this.repo = info.repo;
-		this.issueNumber = info.issueNumber;
-		this.octokit = getOctokit(info.token);
-	}
-	setIssueNumber(newIssueNumber) {
-		this.issueNumber = newIssueNumber;
-	}
-	async addAssignees(assignees) {
-		await this.octokit.rest.issues.addAssignees({
-			owner: this.owner,
-			repo: this.repo,
-			issue_number: ensureIssueNumber(this.issueNumber),
-			assignees
-		});
-	}
-	async addLabels(labels) {
-		await this.octokit.rest.issues.addLabels({
-			owner: this.owner,
-			repo: this.repo,
-			issue_number: ensureIssueNumber(this.issueNumber),
-			labels
-		});
-	}
-	async closeIssue(reason) {
-		await this.octokit.rest.issues.update({
-			owner: this.owner,
-			repo: this.repo,
-			issue_number: ensureIssueNumber(this.issueNumber),
-			state: "closed",
-			state_reason: reason
-		});
-	}
-	async createComment(body) {
-		const { data } = await this.octokit.rest.issues.createComment({
-			owner: this.owner,
-			repo: this.repo,
-			issue_number: ensureIssueNumber(this.issueNumber),
-			body
-		});
-		return data.id;
-	}
-	async createCommentEmoji(commentId, emoji) {
-		for (const content of emoji) if (content && EEmoji[content]) await this.octokit.rest.reactions.createForIssueComment({
-			owner: this.owner,
-			repo: this.repo,
+function getIssueParams() {
+	return {
+		...getRepoParams(),
+		issue_number: getIssueNumber()
+	};
+}
+function isReactionContent(value) {
+	return reactionContents.has(value);
+}
+async function createCommentReactions(octokit, commentId) {
+	const reactions = splitInput(getInput("emoji"));
+	if (!reactions.length) return;
+	for (const content of reactions) {
+		if (!isReactionContent(content)) {
+			warning(`[create-comment] unsupported emoji "${content}"`);
+			continue;
+		}
+		await octokit.rest.reactions.createForIssueComment({
+			...getRepoParams(),
 			comment_id: commentId,
 			content
 		});
 	}
-	async createIssue(title, body, labels, assignees) {
-		const { data } = await this.octokit.rest.issues.create({
-			owner: this.owner,
-			repo: this.repo,
-			title,
-			body,
-			labels,
-			assignees
-		});
-		return data.number;
+}
+async function createComment(octokit) {
+	const body = getInput("body", { required: true });
+	const { data: comment } = await octokit.rest.issues.createComment({
+		...getIssueParams(),
+		body
+	});
+	setOutput("comment-id", comment.id);
+	await createCommentReactions(octokit, comment.id);
+}
+async function updateIssue(octokit) {
+	const params = getIssueParams();
+	const body = getInput("body", { required: true });
+	const updateMode = getInput("update-mode") === "append" ? "append" : "replace";
+	let nextBody = body;
+	if (updateMode === "append") {
+		const { data: issue } = await octokit.rest.issues.get(params);
+		nextBody = issue.body ? `${issue.body}\n${body}` : body;
 	}
-	async createIssueEmoji(emoji) {
-		for (const content of emoji) if (content && EEmoji[content]) await this.octokit.rest.reactions.createForIssue({
-			owner: this.owner,
-			repo: this.repo,
-			issue_number: ensureIssueNumber(this.issueNumber),
-			content
-		});
+	await octokit.rest.issues.update({
+		...params,
+		body: nextBody
+	});
+}
+async function markDuplicate(octokit) {
+	if (context.eventName !== "issue_comment" || !["created", "edited"].includes(String(context.payload.action))) {
+		warning("[mark-duplicate] only supports issue_comment created/edited events");
+		return;
 	}
-	async createLabel(labelName, labelColor = "ededed", labelDescription = "") {
-		await this.octokit.rest.issues.createLabel({
-			owner: this.owner,
-			repo: this.repo,
-			name: labelName,
-			color: labelColor,
-			description: labelDescription
-		});
+	const comment = context.payload.comment;
+	const body = comment?.body || "";
+	if (!/[Dd]uplicate\s+of\s+#\d+/.test(body)) {
+		info("[mark-duplicate] comment is not a duplicate marker");
+		return;
 	}
-	async deleteComment(commentId) {
-		await this.octokit.rest.issues.deleteComment({
-			owner: this.owner,
-			repo: this.repo,
-			comment_id: commentId
-		});
+	const authorAssociation = comment?.author_association || "";
+	if (!duplicateAuthorAssociations.has(authorAssociation)) {
+		info(`[mark-duplicate] skipping commenter association "${authorAssociation}"`);
+		return;
 	}
-	async getIssue() {
-		return (await this.octokit.rest.issues.get({
-			owner: this.owner,
-			repo: this.repo,
-			issue_number: ensureIssueNumber(this.issueNumber)
-		})).data;
+	const params = getIssueParams();
+	const duplicateLabels = splitInput(getInput("duplicate-labels") || "duplicate");
+	if (duplicateLabels.length) await octokit.rest.issues.addLabels({
+		...params,
+		labels: duplicateLabels
+	});
+	if (getBooleanInput("close-issue")) await octokit.rest.issues.update({
+		...params,
+		state: "closed"
+	});
+}
+async function runAction(action, octokit) {
+	switch (action) {
+		case "create-comment":
+			await createComment(octokit);
+			break;
+		case "update-issue":
+			await updateIssue(octokit);
+			break;
+		case "mark-duplicate":
+			await markDuplicate(octokit);
+			break;
 	}
-	async getUserPermission(username) {
-		const { data } = await this.octokit.rest.repos.getCollaboratorPermissionLevel({
-			owner: this.owner,
-			repo: this.repo,
-			username
-		});
-		return data.permission;
-	}
-	async listComments(page = 1) {
-		const { data } = await this.octokit.rest.issues.listComments({
-			owner: this.owner,
-			repo: this.repo,
-			issue_number: ensureIssueNumber(this.issueNumber),
-			per_page: 100,
-			page
-		});
-		let comments = [...data];
-		if (comments.length >= 100) comments = comments.concat(await this.listComments(page + 1));
-		return comments;
-	}
-	async listIssues(params, page = 1) {
-		const { data } = await this.octokit.rest.issues.listForRepo({
-			...params,
-			owner: this.owner,
-			repo: this.repo,
-			per_page: 100,
-			page
-		});
-		let issues = [...data];
-		if (issues.length >= 100) issues = issues.concat(await this.listIssues(params, page + 1));
-		return issues;
-	}
-	async lockIssue(lockReason) {
-		const params = {
-			owner: this.owner,
-			repo: this.repo,
-			issue_number: ensureIssueNumber(this.issueNumber)
-		};
-		if (lockReason) {
-			await this.octokit.rest.issues.lock({
-				...params,
-				lock_reason: lockReason
-			});
-			return;
-		}
-		await this.octokit.rest.issues.lock(params);
-	}
-	async openIssue() {
-		await this.octokit.rest.issues.update({
-			owner: this.owner,
-			repo: this.repo,
-			issue_number: ensureIssueNumber(this.issueNumber),
-			state: "open"
-		});
-	}
-	async removeAssignees(assignees) {
-		await this.octokit.rest.issues.removeAssignees({
-			owner: this.owner,
-			repo: this.repo,
-			issue_number: ensureIssueNumber(this.issueNumber),
-			assignees
-		});
-	}
-	async removeLabels(labels) {
-		const removeLabels = (await this.getIssue()).labels.map(({ name }) => name).filter((name) => labels.includes(name));
-		for (const label of removeLabels) await this.octokit.rest.issues.removeLabel({
-			owner: this.owner,
-			repo: this.repo,
-			issue_number: ensureIssueNumber(this.issueNumber),
-			name: label
-		});
-	}
-	async setLabels(labels) {
-		const baseLabels = (await this.getIssue()).labels.map(({ name }) => name);
-		const removeLabels = baseLabels.filter((name) => !labels.includes(name));
-		const addLabels = labels.filter((name) => !baseLabels.includes(name));
-		if (removeLabels.length) await this.removeLabels(removeLabels);
-		if (addLabels.length) await this.addLabels(addLabels);
-	}
-	async unlockIssue() {
-		await this.octokit.rest.issues.unlock({
-			owner: this.owner,
-			repo: this.repo,
-			issue_number: ensureIssueNumber(this.issueNumber)
-		});
-	}
-	async updateComment(commentId, body, mode) {
-		const baseBody = (await this.octokit.rest.issues.getComment({
-			owner: this.owner,
-			repo: this.repo,
-			comment_id: commentId
-		})).data.body ?? "";
-		const newBody = body ? mode === "append" ? `${baseBody}\n${body}` : body : baseBody;
-		await this.octokit.rest.issues.updateComment({
-			owner: this.owner,
-			repo: this.repo,
-			comment_id: commentId,
-			body: newBody || ""
-		});
-	}
-	async updateIssue(state, title, body, mode, labels, assignees) {
-		const { body: baseBody, title: baseTitle, labels: baseLabels, assignees: baseAssignees, state: baseState } = await this.getIssue();
-		const baseLabelsName = baseLabels.map(({ name }) => name);
-		const baseAssigneesName = baseAssignees?.map(({ login }) => login);
-		const newBody = body ? mode === "append" ? `${baseBody ?? ""}\n${body}` : body : baseBody;
-		if (labels?.length) {
-			for (const label of labels) if (baseLabelsName.length && !baseLabelsName.includes(label)) await this.createLabel(label);
-		}
-		await this.octokit.rest.issues.update({
-			owner: this.owner,
-			repo: this.repo,
-			issue_number: ensureIssueNumber(this.issueNumber),
-			state: state || baseState,
-			title: title || baseTitle,
-			body: newBody ?? "",
-			labels: labels?.length ? labels : baseLabelsName,
-			assignees: assignees?.length ? assignees : baseAssigneesName
-		});
-	}
-};
-//#endregion
-//#region helper/helper.ts
-var IssueHelperEngine = class {
-	ctx;
-	ICE;
-	owner;
-	repo;
-	issueNumber;
-	emoji;
-	labels;
-	assignees;
-	title = "";
-	body = "";
-	state = "open";
-	updateMode = "replace";
-	closeReason = "not_planned";
-	constructor(ctx) {
-		this.ctx = ctx;
-		this.initInput(ctx);
-		this.initIssueCore();
-		initBaseICE(this.ICE);
-		initAdvancedICE(this.ICE);
-	}
-	initInput(ctx) {
-		const repoInput = getInput("repo");
-		if (repoInput) {
-			this.owner = repoInput.split("/")[0];
-			this.repo = repoInput.split("/")[1];
-		} else {
-			this.owner = ctx.repo.owner;
-			this.repo = ctx.repo.repo;
-		}
-		let defaultCtxNumber;
-		if (ctx.eventName === "issues" || ctx.eventName === "issue_comment") defaultCtxNumber = ctx.payload.issue?.number;
-		const issueNumber = getInput("issue-number") || defaultCtxNumber;
-		if (issueNumber) this.issueNumber = Number(issueNumber);
-		this.emoji = getInput("emoji") || "";
-		this.labels = dealStringToArr(getInput("labels") || "");
-		const assigneesInput = getInput("assignees") || "";
-		const randomTo = getInput("random-to");
-		this.assignees = dealRandomAssignees(assigneesInput, randomTo);
-		this.title = getInput("title") || "";
-		this.body = getInput("body") || "";
-		this.state = getInput("state") === "closed" ? "closed" : "open";
-		this.updateMode = getInput("update-mode") === "append" ? "append" : "replace";
-		this.closeReason = getInput("close-reason") === "completed" ? "completed" : "not_planned";
-	}
-	initIssueCore() {
-		const { owner, repo, issueNumber } = this;
-		const token = getInput("token");
-		this.ICE = new IssueCoreEngine({
-			owner,
-			repo,
-			issueNumber,
-			token
-		});
-		info(`[Init] [${owner}/${repo} => ${issueNumber}]`);
-	}
-	async doExeAction(action) {
-		const { issueNumber, emoji, labels, assignees, title, body, updateMode, state, ctx, closeReason } = this;
-		switch (action) {
-			case "add-assignees":
-				if (assignees && assignees.length) await doAddAssignees(assignees);
-				else warning("[doAddAssignees] assignees is empty!");
-				break;
-			case "add-labels":
-				if (labels && labels.length) await doAddLabels(labels);
-				else warning("[doAddLabels] labels is empty!");
-				break;
-			case "close-issue":
-				await doCloseIssue(closeReason);
-				break;
-			case "create-comment":
-				await doCreateComment(body, emoji);
-				break;
-			case "create-issue":
-				await doCreateIssue(title, body, labels, assignees, emoji);
-				break;
-			case "create-label":
-				await doCreateLabel();
-				break;
-			case "delete-comment":
-				await doDeleteComment();
-				break;
-			case "get-issue":
-				await doGetIssue();
-				break;
-			case "lock-issue":
-				await doLockIssue();
-				break;
-			case "open-issue":
-				await doOpenIssue();
-				break;
-			case "remove-assignees":
-				if (assignees && assignees.length) await doRemoveAssignees(assignees);
-				else warning("[doRemoveAssignees] assignees is empty!");
-				break;
-			case "remove-labels":
-				if (labels && labels.length) await doRemoveLabels(labels);
-				else warning("[doRemoveLabels] labels is empty!");
-				break;
-			case "set-labels":
-				if (labels && labels.length) await doSetLabels(labels);
-				else warning("[doSetLabels] labels is empty!");
-				break;
-			case "unlock-issue":
-				await doUnlockIssue();
-				break;
-			case "update-comment":
-				await doUpdateComment(0, body, updateMode, emoji);
-				break;
-			case "update-issue":
-				await doUpdateIssue(0, state, title, body, updateMode, labels, assignees);
-				break;
-			case "check-inactive":
-				await doCheckInactive(body, emoji);
-				break;
-			case "check-issue":
-				await doCheckIssue();
-				break;
-			case "close-issues":
-				await doCloseIssues(body, closeReason, emoji);
-				break;
-			case "find-comments":
-				await doFindComments();
-				break;
-			case "find-issues":
-				await doFindIssues();
-				break;
-			case "lock-issues":
-				await doLockIssues(body, emoji);
-				break;
-			case "mark-assignees":
-				if (this.checkEvent4Mark()) {
-					warning("[mark-assignees] only support event '[issue_comment: created/edited]'!");
-					return;
-				}
-				await doMarkAssignees(ctx.payload.comment);
-				break;
-			case "mark-duplicate":
-				if (this.checkEvent4Mark()) {
-					warning("[mark-duplicate] only support event '[issue_comment: created/edited]'!");
-					return;
-				}
-				await doMarkDuplicate(ctx.payload.comment, closeReason, labels, emoji);
-				break;
-			case "toggle-labels":
-				await doToggleLabels(labels);
-				break;
-			case "welcome":
-				if (ctx.eventName === "issues" && ctx.payload.action === "opened") await doWelcome(ctx.actor, issueNumber || ctx.payload.issue?.number || 0, body, labels, assignees, emoji);
-				else warning("[welcome] only support issue opened!");
-				break;
-			default:
-				warning(`The ${action} is not allowed.`);
-				break;
-		}
-	}
-	checkEvent4Mark() {
-		const { ctx } = this;
-		return ctx.eventName !== "issue_comment" && (ctx.payload.action === "created" || ctx.payload.action === "edited");
-	}
-};
-//#endregion
-//#region main.ts
+}
 async function main() {
-	const actions = getInput("actions", { required: true });
-	const showThanks = getBooleanInput("show-thanks");
-	const issueHelper = new IssueHelperEngine(context);
-	for (const action of dealStringToArr(actions)) await issueHelper.doExeAction(action);
-	if (showThanks) baseInfo(`\n${THANKS}`);
+	const octokit = getOctokit(getInput("token", { required: true }));
+	for (const action of getActions()) await runAction(action, octokit);
 }
 //#endregion
 //#region index.ts
