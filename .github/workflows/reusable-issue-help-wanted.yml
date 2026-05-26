@@ -1,5 +1,5 @@
 # 当打上 "help wanted" 标签时，自动留言引导社区贡献
-name: Issue Help Wanted
+name: reusable-issue-help-wanted
 
 on:
   workflow_call:

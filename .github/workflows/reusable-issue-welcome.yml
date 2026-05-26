@@ -1,5 +1,5 @@
 # 当 issue 被创建时，自动回复引导完善信息
-name: Issue Welcome
+name: reusable-issue-welcome
 
 on:
   workflow_call:

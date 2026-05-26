@@ -1,5 +1,5 @@
 # 当 comment 中回复类似 "Duplicate of #111" 时，自动打标签并关闭 issue
-name: Issue Mark Duplicate
+name: reusable-issue-mark-duplicate
 
 on:
   workflow_call:

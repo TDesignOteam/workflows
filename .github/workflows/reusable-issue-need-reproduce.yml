@@ -1,5 +1,5 @@
 # 当打上 "Need Reproduce" 标签时，自动提示提供重现实例
-name: Issue Reply
+name: Issue Need Reproduce
 
 on:
   workflow_call:

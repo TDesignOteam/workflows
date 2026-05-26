@@ -1,5 +1,5 @@
 # 当打上 easy/middle/hard 标签时，追加难度分级模板
-name: Issue Shoot
+name: reusable-issue-shoot
 
 on:
   workflow_call:
