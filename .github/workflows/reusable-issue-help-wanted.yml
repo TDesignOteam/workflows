@@ -11,6 +11,7 @@ on:
 
 jobs:
   add-comment:
+    if: github.event.label.name == 'help wanted'
     runs-on: ubuntu-latest
     steps:
       - uses: TDesignOteam/workflows/actions/issues-helper@main
