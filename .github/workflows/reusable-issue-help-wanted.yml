@@ -17,7 +17,7 @@ jobs:
       - uses: TDesignOteam/workflows/actions/issues-helper@main
         with:
           actions: create-comment
-          token: ${{ inputs.token }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           issue-number: ${{ inputs.issue-number }}
           body: |
             任何人都可以处理此问题。
