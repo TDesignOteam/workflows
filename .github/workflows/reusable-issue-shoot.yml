@@ -1,0 +1,60 @@
+# 当打上 easy/middle/hard 标签时，追加难度分级模板
+name: reusable-issue-shoot
+
+on:
+  workflow_call:
+    inputs:
+      issue-number:
+        required: false
+        type: number
+        default: ${{ github.event.issue.number }}
+      template-path:
+        required: false
+        type: string
+        default: .github/issue-shoot.md
+
+jobs:
+  add-template:
+    if: contains(fromJSON('["easy", "middle", "hard"]'), github.event.label.name)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Get level config
+        id: config
+        run: |
+          label=${{ github.event.label.name }}
+          if [[ $label = "easy" ]]
+          then
+            echo "level=低" >> $GITHUB_OUTPUT
+            echo "duration=1" >> $GITHUB_OUTPUT
+            echo "deadline=$(date -d '+3 days' +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+          elif [[ $label = "middle" ]]
+          then
+            echo "level=中" >> $GITHUB_OUTPUT
+            echo "duration=3" >> $GITHUB_OUTPUT
+            echo "deadline=$(date -d '+7 days' +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+          else
+            echo "level=高" >> $GITHUB_OUTPUT
+            echo "duration=5" >> $GITHUB_OUTPUT
+            echo "deadline=$(date -d '+10 days' +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Render template
+        id: template
+        uses: chuhlomin/render-template@v1.4
+        with:
+          template: ${{ inputs.template-path }}
+          vars: |
+            level: ${{ steps.config.outputs.level }}
+            duration: ${{ steps.config.outputs.duration }}
+            deadline: ${{ steps.config.outputs.deadline }}
+
+      - name: Update issue
+        uses: TDesignOteam/workflows/actions/issues-helper@main
+        with:
+          actions: update-issue
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ inputs.issue-number }}
+          body: ${{ steps.template.outputs.result }}
+          update-mode: append

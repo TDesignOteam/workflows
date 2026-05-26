@@ -1,0 +1,27 @@
+# 当打上 "Need Reproduce" 标签时，自动提示提供重现实例
+name: reusable-issue-need-reproduce
+
+on:
+  workflow_call:
+    inputs:
+      issue-number:
+        required: false
+        type: number
+        default: ${{ github.event.issue.number }}
+      login:
+        required: false
+        type: string
+        default: ${{ github.event.issue.user.login }}
+
+jobs:
+  issue-reply:
+    if: github.event.label.name == 'Need Reproduce'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: TDesignOteam/workflows/actions/issues-helper@main
+        with:
+          actions: create-comment
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ inputs.issue-number }}
+          body: |
+            你好 @${{ inputs.login }}, 我们需要你提供一个在线的重现实例以便于我们帮你排查问题。你可以通过点击 [此处](https://codesandbox.io/) 创建一个 codesandbox 或者提供一个最小化的 GitHub 仓库。请确保选择准确的版本。

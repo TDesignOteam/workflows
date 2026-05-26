@@ -1,0 +1,27 @@
+# 当 issue 被创建时，自动回复引导完善信息
+name: reusable-issue-welcome
+
+on:
+  workflow_call:
+    inputs:
+      issue-number:
+        required: false
+        type: number
+        default: ${{ github.event.issue.number }}
+      login:
+        required: false
+        type: string
+        default: ${{ github.event.issue.user.login }}
+
+jobs:
+  add-comment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: TDesignOteam/workflows/actions/issues-helper@main
+        with:
+          actions: create-comment
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ inputs.issue-number }}
+          body: |
+            👋 @${{ inputs.login }}，感谢给 TDesign 提出了 issue。
+            请根据 issue 模版确保背景信息的完善，我们将调查并尽快回复你。

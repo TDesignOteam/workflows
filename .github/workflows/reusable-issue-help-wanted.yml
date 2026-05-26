@@ -1,0 +1,26 @@
+# 当打上 "help wanted" 标签时，自动留言引导社区贡献
+name: reusable-issue-help-wanted
+
+on:
+  workflow_call:
+    inputs:
+      issue-number:
+        required: false
+        type: number
+        default: ${{ github.event.issue.number }}
+
+jobs:
+  add-comment:
+    if: github.event.label.name == 'help wanted'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: TDesignOteam/workflows/actions/issues-helper@main
+        with:
+          actions: create-comment
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ inputs.issue-number }}
+          body: |
+            任何人都可以处理此问题。
+            **请务必在您的 `pull request` 中引用此问题。** :sparkles:
+            感谢你的贡献! :sparkles:
+          emoji: heart

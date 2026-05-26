@@ -1,0 +1,25 @@
+# 当 comment 中回复类似 "Duplicate of #111" 时，自动打标签并关闭 issue
+name: reusable-issue-mark-duplicate
+
+on:
+  workflow_call:
+    inputs:
+      duplicate-labels:
+        required: false
+        type: string
+        default: duplicate
+      close-issue:
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  mark-duplicate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: TDesignOteam/workflows/actions/issues-helper@main
+        with:
+          actions: mark-duplicate
+          token: ${{ secrets.GITHUB_TOKEN }}
+          duplicate-labels: ${{ inputs.duplicate-labels }}
+          close-issue: ${{ inputs.close-issue }}
