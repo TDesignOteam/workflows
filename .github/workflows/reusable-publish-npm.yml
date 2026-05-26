@@ -116,7 +116,7 @@ jobs:
           tag_name=${ref_name//./_}
           echo "domain=https://$tag_name-$project_name.surge.sh" >> $GITHUB_OUTPUT
 
-      - uses: TDesignOteam/workflows/actions/setup-surge@c052be113452e0d8eca12d48d1922d80eceeecd3 # main
+      - uses: TDesignOteam/workflows/actions/setup-surge@03665411530c1eeaab075891d2ae88d9fe77cbc5 # main
         with:
           project: _site
           domain: ${{ steps.domain.outputs.domain }}

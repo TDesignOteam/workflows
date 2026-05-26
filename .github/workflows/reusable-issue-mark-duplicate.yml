@@ -17,7 +17,7 @@ jobs:
   mark-duplicate:
     runs-on: ubuntu-latest
     steps:
-      - uses: TDesignOteam/workflows/actions/issues-helper@main
+      - uses: TDesignOteam/workflows/actions/issues-helper@03665411530c1eeaab075891d2ae88d9fe77cbc5 # main
         with:
           actions: mark-duplicate
           token: ${{ secrets.GITHUB_TOKEN }}
