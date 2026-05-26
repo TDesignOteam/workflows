@@ -8,10 +8,6 @@ on:
         required: false
         type: number
         default: ${{ github.event.issue.number }}
-      label-name:
-        required: false
-        type: string
-        default: ${{ github.event.label.name }}
       template-path:
         required: false
         type: string
@@ -19,7 +15,7 @@ on:
 
 jobs:
   add-template:
-    if: contains(fromJSON('["easy", "middle", "hard"]'), inputs.label-name)
+    if: contains(fromJSON('["easy", "middle", "hard"]'), github.event.label.name)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -27,7 +23,7 @@ jobs:
       - name: Get level config
         id: config
         run: |
-          label=${{ inputs.label-name }}
+          label=${{ github.event.label.name }}
           if [[ $label = "easy" ]]
           then
             echo "level=低" >> $GITHUB_OUTPUT
