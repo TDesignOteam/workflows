@@ -12,10 +12,6 @@ on:
         required: false
         type: string
         default: ${{ github.event.issue.user.login }}
-      token:
-        required: false
-        type: string
-        default: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   add-comment:
@@ -24,7 +20,7 @@ jobs:
       - uses: TDesignOteam/workflows/actions/issues-helper@main
         with:
           actions: create-comment
-          token: ${{ inputs.token }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           issue-number: ${{ inputs.issue-number }}
           body: |
             👋 @${{ inputs.login }}，感谢给 TDesign 提出了 issue。
