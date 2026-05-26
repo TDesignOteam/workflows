@@ -5,14 +5,17 @@ on:
   workflow_call:
     inputs:
       issue-number:
-        required: true
+        required: false
         type: number
+        default: ${{ github.event.issue.number }}
       login:
-        required: true
+        required: false
         type: string
+        default: ${{ github.event.issue.user.login }}
       token:
         required: false
         type: string
+        default: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   add-comment:
@@ -21,7 +24,7 @@ jobs:
       - uses: TDesignOteam/workflows/actions/issues-helper@main
         with:
           actions: create-comment
-          token: ${{ inputs.token || secrets.GITHUB_TOKEN }}
+          token: ${{ inputs.token }}
           issue-number: ${{ inputs.issue-number }}
           body: |
             👋 @${{ inputs.login }}，感谢给 TDesign 提出了 issue。
