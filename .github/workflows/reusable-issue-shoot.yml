@@ -5,25 +5,21 @@ on:
   workflow_call:
     inputs:
       issue-number:
-        required: true
+        required: false
         type: number
+        default: ${{ github.event.issue.number }}
       label-name:
-        required: true
+        required: false
         type: string
+        default: ${{ github.event.label.name }}
       template-path:
         required: false
         type: string
         default: .github/issue-shoot.md
-      token:
-        required: false
-        type: string
-        default: ''
-    secrets:
-      GITHUB_TOKEN:
-        required: false
 
 jobs:
   add-template:
+    if: contains(fromJSON('["easy", "middle", "hard"]'), inputs.label-name)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -62,7 +58,7 @@ jobs:
         uses: TDesignOteam/workflows/actions/issues-helper@main
         with:
           actions: update-issue
-          token: ${{ inputs.token }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           issue-number: ${{ inputs.issue-number }}
           body: ${{ steps.template.outputs.result }}
           update-mode: append

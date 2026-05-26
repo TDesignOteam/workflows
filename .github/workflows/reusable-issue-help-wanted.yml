@@ -5,15 +5,9 @@ on:
   workflow_call:
     inputs:
       issue-number:
-        required: true
+        required: false
         type: number
-      token:
-        required: false
-        type: string
-        default: ''
-    secrets:
-      GITHUB_TOKEN:
-        required: false
+        default: ${{ github.event.issue.number }}
 
 jobs:
   add-comment:

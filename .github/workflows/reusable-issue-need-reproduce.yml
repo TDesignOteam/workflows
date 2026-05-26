@@ -5,18 +5,13 @@ on:
   workflow_call:
     inputs:
       issue-number:
-        required: true
+        required: false
         type: number
+        default: ${{ github.event.issue.number }}
       login:
-        required: true
-        type: string
-      token:
         required: false
         type: string
-        default: ''
-    secrets:
-      GITHUB_TOKEN:
-        required: false
+        default: ${{ github.event.issue.user.login }}
 
 jobs:
   issue-reply:
