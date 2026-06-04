@@ -1,3 +1,10 @@
 {
-  "extends": ["github>TDesignOteam/tdesign-renovate-config:presets.json5"]
+  "extends": ["github>TDesignOteam/tdesign-renovate-config:presets.json5"],
+  "packageRules": [
+    {
+      "matchPackageNames": ["*"],
+      "groupName": "TDesignOteam/workflows",
+      "commitMessageTopic": "{{depName}}"
+    }
+  ]
 }
