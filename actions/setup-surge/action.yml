@@ -17,4 +17,4 @@ runs:
     - name: Deploy to Surge
       shell: bash
       run: |
-        npx --ignore-scripts surge@0.27.3 --project ${{ inputs.project }} --domain ${{ inputs.domain }} --token ${{ inputs.token }}
+        npx --ignore-scripts surge --project ${{ inputs.project }} --domain ${{ inputs.domain }} --token ${{ inputs.token }}
