@@ -3,7 +3,8 @@
   "packageRules": [
     {
       "matchManagers": ["github-actions"],
-      "matchPackageNames": ["TDesignOteam/workflows"]
+      "matchPackageNames": ["TDesignOteam/workflows"],
+      "groupName": "TDesignOteam/workflows"
     }
   ]
 }
