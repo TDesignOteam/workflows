@@ -2,9 +2,8 @@
   "extends": ["github>TDesignOteam/tdesign-renovate-config:presets.json5"],
   "packageRules": [
     {
-      "matchDatasources": ["github-tags"],
-      "matchPackageNames": ["TDesignOteam/workflows"],
-      "groupName": "TDesignOteam/workflows"
+      "matchManagers": ["github-actions"],
+      "matchPackageNames": ["TDesignOteam/workflows"]
     }
   ]
 }
