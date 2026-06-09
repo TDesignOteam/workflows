@@ -32,6 +32,7 @@ describe('maintain-one-comment', () => {
   it('优先使用 body-include 作为选择器', () => {
     expect(getCommentSelector('body', '<!-- marker -->')).toBe('<!-- marker -->')
     expect(getCommentSelector('body', '')).toBe('body')
+    expect(getCommentSelector('body <!-- tdesign-maintain-one-comment -->')).toBe('<!-- tdesign-maintain-one-comment -->')
   })
 
   it('按标记匹配评论', () => {
@@ -103,6 +104,33 @@ describe('maintain-one-comment', () => {
     expect(issues.createComment).toHaveBeenCalledWith({
       body: 'new body',
       issue_number: 12,
+      owner: 'Tencent',
+      repo: 'workflows',
+    })
+  })
+
+  it('未传 bodyInclude 时使用默认标记匹配评论', async () => {
+    const issues = {
+      createComment: vi.fn(),
+      deleteComment: vi.fn(),
+      listComments: vi.fn().mockResolvedValue({
+        data: [
+          { body: 'old <!-- tdesign-maintain-one-comment -->', id: 3 },
+        ],
+      }),
+      updateComment: vi.fn().mockResolvedValue({ data: { body: 'new <!-- tdesign-maintain-one-comment -->', id: 3 } }),
+    }
+
+    await expect(maintainOneComment(issues, {
+      body: 'new <!-- tdesign-maintain-one-comment -->',
+      number: 12,
+      owner: 'Tencent',
+      repo: 'workflows',
+    })).resolves.toEqual({ body: 'new <!-- tdesign-maintain-one-comment -->', id: 3 })
+
+    expect(issues.updateComment).toHaveBeenCalledWith({
+      body: 'new <!-- tdesign-maintain-one-comment -->',
+      comment_id: 3,
       owner: 'Tencent',
       repo: 'workflows',
     })

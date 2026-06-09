@@ -19261,7 +19261,8 @@ function getOctokit(token, options, ...additionalPlugins) {
 //#endregion
 //#region main.ts
 const COMMENTS_PER_PAGE = 100;
-function getCommentSelector(body, bodyInclude) {
+const DEFAULT_BODY_INCLUDE = "<!-- tdesign-maintain-one-comment -->";
+function getCommentSelector(body, bodyInclude = DEFAULT_BODY_INCLUDE) {
 	const selector = bodyInclude || body;
 	if (!selector.trim()) throw new Error("Missing comment selector");
 	return selector;
@@ -19336,7 +19337,7 @@ async function main() {
 	const owner = getInput("owner") || context.repo.owner;
 	const token = getInput("token", { required: true });
 	const body = getInput("body", { required: true });
-	const bodyInclude = getInput("body-include");
+	const bodyInclude = getInput("body-include") || DEFAULT_BODY_INCLUDE;
 	const numberInput = getInput("number", { required: true });
 	const number = Number.parseInt(numberInput, 10);
 	if (!Number.isInteger(number) || number <= 0) throw new Error(`Invalid issue or pull request number "${numberInput}"`);

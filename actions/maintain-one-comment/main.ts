@@ -2,6 +2,7 @@ import * as core from '@actions/core'
 import * as github from '@actions/github'
 
 const COMMENTS_PER_PAGE = 100
+const DEFAULT_BODY_INCLUDE = '<!-- tdesign-maintain-one-comment -->'
 
 export interface IssueComment {
   body?: string | null
@@ -17,13 +18,13 @@ export interface IssuesApi {
 
 export interface MaintainOneCommentOptions {
   body: string
-  bodyInclude: string
+  bodyInclude?: string
   number: number
   owner: string
   repo: string
 }
 
-export function getCommentSelector(body: string, bodyInclude: string): string {
+export function getCommentSelector(body: string, bodyInclude = DEFAULT_BODY_INCLUDE): string {
   const selector = bodyInclude || body
   if (!selector.trim())
     throw new Error('Missing comment selector')
@@ -118,7 +119,7 @@ export async function main(): Promise<void> {
   const owner = core.getInput('owner') || github.context.repo.owner
   const token = core.getInput('token', { required: true })
   const body = core.getInput('body', { required: true })
-  const bodyInclude = core.getInput('body-include')
+  const bodyInclude = core.getInput('body-include') || DEFAULT_BODY_INCLUDE
   const numberInput = core.getInput('number', { required: true })
   const number = Number.parseInt(numberInput, 10)
 
