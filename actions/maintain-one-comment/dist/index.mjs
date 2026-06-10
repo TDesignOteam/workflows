@@ -1938,7 +1938,7 @@ var require_timers = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @type {number}
 	* @default 499
 	*/
-	const TICK_MS = (RESOLUTION_MS >> 1) - 1;
+	const TICK_MS = 499;
 	/**
 	* fastNowTimeout is a Node.js timer used to manage and process
 	* the FastTimers stored in the `fastTimers` array.
@@ -5217,11 +5217,10 @@ var require_client_h1 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	let currentBufferRef = null;
 	let currentBufferSize = 0;
 	let currentBufferPtr = null;
-	const USE_NATIVE_TIMER = 0;
 	const USE_FAST_TIMER = 1;
-	const TIMEOUT_HEADERS = 2 | USE_FAST_TIMER;
-	const TIMEOUT_BODY = 4 | USE_FAST_TIMER;
-	const TIMEOUT_KEEP_ALIVE = 8 | USE_NATIVE_TIMER;
+	const TIMEOUT_HEADERS = 3;
+	const TIMEOUT_BODY = 5;
+	const TIMEOUT_KEEP_ALIVE = 8;
 	var Parser = class {
 		constructor(client, socket, { exports: exports$1 }) {
 			assert$19(Number.isFinite(client[kMaxHeadersSize]) && client[kMaxHeadersSize] > 0);
@@ -11426,7 +11425,6 @@ var require_fetch = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		let httpFetchParams = null;
 		let httpRequest = null;
 		let response = null;
-		const httpCache = null;
 		if (request.window === "no-window" && request.redirect === "error") {
 			httpFetchParams = fetchParams;
 			httpRequest = request;
@@ -11457,7 +11455,7 @@ var require_fetch = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		else httpRequest.headersList.append("accept-encoding", "gzip, deflate", true);
 		httpRequest.headersList.delete("host", true);
 		if (includeCredentials) {}
-		if (httpCache == null) httpRequest.cache = "no-store";
+		httpRequest.cache = "no-store";
 		if (httpRequest.cache !== "no-store" && httpRequest.cache !== "reload") {}
 		if (response == null) {
 			if (httpRequest.cache === "only-if-cached") return makeNetworkError("only if cached");
@@ -19284,7 +19282,7 @@ async function listIssueComments(issues, repoParams) {
 	return comments;
 }
 async function maintainOneComment(issues, options) {
-	const { body, number, owner, repo } = options;
+	const { body, number, owner, repo, bodyInclude } = options;
 	const selector = getCommentSelector(body, options.bodyInclude);
 	const matchedComments = findMatchingComments(await listIssueComments(issues, {
 		issue_number: number,
@@ -19294,8 +19292,9 @@ async function maintainOneComment(issues, options) {
 	info(`Matched comments: ${matchedComments.length}`);
 	if (!matchedComments.length) {
 		info(`Creating comment for #${number}`);
+		const commentBody = bodyInclude && !body.includes(bodyInclude) ? `${body}\n${bodyInclude}` : body;
 		const { data } = await issues.createComment({
-			body,
+			body: commentBody,
 			issue_number: number,
 			owner,
 			repo

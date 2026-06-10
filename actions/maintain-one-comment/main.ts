@@ -61,7 +61,7 @@ export async function maintainOneComment(
   issues: IssuesApi,
   options: MaintainOneCommentOptions,
 ): Promise<IssueComment> {
-  const { body, number, owner, repo } = options
+  const { body, number, owner, repo, bodyInclude } = options
   const selector = getCommentSelector(body, options.bodyInclude)
   const comments = await listIssueComments(issues, {
     issue_number: number,
@@ -73,8 +73,9 @@ export async function maintainOneComment(
   core.info(`Matched comments: ${matchedComments.length}`)
   if (!matchedComments.length) {
     core.info(`Creating comment for #${number}`)
+    const commentBody = bodyInclude && !body.includes(bodyInclude) ? `${body}\n${bodyInclude}` : body
     const { data } = await issues.createComment({
-      body,
+      body: commentBody,
       issue_number: number,
       owner,
       repo,
