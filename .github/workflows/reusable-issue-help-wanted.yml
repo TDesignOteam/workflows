@@ -14,7 +14,7 @@ jobs:
     if: github.event.label.name == 'help wanted'
     runs-on: ubuntu-latest
     steps:
-      - uses: TDesignOteam/workflows/actions/issues-helper@10c4e99975bd8cf8bd1e465830cd1d56efff918a # main
+      - uses: TDesignOteam/workflows/actions/issues-helper@7748e56129616fcf6834abcc3fe94b3b86ceceb5 # main
         with:
           actions: create-comment
           token: ${{ secrets.GITHUB_TOKEN }}
