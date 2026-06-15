@@ -37,7 +37,7 @@ jobs:
     if: ${{ inputs.github-repo == github.repository && github.event_name == 'delete' && github.event.ref_type == 'branch' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: TDesignOteam/workflows/actions/cnb-delete-branch@2e31c1d649221e83b5fd9be06a14f55720f2fa3b # main
+      - uses: TDesignOteam/workflows/actions/cnb-delete-branch@7748e56129616fcf6834abcc3fe94b3b86ceceb5 # main
         with:
           repo: ${{ inputs.cnb-repo }}
           token: ${{ secrets.CNB_TOKEN }}

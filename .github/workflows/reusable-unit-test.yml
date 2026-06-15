@@ -23,7 +23,7 @@ jobs:
   check-email:
     runs-on: ubuntu-latest
     steps:
-      - uses: TDesignOteam/workflows/actions/check-email@10c4e99975bd8cf8bd1e465830cd1d56efff918a # main
+      - uses: TDesignOteam/workflows/actions/check-email@7748e56129616fcf6834abcc3fe94b3b86ceceb5 # main
 
   test:
     runs-on: ubuntu-latest
