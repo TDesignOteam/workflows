@@ -102,7 +102,7 @@ describe('maintain-one-comment', () => {
     })).resolves.toEqual({ body: 'new body', id: 9 })
 
     expect(issues.createComment).toHaveBeenCalledWith({
-      body: 'new body',
+      body: 'new body\n<!-- marker -->',
       issue_number: 12,
       owner: 'Tencent',
       repo: 'workflows',
