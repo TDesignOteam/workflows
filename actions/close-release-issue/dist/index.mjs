@@ -29,7 +29,7 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 	value: mod,
 	enumerable: true
 }) : target, mod));
-var __require = /* @__PURE__ */ createRequire(import.meta.url);
+var __require = /* #__PURE__ */ (() => createRequire(import.meta.url))();
 //#endregion
 //#region ../../node_modules/.pnpm/@actions+core@3.0.1/node_modules/@actions/core/lib/utils.js
 /**
@@ -7989,7 +7989,7 @@ var require_readable = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @returns {Uint8Array}
 	*/
 	function chunksConcat(chunks, length) {
-		if (chunks.length === 0 || length === 0) return new Uint8Array(0);
+		if (chunks.length === 0 || length === 0) return /* @__PURE__ */ new Uint8Array(0);
 		if (chunks.length === 1) return new Uint8Array(chunks[0]);
 		const buffer = new Uint8Array(Buffer.allocUnsafeSlow(length).buffer);
 		let offset = 0;
@@ -19309,9 +19309,9 @@ var GithubHelper = class {
 				pull_number: prNumber
 			});
 			return data;
-		} catch (error$3) {
-			error(`获取PR数据失败: ${error$3}`);
-			throw error$3;
+		} catch (error$1) {
+			error(`获取PR数据失败: ${error$1}`);
+			throw error$1;
 		}
 	}
 	async getIssueData(issueNumber) {
@@ -19321,9 +19321,9 @@ var GithubHelper = class {
 				issue_number: issueNumber
 			});
 			return data;
-		} catch (error$5) {
-			error(`获取Issue数据失败: ${error$5}`);
-			throw error$5;
+		} catch (error$7) {
+			error(`获取Issue数据失败: ${error$7}`);
+			throw error$7;
 		}
 	}
 	async getIssueList(params) {
@@ -19333,9 +19333,9 @@ var GithubHelper = class {
 				...this.defaultRepoParams
 			});
 			return data.filter((item) => !item?.pull_request);
-		} catch (error$4) {
-			error(`获取Issue列表失败: ${error$4}`);
-			throw error$4;
+		} catch (error$3) {
+			error(`获取Issue列表失败: ${error$3}`);
+			throw error$3;
 		}
 	}
 	async closeIssue(issueNumber) {
@@ -19346,9 +19346,9 @@ var GithubHelper = class {
 				issue_number: issueNumber,
 				state: "closed"
 			});
-		} catch (error$6) {
-			error(`关闭Issue失败: ${error$6}`);
-			throw error$6;
+		} catch (error$4) {
+			error(`关闭Issue失败: ${error$4}`);
+			throw error$4;
 		}
 	}
 	async createPR(title, head, body, base = "develop") {
@@ -19367,9 +19367,9 @@ var GithubHelper = class {
 				body
 			});
 			return data;
-		} catch (error$1) {
-			error(`创建PR失败: ${error$1}`);
-			throw error$1;
+		} catch (error$2) {
+			error(`创建PR失败: ${error$2}`);
+			throw error$2;
 		}
 	}
 	async addComment(issueNumber, body) {
@@ -19384,9 +19384,9 @@ var GithubHelper = class {
 				body
 			});
 			return data;
-		} catch (error$2) {
-			error(`添加评论失败: ${error$2}`);
-			throw error$2;
+		} catch (error$5) {
+			error(`添加评论失败: ${error$5}`);
+			throw error$5;
 		}
 	}
 	async addLabels(issueNumber, labels) {
@@ -19401,9 +19401,9 @@ var GithubHelper = class {
 				labels
 			});
 			return data;
-		} catch (error$7) {
-			error(`添加标签失败: ${error$7}`);
-			throw error$7;
+		} catch (error$6) {
+			error(`添加标签失败: ${error$6}`);
+			throw error$6;
 		}
 	}
 };
