@@ -131,6 +131,7 @@ export async function main(): Promise<void> {
   core.info(`owner: ${owner}`)
   core.info(`repo: ${repo}`)
   core.info(`number: ${number}`)
+  core.info(`body-include: ${bodyInclude}`)
   core.endGroup()
 
   const octokit = github.getOctokit(token)
