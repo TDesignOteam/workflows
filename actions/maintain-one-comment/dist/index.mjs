@@ -19268,6 +19268,9 @@ function getCommentSelector(body, bodyInclude = DEFAULT_BODY_INCLUDE) {
 function findMatchingComments(comments, selector) {
 	return comments.filter((comment) => (comment.body || "").includes(selector));
 }
+function buildCommentBody(body, bodyInclude) {
+	return bodyInclude && !body.includes(bodyInclude) ? `${body}\n${bodyInclude}` : body;
+}
 async function listIssueComments(issues, repoParams) {
 	const comments = [];
 	for (let page = 1;; page += 1) {
@@ -19284,6 +19287,7 @@ async function listIssueComments(issues, repoParams) {
 async function maintainOneComment(issues, options) {
 	const { body, number, owner, repo, bodyInclude } = options;
 	const selector = getCommentSelector(body, options.bodyInclude);
+	const commentBody = buildCommentBody(body, bodyInclude);
 	const matchedComments = findMatchingComments(await listIssueComments(issues, {
 		issue_number: number,
 		owner,
@@ -19292,7 +19296,6 @@ async function maintainOneComment(issues, options) {
 	info(`Matched comments: ${matchedComments.length}`);
 	if (!matchedComments.length) {
 		info(`Creating comment for #${number}`);
-		const commentBody = bodyInclude && !body.includes(bodyInclude) ? `${body}\n${bodyInclude}` : body;
 		const { data } = await issues.createComment({
 			body: commentBody,
 			issue_number: number,
@@ -19302,10 +19305,10 @@ async function maintainOneComment(issues, options) {
 		return data;
 	}
 	const [targetComment, ...duplicateComments] = matchedComments;
-	if ((targetComment.body || "") !== body) {
+	if ((targetComment.body || "") !== commentBody) {
 		info(`Updating comment ${targetComment.id} for #${number}`);
 		const { data } = await issues.updateComment({
-			body,
+			body: commentBody,
 			comment_id: targetComment.id,
 			owner,
 			repo

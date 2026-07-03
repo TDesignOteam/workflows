@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  buildCommentBody,
   findMatchingComments,
   getCommentSelector,
   listIssueComments,
@@ -43,6 +44,11 @@ describe('maintain-one-comment', () => {
     ], '<!-- marker -->')).toEqual([
       { body: 'hello <!-- marker -->', id: 1 },
     ])
+  })
+
+  it('生成评论正文时保留 body-include', () => {
+    expect(buildCommentBody('body', '<!-- marker -->')).toBe('body\n<!-- marker -->')
+    expect(buildCommentBody('body\n<!-- marker -->', '<!-- marker -->')).toBe('body\n<!-- marker -->')
   })
 
   it('分页拉取所有评论', async () => {
@@ -169,6 +175,57 @@ describe('maintain-one-comment', () => {
       owner: 'Tencent',
       repo: 'workflows',
     })
+  })
+
+  it('更新评论时保留 body-include 标记', async () => {
+    const issues = {
+      createComment: vi.fn(),
+      deleteComment: vi.fn(),
+      listComments: vi.fn().mockResolvedValue({
+        data: [
+          { body: 'old body\n<!-- marker -->', id: 3 },
+        ],
+      }),
+      updateComment: vi.fn().mockResolvedValue({ data: { body: 'new body\n<!-- marker -->', id: 3 } }),
+    }
+
+    await expect(maintainOneComment(issues, {
+      body: 'new body',
+      bodyInclude: '<!-- marker -->',
+      number: 12,
+      owner: 'Tencent',
+      repo: 'workflows',
+    })).resolves.toEqual({ body: 'new body\n<!-- marker -->', id: 3 })
+
+    expect(issues.updateComment).toHaveBeenCalledWith({
+      body: 'new body\n<!-- marker -->',
+      comment_id: 3,
+      owner: 'Tencent',
+      repo: 'workflows',
+    })
+  })
+
+  it('规范化后内容未变化时跳过更新', async () => {
+    const issues = {
+      createComment: vi.fn(),
+      deleteComment: vi.fn(),
+      listComments: vi.fn().mockResolvedValue({
+        data: [
+          { body: 'same body\n<!-- marker -->', id: 3 },
+        ],
+      }),
+      updateComment: vi.fn(),
+    }
+
+    await expect(maintainOneComment(issues, {
+      body: 'same body',
+      bodyInclude: '<!-- marker -->',
+      number: 12,
+      owner: 'Tencent',
+      repo: 'workflows',
+    })).resolves.toEqual({ body: 'same body\n<!-- marker -->', id: 3 })
+
+    expect(issues.updateComment).not.toHaveBeenCalled()
   })
 
   it('内容未变化时跳过更新但仍清理重复评论', async () => {

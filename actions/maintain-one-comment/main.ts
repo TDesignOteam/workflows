@@ -36,6 +36,10 @@ export function findMatchingComments(comments: IssueComment[], selector: string)
   return comments.filter(comment => (comment.body || '').includes(selector))
 }
 
+export function buildCommentBody(body: string, bodyInclude?: string): string {
+  return bodyInclude && !body.includes(bodyInclude) ? `${body}\n${bodyInclude}` : body
+}
+
 export async function listIssueComments(
   issues: IssuesApi,
   repoParams: { issue_number: number, owner: string, repo: string },
@@ -63,6 +67,7 @@ export async function maintainOneComment(
 ): Promise<IssueComment> {
   const { body, number, owner, repo, bodyInclude } = options
   const selector = getCommentSelector(body, options.bodyInclude)
+  const commentBody = buildCommentBody(body, bodyInclude)
   const comments = await listIssueComments(issues, {
     issue_number: number,
     owner,
@@ -73,7 +78,6 @@ export async function maintainOneComment(
   core.info(`Matched comments: ${matchedComments.length}`)
   if (!matchedComments.length) {
     core.info(`Creating comment for #${number}`)
-    const commentBody = bodyInclude && !body.includes(bodyInclude) ? `${body}\n${bodyInclude}` : body
     const { data } = await issues.createComment({
       body: commentBody,
       issue_number: number,
@@ -84,10 +88,10 @@ export async function maintainOneComment(
   }
 
   const [targetComment, ...duplicateComments] = matchedComments
-  if ((targetComment.body || '') !== body) {
+  if ((targetComment.body || '') !== commentBody) {
     core.info(`Updating comment ${targetComment.id} for #${number}`)
     const { data } = await issues.updateComment({
-      body,
+      body: commentBody,
       comment_id: targetComment.id,
       owner,
       repo,
