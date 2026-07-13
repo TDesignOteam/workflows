@@ -54,7 +54,7 @@ jobs:
             deadline: ${{ steps.config.outputs.deadline }}
 
       - name: Update issue
-        uses: TDesignOteam/workflows/actions/issues-helper@9aef33d891b5595ba7fecab0de1bf6d67dd9aaaf # main
+        uses: TDesignOteam/workflows/actions/issues-helper@83293c1063bcb1af6e91e2e9c7d6a9dd3b69089f # main
         with:
           actions: update-issue
           token: ${{ secrets.GITHUB_TOKEN }}
