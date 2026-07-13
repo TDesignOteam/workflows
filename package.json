@@ -1,19 +1,19 @@
 {
   "type": "module",
   "private": true,
-  "packageManager": "pnpm@11.9.0",
+  "packageManager": "pnpm@11.12.0",
   "license": "MIT",
   "scripts": {
     "build": "pnpm -r run build",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
     "test": "vitest run",
-    "typecheck": "tsgo --noEmit"
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@antfu/eslint-config": "catalog:",
-    "@typescript/native-preview": "catalog:",
     "eslint": "catalog:",
+    "typescript": "catalog:",
     "vitest": "catalog:"
   }
 }
