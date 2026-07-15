@@ -8,6 +8,7 @@ import * as events from "events";
 import { StringDecoder } from "string_decoder";
 import * as child from "child_process";
 import { setTimeout as setTimeout$1 } from "timers";
+import { readFile } from "node:fs/promises";
 import * as path from "node:path";
 //#region \0rolldown/runtime.js
 var __create = Object.create;
@@ -16672,6 +16673,14 @@ function error(message, properties = {}) {
 	issueCommand("error", toCommandProperties(properties), message instanceof Error ? message.toString() : message);
 }
 /**
+* Adds a warning issue
+* @param message warning issue message. Errors will be converted to string via toString()
+* @param properties optional properties to add to the annotation.
+*/
+function warning(message, properties = {}) {
+	issueCommand("warning", toCommandProperties(properties), message instanceof Error ? message.toString() : message);
+}
+/**
 * Writes info to log with console.log.
 * @param message info message
 */
@@ -20061,7 +20070,11 @@ var GithubHelper = class {
 const PACKAGE_MANAGER_COMMANDS = {
 	pnpm: {
 		cmd: "pnpm",
-		args: ["up", "--latest"]
+		args: [
+			"-r",
+			"up",
+			"--latest"
+		]
 	},
 	yarn: {
 		cmd: "yarn",
@@ -20071,6 +20084,28 @@ const PACKAGE_MANAGER_COMMANDS = {
 		cmd: "npm",
 		args: ["install"]
 	}
+};
+const PR_TEMPLATE_PATHS = [
+	".github/PULL_REQUEST_TEMPLATE.md",
+	".github/pull_request_template.md",
+	"PULL_REQUEST_TEMPLATE.md",
+	"pull_request_template.md",
+	"docs/PULL_REQUEST_TEMPLATE.md",
+	"docs/pull_request_template.md"
+];
+const COMPONENT_REPOSITORIES = /* @__PURE__ */ new Set([
+	"tdesign-flutter",
+	"tdesign-miniprogram",
+	"tdesign-mobile-react",
+	"tdesign-mobile-vue",
+	"tdesign-react",
+	"tdesign-vue",
+	"tdesign-vue-next"
+]);
+const CHANGELOG_TARGET_SECTIONS = {
+	"tdesign-miniprogram": ["tdesign-miniprogram", "@tdesign/uniapp"],
+	"tdesign-react": ["tdesign-react"],
+	"tdesign-vue-next": ["tdesign-vue-next"]
 };
 function slugify(value) {
 	return value.replace(/@/g, "").replace(/[^\w.-]+/g, "-").replace(/^-+|-+$/g, "");
@@ -20100,16 +20135,34 @@ function validatePackageManager(packageManager) {
 	if (packageManager in PACKAGE_MANAGER_COMMANDS) return packageManager;
 	throw new Error(`Unsupported package-manager "${packageManager}". Supported values: npm, yarn, pnpm.`);
 }
+function parseGithubRepository(repositoryUrl) {
+	if (!repositoryUrl) return void 0;
+	const normalizedUrl = repositoryUrl.replace(/^git\+/, "").replace(/^git@github\.com:/, "https://github.com/").replace(/^ssh:\/\/git@github\.com\//, "https://github.com/").replace(/^git:\/\/github\.com\//, "https://github.com/");
+	try {
+		const url = new URL(normalizedUrl);
+		if (url.hostname !== "github.com") return void 0;
+		const [owner, repoName] = url.pathname.replace(/^\//, "").split("/");
+		const repo = repoName?.replace(/\.git$/, "");
+		return owner && repo ? {
+			owner,
+			repo
+		} : void 0;
+	} catch {
+		return;
+	}
+}
 async function fetchPackageVersion(pkg) {
 	try {
 		const response = await fetch(`https://registry.npmjs.org/${pkg}/latest`);
 		if (!response.ok) throw new Error(`status code: ${response.status}`);
-		const { version } = await response.json();
+		const { version, repository } = await response.json();
 		if (!version) throw new Error("no version found");
 		info(`Latest version of ${pkg} is ${version}`);
+		const repositoryUrl = typeof repository === "string" ? repository : repository?.url;
 		return {
 			name: pkg,
-			version
+			version,
+			...repositoryUrl ? { repositoryUrl } : {}
 		};
 	} catch (error) {
 		throw new Error(`Failed to get ${pkg} info from npm registry: ${error instanceof Error ? error.message : String(error)}`);
@@ -20118,18 +20171,215 @@ async function fetchPackageVersion(pkg) {
 async function resolveDependencyInfos(deps) {
 	return Promise.all(deps.map(fetchPackageVersion));
 }
+function getReleaseTags(dep) {
+	return [.../* @__PURE__ */ new Set([
+		`${dep.name}@${dep.version}`,
+		dep.version,
+		`v${dep.version}`
+	])];
+}
+async function fetchDependencyRelease(dep, token) {
+	const repository = parseGithubRepository(dep.repositoryUrl);
+	if (!repository) {
+		warning(`No GitHub repository found for ${dep.name}; skipping release notes`);
+		return;
+	}
+	const headers = {
+		"Accept": "application/vnd.github+json",
+		"X-GitHub-Api-Version": "2022-11-28"
+	};
+	if (token && token !== "test") headers.Authorization = `Bearer ${token}`;
+	try {
+		for (const tag of getReleaseTags(dep)) {
+			const response = await fetch(`https://api.github.com/repos/${repository.owner}/${repository.repo}/releases/tags/${encodeURIComponent(tag)}`, { headers });
+			if (response.status === 404) continue;
+			if (!response.ok) throw new Error(`status code: ${response.status}`);
+			const release = await response.json();
+			if (!release.html_url) throw new Error("release URL not found");
+			info(`Release notes found for ${dep.name}@${dep.version}: ${release.html_url}`);
+			return {
+				body: release.body?.trim() || "No release notes provided.",
+				tag,
+				url: release.html_url
+			};
+		}
+	} catch (error) {
+		warning(`Failed to get release notes for ${dep.name}@${dep.version}: ${error instanceof Error ? error.message : String(error)}`);
+		return;
+	}
+	warning(`No GitHub release found for ${dep.name}@${dep.version}`);
+}
+async function resolveDependencyReleases(deps, token) {
+	return Promise.all(deps.map(async (dep) => ({
+		...dep,
+		release: await fetchDependencyRelease(dep, token)
+	})));
+}
 async function updatePackageDependencies(packageManager, deps, repo, targetDir) {
 	const repoPath = getRepoPath(repo, targetDir);
 	const { cmd, args } = PACKAGE_MANAGER_COMMANDS[packageManager];
 	await exec(cmd, [...args, ...deps], { cwd: repoPath });
 }
-async function createDepsPr(title, branchName, baseBranch, context) {
+async function readPullRequestTemplate(repoPath) {
+	for (const templatePath of PR_TEMPLATE_PATHS) try {
+		return await readFile(path.join(repoPath, templatePath), "utf8");
+	} catch (error) {
+		if (error.code !== "ENOENT") throw error;
+	}
+}
+function getMarkdownHeading(line) {
+	const prefix = line.match(/^#{1,6}[ \t]+/);
+	return prefix ? line.slice(prefix[0].length).trim() : void 0;
+}
+function insertAfterHeading(body, headingPattern, content) {
+	const lines = body.split("\n");
+	const headingIndex = lines.findIndex((line) => {
+		const heading = getMarkdownHeading(line);
+		return heading !== void 0 && headingPattern.test(heading);
+	});
+	if (headingIndex === -1) return {
+		body,
+		inserted: false
+	};
+	lines.splice(headingIndex + 1, 0, "", content);
+	return {
+		body: lines.join("\n"),
+		inserted: true
+	};
+}
+function insertAfterExactHeading(body, heading, content) {
+	const lines = body.split("\n");
+	const headingIndex = lines.findIndex((line) => getMarkdownHeading(line) === heading);
+	if (headingIndex === -1) return {
+		body,
+		inserted: false
+	};
+	lines.splice(headingIndex + 1, 0, "", content);
+	return {
+		body: lines.join("\n"),
+		inserted: true
+	};
+}
+function formatReleaseBody(body) {
+	return body.trim().replace(/^(#{1,6})(?=\s)/gm, (heading) => "#".repeat(Math.min(6, heading.length + 3)));
+}
+function getDependencySummary(deps) {
+	return [
+		"自动升级以下依赖：",
+		"",
+		...deps.map((dep) => `- \`${dep.name}\` 升级至 \`${dep.version}\``)
+	].join("\n");
+}
+function getReleaseNotesMarkdown(deps) {
+	return deps.map((dep) => {
+		const npmUrl = `https://www.npmjs.com/package/${dep.name}/v/${dep.version}`;
+		if (!dep.release) return `#### [\`${dep.name}@${dep.version}\`](${npmUrl})\n\n未找到对应的 GitHub Release Notes。`;
+		return `#### [\`${dep.name}@${dep.version}\`](${dep.release.url})\n\n${formatReleaseBody(dep.release.body)}`;
+	}).join("\n\n");
+}
+function getChangelogType(heading) {
+	const value = heading.toLowerCase();
+	if (/breaking changes?|破坏性/.test(value)) return "feat!";
+	if (/bug fixes?|fixes|修复/.test(value)) return "fix";
+	if (/features?|新特性|新增功能/.test(value)) return "feat";
+	if (/performance|性能/.test(value)) return "perf";
+	if (/documentation|\bdocs?\b|文档/.test(value)) return "docs";
+	if (/refactor|重构/.test(value)) return "refactor";
+	if (/tests?|测试/.test(value)) return "test";
+	if (/\bci\b|持续集成/.test(value)) return "ci";
+	if (/build|构建/.test(value)) return "build";
+	if (/styles?|代码风格/.test(value)) return "style";
+	if (/others?|其他/.test(value)) return "chore";
+}
+function parseReleaseChangelog(body) {
+	const entries = [];
+	const parents = [];
+	let currentType;
+	for (const line of body.split("\n")) {
+		const heading = getMarkdownHeading(line);
+		if (heading !== void 0) {
+			currentType = getChangelogType(heading);
+			parents.length = 0;
+			continue;
+		}
+		const bulletPrefix = line.match(/^([ \t]*)[-*+][ \t]+/);
+		if (!bulletPrefix || !currentType) continue;
+		const indent = bulletPrefix[1].replace(/\t/g, "  ").length;
+		const text = line.slice(bulletPrefix[0].length).trim();
+		if (!text) continue;
+		while (parents.length && parents[parents.length - 1].indent >= indent) parents.pop();
+		if (text.endsWith(":")) {
+			parents.push({
+				indent,
+				text: text.slice(0, -1)
+			});
+			continue;
+		}
+		const parentText = parents.map((parent) => parent.text).join(": ");
+		entries.push({
+			text: parentText ? `${parentText}: ${text}` : text,
+			type: currentType
+		});
+	}
+	return entries;
+}
+function formatChangelogType(type, scoped) {
+	const breaking = type.endsWith("!");
+	return `${breaking ? type.slice(0, -1) : type}${scoped ? "(Icon)" : ""}${breaking ? "!" : ""}`;
+}
+function getChangelogMarkdown(deps, targetRepo) {
+	const scoped = COMPONENT_REPOSITORIES.has(targetRepo);
+	return deps.flatMap((dep) => {
+		const entries = dep.release ? parseReleaseChangelog(dep.release.body) : [];
+		if (!entries.length) return [`- ${formatChangelogType("chore", scoped)}: upgrade ${dep.name} to ${dep.version}`];
+		return entries.map((entry) => `- ${formatChangelogType(entry.type, scoped)}: ${entry.text}`);
+	}).join("\n");
+}
+function fillTDesignCheckboxes(template) {
+	const checkedLabels = [
+		"其他",
+		"文档已补充或无须补充",
+		"代码演示已提供或无须提供",
+		"TypeScript 定义已补充或无须补充",
+		"Changelog 已提供或无须提供"
+	];
+	return template.replace(/^- \[ \] (.+)$/gm, (line, label) => checkedLabels.includes(label.trim()) ? line.replace("[ ]", "[x]") : line).replace(/^- fix\(组件名称\): 处理问题或特性描述 \.\.\.$/gm, "");
+}
+function insertChangelog(body, targetRepo, changelog) {
+	const targetSections = CHANGELOG_TARGET_SECTIONS[targetRepo] ?? [];
+	let result = body;
+	let inserted = false;
+	for (const section of targetSections) {
+		const sectionResult = insertAfterExactHeading(result, section, changelog);
+		result = sectionResult.body;
+		inserted ||= sectionResult.inserted;
+	}
+	if (inserted) return {
+		body: result,
+		inserted
+	};
+	return insertAfterHeading(result, /更新日志|changelog|release notes/i, changelog);
+}
+function buildPullRequestBody(template, deps, targetRepo) {
+	const background = `${getDependencySummary(deps)}\n\n${getReleaseNotesMarkdown(deps)}`;
+	const changelog = getChangelogMarkdown(deps, targetRepo);
+	if (!template) return `## 依赖升级\n\n${background}\n\n## 版本日志\n\n${changelog}`;
+	let body = fillTDesignCheckboxes(template.trim());
+	body = insertAfterHeading(body, /相关 Issue|related issues?/i, "无").body;
+	const backgroundResult = insertAfterHeading(body, /需求背景|解决方案|background|summary|description/i, background);
+	body = backgroundResult.body;
+	const changelogResult = insertChangelog(body, targetRepo, changelog);
+	body = changelogResult.body;
+	const fallbackSections = [!backgroundResult.inserted ? `## 依赖升级\n\n${background}` : "", !changelogResult.inserted ? `## 版本日志\n\n${changelog}` : ""].filter(Boolean);
+	return fallbackSections.length ? `${fallbackSections.join("\n\n")}\n\n${body}` : body;
+}
+async function createDepsPr(title, body, branchName, baseBranch, context) {
 	await new GithubHelper({
 		owner: context.owner,
 		repo: context.repo,
 		token: context.token,
 		dryRun: context.dryRun
-	}).createPR(title, branchName, title, baseBranch);
+	}).createPR(title, branchName, body, baseBranch);
 }
 async function updateDependencies(context) {
 	const packageManager = validatePackageManager(getInput("package-manager") || "npm");
@@ -20142,7 +20392,7 @@ async function updateDependencies(context) {
 	info(`deps: ${JSON.stringify(deps)}`);
 	info(`target-dir: ${targetDir || "default (repo root)"}`);
 	if (customTitle) info(`custom-title: ${customTitle}`);
-	const depInfos = await resolveDependencyInfos(deps);
+	let depInfos = await resolveDependencyInfos(deps);
 	info(`depInfos: ${JSON.stringify(depInfos)}`);
 	if (packageManager !== "npm") await exec("corepack", ["enable"]);
 	const gitHelper = new GitHelper({
@@ -20153,6 +20403,8 @@ async function updateDependencies(context) {
 	});
 	const baseBranch = await gitHelper.clone();
 	await gitHelper.initSubmodule();
+	const pullRequestTemplate = await readPullRequestTemplate(getRepoPath(context.repo, ""));
+	depInfos = await resolveDependencyReleases(depInfos, context.token);
 	const branchName = getBranchName(depInfos);
 	await gitHelper.createBranch(branchName);
 	await updatePackageDependencies(packageManager, deps, context.repo, targetDir);
@@ -20164,9 +20416,10 @@ async function updateDependencies(context) {
 	await gitHelper.printDiff();
 	endGroup();
 	const title = customTitle || getPrTitle(depInfos);
+	const body = buildPullRequestBody(pullRequestTemplate, depInfos, context.repo);
 	await gitHelper.commit(title);
 	await gitHelper.push(branchName);
-	await createDepsPr(title, branchName, baseBranch, context);
+	await createDepsPr(title, body, branchName, baseBranch, context);
 }
 async function main() {
 	const repo = getInput("repo") || context.repo.repo;
