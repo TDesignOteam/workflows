@@ -1,9 +1,12 @@
-import { readFile } from 'node:fs/promises'
+import type { ParseError } from 'jsonc-parser'
+import { readFile, realpath, writeFile } from 'node:fs/promises'
 import * as path from 'node:path'
 import * as core from '@actions/core'
 import * as exec from '@actions/exec'
 import * as github from '@actions/github'
 import { GitHelper, GithubHelper } from '@workflows/utils'
+import { applyEdits, modify, parse as parseJson } from 'jsonc-parser'
+import { isMap, isScalar, parseDocument } from 'yaml'
 
 interface TriggerContext {
   repo: string
@@ -29,6 +32,26 @@ export interface DependencyRelease {
 export interface GithubRepository {
   owner: string
   repo: string
+}
+
+export interface CatalogUpdateResult {
+  catalogDependencies: string[]
+  content: string
+}
+
+export interface PackageManifestUpdateResult {
+  content: string
+  updated: boolean
+}
+
+export interface PnpmUpdateCommand {
+  args: string[]
+  cwd: string
+}
+
+interface FileUpdate {
+  content: string
+  filePath: string
 }
 
 const PACKAGE_MANAGER_COMMANDS = {
@@ -70,6 +93,15 @@ const CHANGELOG_TARGET_SECTIONS: Record<string, string[]> = {
 }
 
 type PackageManager = keyof typeof PACKAGE_MANAGER_COMMANDS
+
+const DEPENDENCY_FIELDS = [
+  'dependencies',
+  'devDependencies',
+  'optionalDependencies',
+  'peerDependencies',
+] as const
+
+const SEMVER_PATTERN = /^([~^]?)((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[a-z-][0-9a-z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-z-][0-9a-z-]*))*)?(?:\+[0-9a-z-]+(?:\.[0-9a-z-]+)*)?)$/i
 
 function slugify(value: string): string {
   return value.replace(/@/g, '').replace(/[^\w.-]+/g, '-').replace(/^-+|-+$/g, '')
@@ -123,6 +155,125 @@ export function validatePackageManager(packageManager: string): PackageManager {
     return packageManager as PackageManager
 
   throw new Error(`Unsupported package-manager "${packageManager}". Supported values: npm, yarn, pnpm.`)
+}
+
+export function updateVersionSpecifier(specifier: string, version: string, location: string): string {
+  const match = specifier.match(SEMVER_PATTERN)
+  if (!match) {
+    throw new Error(`Unsupported version specifier "${specifier}" for ${location}. Supported formats: ^1.2.3, ~1.2.3, or 1.2.3.`)
+  }
+  const targetVersion = version.match(SEMVER_PATTERN)
+  if (!targetVersion || targetVersion[1])
+    throw new Error(`Invalid target version "${version}" for ${location}`)
+  return `${match[1]}${targetVersion[2]}`
+}
+
+function formatYamlScalar(source: string, value: string): string {
+  if (source.startsWith('\''))
+    return `'${value}'`
+  if (source.startsWith('"'))
+    return JSON.stringify(value)
+  return value
+}
+
+export function updatePnpmCatalogs(content: string, deps: DependencyInfo[]): CatalogUpdateResult {
+  const document = parseDocument(content)
+  if (document.errors.length) {
+    throw new Error(`Failed to parse pnpm-workspace.yaml: ${document.errors[0].message}`)
+  }
+
+  const depVersions = new Map(deps.map(dep => [dep.name, dep.version]))
+  const catalogDependencies = new Set<string>()
+  const edits: Array<{ end: number, start: number, value: string }> = []
+
+  const updateCatalog = (catalog: unknown, location: string): void => {
+    if (catalog == null)
+      return
+    if (!isMap(catalog))
+      throw new Error(`Invalid pnpm catalog at ${location}: expected a mapping`)
+
+    for (const pair of catalog.items) {
+      if (!isScalar(pair.key) || typeof pair.key.value !== 'string')
+        continue
+
+      const name = pair.key.value
+      const version = depVersions.get(name)
+      if (!version)
+        continue
+      if (!isScalar(pair.value) || typeof pair.value.value !== 'string' || !pair.value.range) {
+        throw new Error(`Unsupported catalog value for ${location}.${name}: expected a version string`)
+      }
+
+      const specifier = pair.value.value
+      const nextSpecifier = updateVersionSpecifier(specifier, version, `${location}.${name}`)
+      const [start, end] = pair.value.range
+      edits.push({
+        end,
+        start,
+        value: formatYamlScalar(content.slice(start, end), nextSpecifier),
+      })
+      catalogDependencies.add(name)
+    }
+  }
+
+  updateCatalog(document.get('catalog', true), 'catalog')
+  const namedCatalogs = document.get('catalogs', true)
+  if (namedCatalogs != null) {
+    if (!isMap(namedCatalogs))
+      throw new Error('Invalid pnpm catalogs: expected a mapping')
+    for (const pair of namedCatalogs.items) {
+      if (!isScalar(pair.key) || typeof pair.key.value !== 'string')
+        continue
+      updateCatalog(pair.value, `catalogs.${pair.key.value}`)
+    }
+  }
+
+  const updatedContent = edits
+    .sort((a, b) => b.start - a.start)
+    .reduce((result, edit) => `${result.slice(0, edit.start)}${edit.value}${result.slice(edit.end)}`, content)
+
+  return {
+    catalogDependencies: [...catalogDependencies],
+    content: updatedContent,
+  }
+}
+
+export function updatePackageManifestVersions(
+  content: string,
+  deps: DependencyInfo[],
+  manifestPath = 'package.json',
+): PackageManifestUpdateResult {
+  const errors: ParseError[] = []
+  const manifest = parseJson(content, errors, { allowTrailingComma: true }) as Record<string, unknown> | undefined
+  if (errors.length || !manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
+    throw new Error(`Failed to parse ${manifestPath}`)
+  }
+
+  let updatedContent = content
+  let updated = false
+  for (const field of DEPENDENCY_FIELDS) {
+    const dependencies = manifest[field]
+    if (!dependencies || typeof dependencies !== 'object' || Array.isArray(dependencies))
+      continue
+
+    for (const dep of deps) {
+      const specifier = (dependencies as Record<string, unknown>)[dep.name]
+      if (specifier === undefined)
+        continue
+      if (typeof specifier !== 'string')
+        throw new Error(`Unsupported version specifier for ${manifestPath}#${field}.${dep.name}: expected a string`)
+      if (specifier.startsWith('catalog:'))
+        continue
+
+      const nextSpecifier = updateVersionSpecifier(specifier, dep.version, `${manifestPath}#${field}.${dep.name}`)
+      if (nextSpecifier === specifier)
+        continue
+      updatedContent = applyEdits(updatedContent, modify(updatedContent, [field, dep.name], nextSpecifier, {}))
+      updated = true
+    }
+  }
+
+  return { content: updatedContent, updated }
 }
 
 export function parseGithubRepository(repositoryUrl?: string): GithubRepository | undefined {
@@ -237,10 +388,156 @@ export async function resolveDependencyReleases(deps: DependencyInfo[], token: s
   })))
 }
 
-export async function updatePackageDependencies(packageManager: PackageManager, deps: string[], repo: string, targetDir: string): Promise<void> {
+function isPathWithin(root: string, candidate: string): boolean {
+  const relativePath = path.relative(root, candidate)
+  return relativePath === '' || (!path.isAbsolute(relativePath) && relativePath !== '..' && !relativePath.startsWith(`..${path.sep}`))
+}
+
+export async function findPnpmWorkspaceFile(startDir: string, cloneRoot: string): Promise<string | undefined> {
+  const root = await realpath(path.resolve(cloneRoot))
+  let current = await realpath(path.resolve(startDir))
+  if (!isPathWithin(root, current))
+    throw new Error(`Target directory ${startDir} is outside clone root ${cloneRoot}`)
+
+  while (true) {
+    const workspaceFile = path.join(current, 'pnpm-workspace.yaml')
+    try {
+      await readFile(workspaceFile, 'utf8')
+      const resolvedWorkspaceFile = await realpath(workspaceFile)
+      if (!isPathWithin(root, resolvedWorkspaceFile))
+        throw new Error(`pnpm workspace file is outside clone root: ${workspaceFile}`)
+      return workspaceFile
+    }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT')
+        throw error
+    }
+
+    if (current === root)
+      return undefined
+    current = path.dirname(current)
+  }
+}
+
+export async function listPnpmWorkspacePackagePaths(workspaceDir: string): Promise<string[]> {
+  const { stdout } = await exec.getExecOutput(
+    'pnpm',
+    ['-r', 'list', '--depth', '-1', '--json'],
+    { cwd: workspaceDir, silent: true },
+  )
+
+  let packages: Array<{ path?: string }>
+  try {
+    packages = JSON.parse(stdout) as Array<{ path?: string }>
+    if (!Array.isArray(packages))
+      throw new TypeError('expected an array')
+  }
+  catch (error) {
+    throw new Error(`Failed to read pnpm workspace packages: ${error instanceof Error ? error.message : String(error)}`)
+  }
+
+  const root = await realpath(path.resolve(workspaceDir))
+  const packagePaths = new Set([root])
+  for (const pkg of packages) {
+    if (!pkg.path)
+      continue
+    const packagePath = await realpath(path.resolve(root, pkg.path))
+    if (!isPathWithin(root, packagePath))
+      throw new Error(`pnpm returned a package path outside the workspace: ${pkg.path}`)
+    packagePaths.add(packagePath)
+  }
+  return [...packagePaths]
+}
+
+export function getPnpmUpdateCommands(
+  deps: DependencyInfo[],
+  catalogDependencies: string[],
+  targetPath: string,
+  workspaceDir: string,
+): PnpmUpdateCommand[] {
+  const catalogNames = new Set(catalogDependencies)
+  const nonCatalogDependencies = deps.filter(dep => !catalogNames.has(dep.name))
+  const commands: PnpmUpdateCommand[] = []
+
+  if (nonCatalogDependencies.length) {
+    commands.push({
+      args: ['-r', 'up', '--latest', ...nonCatalogDependencies.map(dep => dep.name)],
+      cwd: targetPath,
+    })
+  }
+  if (catalogDependencies.length)
+    commands.push({ args: ['install'], cwd: workspaceDir })
+
+  return commands
+}
+
+async function preparePnpmCatalogUpdates(
+  workspaceFile: string,
+  deps: DependencyInfo[],
+): Promise<{ catalogDependencies: string[], updates: FileUpdate[] }> {
+  const workspaceContent = await readFile(workspaceFile, 'utf8')
+  const catalogResult = updatePnpmCatalogs(workspaceContent, deps)
+  if (!catalogResult.catalogDependencies.length)
+    return { catalogDependencies: [], updates: [] }
+
+  const catalogNames = new Set(catalogResult.catalogDependencies)
+  const catalogDeps = deps.filter(dep => catalogNames.has(dep.name))
+  const workspaceDir = path.dirname(workspaceFile)
+  const packagePaths = await listPnpmWorkspacePackagePaths(workspaceDir)
+  const manifestUpdates = await Promise.all(packagePaths.map(async (packagePath): Promise<FileUpdate | undefined> => {
+    const manifestPath = path.join(packagePath, 'package.json')
+    let content: string
+    let resolvedManifestPath: string
+    try {
+      resolvedManifestPath = await realpath(manifestPath)
+      if (!isPathWithin(workspaceDir, resolvedManifestPath))
+        throw new Error(`Package manifest is outside the workspace: ${manifestPath}`)
+      content = await readFile(resolvedManifestPath, 'utf8')
+    }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT')
+        return undefined
+      throw error
+    }
+
+    const result = updatePackageManifestVersions(content, catalogDeps, resolvedManifestPath)
+    return result.updated ? { content: result.content, filePath: resolvedManifestPath } : undefined
+  }))
+
+  const updates = manifestUpdates.filter((update): update is FileUpdate => update !== undefined)
+  if (catalogResult.content !== workspaceContent) {
+    updates.unshift({ content: catalogResult.content, filePath: workspaceFile })
+  }
+  return { catalogDependencies: catalogResult.catalogDependencies, updates }
+}
+
+async function updatePnpmDependencies(deps: DependencyInfo[], repo: string, targetDir: string): Promise<void> {
+  const cloneRoot = getRepoPath(repo, '')
+  const targetPath = getRepoPath(repo, targetDir)
+  const workspaceFile = await findPnpmWorkspaceFile(targetPath, cloneRoot)
+  if (!workspaceFile) {
+    await exec.exec('pnpm', ['-r', 'up', '--latest', ...deps.map(dep => dep.name)], { cwd: targetPath })
+    return
+  }
+
+  const { catalogDependencies, updates } = await preparePnpmCatalogUpdates(workspaceFile, deps)
+  await Promise.all(updates.map(update => writeFile(update.filePath, update.content, 'utf8')))
+
+  const commands = getPnpmUpdateCommands(deps, catalogDependencies, targetPath, path.dirname(workspaceFile))
+  for (const command of commands) {
+    await exec.exec('pnpm', command.args, { cwd: command.cwd })
+  }
+}
+
+export async function updatePackageDependencies(packageManager: PackageManager, deps: DependencyInfo[], repo: string, targetDir: string): Promise<void> {
+  if (packageManager === 'pnpm') {
+    await updatePnpmDependencies(deps, repo, targetDir)
+    return
+  }
+
   const repoPath = getRepoPath(repo, targetDir)
   const { cmd, args } = PACKAGE_MANAGER_COMMANDS[packageManager]
-  await exec.exec(cmd, [...args, ...deps], { cwd: repoPath })
+  await exec.exec(cmd, [...args, ...deps.map(dep => dep.name)], { cwd: repoPath })
 }
 
 export async function readPullRequestTemplate(repoPath: string): Promise<string | undefined> {
@@ -522,7 +819,7 @@ export async function updateDependencies(context: TriggerContext): Promise<void>
   const branchName = getBranchName(depInfos)
   await gitHelper.createBranch(branchName)
 
-  await updatePackageDependencies(packageManager, deps, context.repo, targetDir)
+  await updatePackageDependencies(packageManager, depInfos, context.repo, targetDir)
 
   if (!(await gitHelper.isNeedCommit())) {
     core.info('No changes to commit')

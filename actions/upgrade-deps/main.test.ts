@@ -1,16 +1,24 @@
+import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import * as path from 'node:path'
 import * as exec from '@actions/exec'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   buildPullRequestBody,
   fetchDependencyRelease,
   fetchPackageVersion,
+  findPnpmWorkspaceFile,
   getBranchName,
   getChangelogMarkdown,
+  getPnpmUpdateCommands,
   getPrTitle,
   parseDependencyInputs,
   parseGithubRepository,
   resolveDependencyInfos,
   updatePackageDependencies,
+  updatePackageManifestVersions,
+  updatePnpmCatalogs,
+  updateVersionSpecifier,
   validatePackageManager,
 } from './main'
 
@@ -113,11 +121,123 @@ describe('升级依赖', () => {
   })
 
   it('按包管理器执行升级命令', async () => {
-    await updatePackageDependencies('npm', ['vite'], 'tdesign-vue-next', '')
+    await updatePackageDependencies('npm', [{ name: 'vite', version: '7.0.0' }], 'tdesign-vue-next', '')
     expect(exec.exec).toHaveBeenLastCalledWith('npm', ['install', 'vite'], { cwd: './tdesign-vue-next' })
+  })
 
-    await updatePackageDependencies('pnpm', ['@tdesign/site-components'], 'tdesign-vue-next', 'site')
-    expect(exec.exec).toHaveBeenLastCalledWith('pnpm', ['-r', 'up', '--latest', '@tdesign/site-components'], { cwd: 'tdesign-vue-next/site' })
+  it('从 target-dir 查找最近的 pnpm workspace 且不越出 clone', async () => {
+    const tempDir = await mkdtemp(path.join(tmpdir(), 'upgrade-deps-'))
+    const cloneRoot = path.join(tempDir, 'repo')
+    const nestedWorkspace = path.join(cloneRoot, 'packages', 'nested')
+    const targetDir = path.join(nestedWorkspace, 'apps', 'site')
+    const outsideDir = path.join(tempDir, 'outside')
+
+    try {
+      await mkdir(targetDir, { recursive: true })
+      await mkdir(outsideDir, { recursive: true })
+      await writeFile(path.join(cloneRoot, 'pnpm-workspace.yaml'), 'packages: []\n')
+      await writeFile(path.join(nestedWorkspace, 'pnpm-workspace.yaml'), 'packages: []\n')
+
+      await expect(findPnpmWorkspaceFile(targetDir, cloneRoot)).resolves.toBe(
+        path.join(await realpath(nestedWorkspace), 'pnpm-workspace.yaml'),
+      )
+
+      await rm(path.join(nestedWorkspace, 'pnpm-workspace.yaml'))
+      await symlink(path.relative(nestedWorkspace, path.join(cloneRoot, 'pnpm-workspace.yaml')), path.join(nestedWorkspace, 'pnpm-workspace.yaml'))
+      await expect(findPnpmWorkspaceFile(targetDir, cloneRoot)).resolves.toBe(
+        path.join(await realpath(nestedWorkspace), 'pnpm-workspace.yaml'),
+      )
+
+      const outsideLink = path.join(cloneRoot, 'outside-link')
+      await symlink(outsideDir, outsideLink)
+      await expect(findPnpmWorkspaceFile(outsideLink, cloneRoot)).rejects.toThrow('outside clone root')
+    }
+    finally {
+      await rm(tempDir, { force: true, recursive: true })
+    }
+  })
+
+  it('更新默认和命名 catalog 中的全部匹配项', () => {
+    const content = `packages:
+  - packages/*
+
+catalog:
+  vite: ^6.0.0 # keep comment
+  '@tdesign/site-components': '~0.18.0'
+
+catalogs:
+  build:
+    vite: "6.1.0"
+    eslint: ^9.0.0
+  legacy:
+    vite: 5.4.0
+`
+    const result = updatePnpmCatalogs(content, [
+      { name: 'vite', version: '7.0.0' },
+      { name: '@tdesign/site-components', version: '0.19.1' },
+    ])
+
+    expect(result.catalogDependencies).toEqual(['vite', '@tdesign/site-components'])
+    expect(result.content).toContain('vite: ^7.0.0 # keep comment')
+    expect(result.content).toContain(`'@tdesign/site-components': '~0.19.1'`)
+    expect(result.content).toContain('vite: "7.0.0"')
+    expect(result.content).toContain('vite: 7.0.0')
+    expect(result.content).toContain('eslint: ^9.0.0')
+  })
+
+  it('更新 JSONC 中与 catalog 依赖混用的直接版本声明', () => {
+    const content = `{
+  // catalog and direct declarations can coexist
+  "dependencies": {
+    "vite": "catalog:build"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0",
+  },
+  "peerDependencies": {
+    "vite": "~6.0.0"
+  }
+}
+`
+    const result = updatePackageManifestVersions(content, [{ name: 'vite', version: '7.0.0' }])
+
+    expect(result.updated).toBe(true)
+    expect(result.content).toContain('// catalog and direct declarations can coexist')
+    expect(result.content).toContain('"vite": "catalog:build"')
+    expect(result.content).toContain('"vite": "^7.0.0"')
+    expect(result.content).toContain('"vite": "~7.0.0"')
+  })
+
+  it('复杂 catalog 或直接版本声明会中止更新', () => {
+    expect(() => updatePnpmCatalogs('catalog:\n  vite: ">=6 <8"\n', [
+      { name: 'vite', version: '7.0.0' },
+    ])).toThrow('Unsupported version specifier ">=6 <8" for catalog.vite')
+
+    expect(() => updatePackageManifestVersions(`{
+  "dependencies": {
+    "vite": "workspace:^6.0.0"
+  }
+}`, [{ name: 'vite', version: '7.0.0' }])).toThrow('Unsupported version specifier "workspace:^6.0.0"')
+
+    expect(() => updateVersionSpecifier('=6.0.0', '7.0.0', 'catalog.vite')).toThrow('Unsupported version specifier "=6.0.0"')
+    expect(() => updateVersionSpecifier('^01.2.3', '7.0.0', 'catalog.vite')).toThrow('Unsupported version specifier "^01.2.3"')
+    expect(() => updateVersionSpecifier('^1.2.3-alpha..1', '7.0.0', 'catalog.vite')).toThrow('Unsupported version specifier "^1.2.3-alpha..1"')
+  })
+
+  it('catalog 依赖手动更新后只对其他依赖执行 up 并安装 workspace', () => {
+    expect(getPnpmUpdateCommands([
+      { name: 'vite', version: '7.0.0' },
+      { name: 'eslint', version: '10.0.0' },
+    ], ['vite'], 'repo/packages/site', '/repo')).toEqual([
+      {
+        args: ['-r', 'up', '--latest', 'eslint'],
+        cwd: 'repo/packages/site',
+      },
+      {
+        args: ['install'],
+        cwd: '/repo',
+      },
+    ])
   })
 
   it('解析 npm 常见的 GitHub 仓库地址', () => {

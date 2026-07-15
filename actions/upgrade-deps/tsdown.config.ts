@@ -9,6 +9,8 @@ export default defineConfig({
       '@actions/exec',
       '@actions/github',
       '@workflows/utils',
+      'jsonc-parser',
+      'yaml',
     ],
     onlyBundle: [
       '@actions/core',
@@ -26,9 +28,11 @@ export default defineConfig({
       '@octokit/request-error',
       'before-after-hook',
       'fast-content-type-parse',
+      'jsonc-parser',
       'tunnel',
       'undici',
       'universal-user-agent',
+      'yaml',
     ],
   },
 })
