@@ -224,6 +224,96 @@ describe('升级依赖', () => {
     expect(body).toContain('- [x] Changelog 已提供或无须提供')
   })
 
+  it('仅升级无需 Changelog 的依赖时只勾选对应选项', () => {
+    const template = `### 🤔 这个 PR 的性质是？
+
+- [ ] 其他
+
+### 🔗 相关 Issue
+
+<!-- 请填写 Issue -->
+
+### 💡 需求背景和解决方案
+
+<!-- 请描述背景 -->
+
+### 📝 更新日志
+
+- [ ] 本条 PR 不需要纳入 Changelog
+
+#### tdesign-vue-next
+<!-- 主包日志 -->
+
+### ☑️ 请求合并前的自查清单
+
+- [ ] 文档已补充或无须补充
+- [ ] Changelog 已提供或无须提供`
+    const body = buildPullRequestBody(template, [
+      { name: '@tdesign/site-components', version: '0.19.1' },
+      { name: '@tdesign/theme-generator', version: '1.2.5' },
+    ], 'tdesign-vue-next')
+
+    expect(body).toBe(template.replace(
+      '- [ ] 本条 PR 不需要纳入 Changelog',
+      '- [x] 本条 PR 不需要纳入 Changelog',
+    ))
+    expect(body).not.toContain('自动升级以下依赖')
+    expect(body).not.toContain('\n无\n')
+    expect(body).toContain('- [ ] 其他')
+    expect(body).toContain('- [ ] Changelog 已提供或无须提供')
+  })
+
+  it.each([
+    '@tdesign/site-components',
+    '@tdesign/theme-generator',
+  ])('单独升级 %s 时无需 Changelog', (name) => {
+    expect(buildPullRequestBody(
+      '- [ ] 本条 PR 不需要纳入 Changelog',
+      [{ name, version: '1.0.0' }],
+      'tdesign-vue-next',
+    )).toBe('- [x] 本条 PR 不需要纳入 Changelog')
+  })
+
+  it('无需 Changelog 的依赖在没有模板时生成最小正文', () => {
+    expect(buildPullRequestBody(undefined, [
+      { name: '@tdesign/site-components', version: '0.19.1' },
+    ], 'tdesign-vue-next')).toBe('- [x] 本条 PR 不需要纳入 Changelog')
+  })
+
+  it('混合升级时背景保留全部依赖但 Changelog 忽略特殊依赖', () => {
+    const template = `### 💡 需求背景和解决方案
+
+### 📝 更新日志
+
+- [ ] 本条 PR 不需要纳入 Changelog
+
+#### tdesign-vue-next
+<!-- 主包日志 -->`
+    const body = buildPullRequestBody(template, [{
+      name: '@tdesign/site-components',
+      version: '0.19.1',
+      release: {
+        body: '## 0.19.1\n\n### Features\n\n- Update site navigation',
+        tag: '@tdesign/site-components@0.19.1',
+        url: 'https://github.com/Tencent/tdesign/releases/tag/site-components',
+      },
+    }, {
+      name: 'tdesign-icons-view',
+      version: '0.5.7',
+      release: {
+        body: '## 0.5.7\n\n### Bug Fixes\n\n- Fix missing icons',
+        tag: 'tdesign-icons-view@0.5.7',
+        url: 'https://github.com/Tencent/tdesign-icons/releases/tag/tdesign-icons-view%400.5.7',
+      },
+    }], 'tdesign-vue-next')
+
+    expect(body).toContain('- `@tdesign/site-components` 升级至 `0.19.1`')
+    expect(body).toContain('Update site navigation')
+    expect(body).toContain('#### tdesign-vue-next\n\n- fix(Icon): Fix missing icons')
+    expect(body).not.toContain('feat(Icon): Update site navigation')
+    expect(body).toContain('- [ ] 本条 PR 不需要纳入 Changelog')
+  })
+
   it('将 release 分类转换成 Conventional Changelog', () => {
     const changelog = getChangelogMarkdown([{
       name: 'tdesign-icons-view',

@@ -20102,6 +20102,8 @@ const COMPONENT_REPOSITORIES = /* @__PURE__ */ new Set([
 	"tdesign-vue",
 	"tdesign-vue-next"
 ]);
+const NO_CHANGELOG_DEPENDENCIES = /* @__PURE__ */ new Set(["@tdesign/site-components", "@tdesign/theme-generator"]);
+const NO_CHANGELOG_CHECKBOX = "- [x] 本条 PR 不需要纳入 Changelog";
 const CHANGELOG_TARGET_SECTIONS = {
 	"tdesign-miniprogram": ["tdesign-miniprogram", "@tdesign/uniapp"],
 	"tdesign-react": ["tdesign-react"],
@@ -20329,11 +20331,17 @@ function formatChangelogType(type, scoped) {
 }
 function getChangelogMarkdown(deps, targetRepo) {
 	const scoped = COMPONENT_REPOSITORIES.has(targetRepo);
-	return deps.flatMap((dep) => {
+	return deps.filter((dep) => !NO_CHANGELOG_DEPENDENCIES.has(dep.name)).flatMap((dep) => {
 		const entries = dep.release ? parseReleaseChangelog(dep.release.body) : [];
 		if (!entries.length) return [`- ${formatChangelogType("chore", scoped)}: upgrade ${dep.name} to ${dep.version}`];
 		return entries.map((entry) => `- ${formatChangelogType(entry.type, scoped)}: ${entry.text}`);
 	}).join("\n");
+}
+function buildNoChangelogPullRequestBody(template) {
+	if (!template) return NO_CHANGELOG_CHECKBOX;
+	const body = template.trim();
+	const updatedBody = body.replace(/^- \[ \] 本条 PR 不需要纳入 Changelog\r?$/m, NO_CHANGELOG_CHECKBOX);
+	return updatedBody === body ? `${body}\n\n${NO_CHANGELOG_CHECKBOX}` : updatedBody;
 }
 function fillTDesignCheckboxes(template) {
 	const checkedLabels = [
@@ -20361,6 +20369,7 @@ function insertChangelog(body, targetRepo, changelog) {
 	return insertAfterHeading(result, /更新日志|changelog|release notes/i, changelog);
 }
 function buildPullRequestBody(template, deps, targetRepo) {
+	if (deps.length && deps.every((dep) => NO_CHANGELOG_DEPENDENCIES.has(dep.name))) return buildNoChangelogPullRequestBody(template);
 	const background = `${getDependencySummary(deps)}\n\n${getReleaseNotesMarkdown(deps)}`;
 	const changelog = getChangelogMarkdown(deps, targetRepo);
 	if (!template) return `## 依赖升级\n\n${background}\n\n## 版本日志\n\n${changelog}`;

@@ -56,6 +56,13 @@ const COMPONENT_REPOSITORIES = new Set([
   'tdesign-vue-next',
 ])
 
+const NO_CHANGELOG_DEPENDENCIES = new Set([
+  '@tdesign/site-components',
+  '@tdesign/theme-generator',
+])
+
+const NO_CHANGELOG_CHECKBOX = '- [x] 本条 PR 不需要纳入 Changelog'
+
 const CHANGELOG_TARGET_SECTIONS: Record<string, string[]> = {
   'tdesign-miniprogram': ['tdesign-miniprogram', '@tdesign/uniapp'],
   'tdesign-react': ['tdesign-react'],
@@ -385,13 +392,25 @@ function formatChangelogType(type: ChangelogType, scoped: boolean): string {
 
 export function getChangelogMarkdown(deps: DependencyInfo[], targetRepo: string): string {
   const scoped = COMPONENT_REPOSITORIES.has(targetRepo)
-  return deps.flatMap((dep) => {
+  return deps.filter(dep => !NO_CHANGELOG_DEPENDENCIES.has(dep.name)).flatMap((dep) => {
     const entries = dep.release ? parseReleaseChangelog(dep.release.body) : []
     if (!entries.length) {
       return [`- ${formatChangelogType('chore', scoped)}: upgrade ${dep.name} to ${dep.version}`]
     }
     return entries.map(entry => `- ${formatChangelogType(entry.type, scoped)}: ${entry.text}`)
   }).join('\n')
+}
+
+function buildNoChangelogPullRequestBody(template: string | undefined): string {
+  if (!template)
+    return NO_CHANGELOG_CHECKBOX
+
+  const body = template.trim()
+  const updatedBody = body.replace(
+    /^- \[ \] 本条 PR 不需要纳入 Changelog\r?$/m,
+    NO_CHANGELOG_CHECKBOX,
+  )
+  return updatedBody === body ? `${body}\n\n${NO_CHANGELOG_CHECKBOX}` : updatedBody
 }
 
 function fillTDesignCheckboxes(template: string): string {
@@ -426,6 +445,10 @@ function insertChangelog(body: string, targetRepo: string, changelog: string): {
 }
 
 export function buildPullRequestBody(template: string | undefined, deps: DependencyInfo[], targetRepo: string): string {
+  if (deps.length && deps.every(dep => NO_CHANGELOG_DEPENDENCIES.has(dep.name))) {
+    return buildNoChangelogPullRequestBody(template)
+  }
+
   const summary = getDependencySummary(deps)
   const releaseNotes = getReleaseNotesMarkdown(deps)
   const background = `${summary}\n\n${releaseNotes}`
