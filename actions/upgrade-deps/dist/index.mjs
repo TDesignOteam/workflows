@@ -20061,7 +20061,11 @@ var GithubHelper = class {
 const PACKAGE_MANAGER_COMMANDS = {
 	pnpm: {
 		cmd: "pnpm",
-		args: ["up", "--latest"]
+		args: [
+			"up",
+			"-r",
+			"--latest"
+		]
 	},
 	yarn: {
 		cmd: "yarn",
