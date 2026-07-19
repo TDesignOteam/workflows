@@ -13,7 +13,6 @@ interface TriggerContext {
   owner: string
   token: string
   dryRun: boolean
-  trigger: string
 }
 
 export interface DependencyInfo {
@@ -558,22 +557,12 @@ function getMarkdownHeading(line: string): string | undefined {
   return prefix ? line.slice(prefix[0].length).trim() : undefined
 }
 
-function insertAfterHeading(body: string, headingPattern: RegExp, content: string): { body: string, inserted: boolean } {
+function insertAfterHeading(body: string, heading: RegExp | string, content: string): { body: string, inserted: boolean } {
   const lines = body.split('\n')
   const headingIndex = lines.findIndex((line) => {
-    const heading = getMarkdownHeading(line)
-    return heading !== undefined && headingPattern.test(heading)
+    const value = getMarkdownHeading(line)
+    return value !== undefined && (typeof heading === 'string' ? value === heading : heading.test(value))
   })
-  if (headingIndex === -1)
-    return { body, inserted: false }
-
-  lines.splice(headingIndex + 1, 0, '', content)
-  return { body: lines.join('\n'), inserted: true }
-}
-
-function insertAfterExactHeading(body: string, heading: string, content: string): { body: string, inserted: boolean } {
-  const lines = body.split('\n')
-  const headingIndex = lines.findIndex(line => getMarkdownHeading(line) === heading)
   if (headingIndex === -1)
     return { body, inserted: false }
 
@@ -731,7 +720,7 @@ function insertChangelog(body: string, targetRepo: string, changelog: string): {
   let result = body
   let inserted = false
   for (const section of targetSections) {
-    const sectionResult = insertAfterExactHeading(result, section, changelog)
+    const sectionResult = insertAfterHeading(result, section, changelog)
     result = sectionResult.body
     inserted ||= sectionResult.inserted
   }
@@ -768,22 +757,6 @@ export function buildPullRequestBody(template: string | undefined, deps: Depende
   ].filter(Boolean)
 
   return fallbackSections.length ? `${fallbackSections.join('\n\n')}\n\n${body}` : body
-}
-
-async function createDepsPr(
-  title: string,
-  body: string,
-  branchName: string,
-  baseBranch: string,
-  context: TriggerContext,
-): Promise<void> {
-  const githubHelper = new GithubHelper({
-    owner: context.owner,
-    repo: context.repo,
-    token: context.token,
-    dryRun: context.dryRun,
-  })
-  await githubHelper.createPR(title, branchName, body, baseBranch)
 }
 
 export async function updateDependencies(context: TriggerContext): Promise<void> {
@@ -834,7 +807,13 @@ export async function updateDependencies(context: TriggerContext): Promise<void>
   const body = buildPullRequestBody(pullRequestTemplate, depInfos, context.repo)
   await gitHelper.commit(title)
   await gitHelper.push(branchName)
-  await createDepsPr(title, body, branchName, baseBranch, context)
+  const githubHelper = new GithubHelper({
+    owner: context.owner,
+    repo: context.repo,
+    token: context.token,
+    dryRun: context.dryRun,
+  })
+  await githubHelper.createPR(title, branchName, body, baseBranch)
 }
 
 export async function main(): Promise<void> {
@@ -853,6 +832,5 @@ export async function main(): Promise<void> {
     owner,
     token,
     dryRun,
-    trigger: github.context.eventName,
   })
 }

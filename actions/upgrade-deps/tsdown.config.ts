@@ -3,6 +3,11 @@ import { defineConfig } from 'tsdown'
 export default defineConfig({
   entry: ['index.ts'],
   shims: true,
+  inputOptions: {
+    resolve: {
+      mainFields: ['module', 'main'],
+    },
+  },
   deps: {
     alwaysBundle: [
       '@actions/core',
