@@ -27907,8 +27907,8 @@ const PACKAGE_MANAGER_COMMANDS = {
 	pnpm: {
 		cmd: "pnpm",
 		args: [
-			"-r",
 			"up",
+			"-r",
 			"--latest"
 		]
 	},

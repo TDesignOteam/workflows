@@ -54,7 +54,7 @@ interface FileUpdate {
 }
 
 const PACKAGE_MANAGER_COMMANDS = {
-  pnpm: { cmd: 'pnpm', args: ['-r', 'up', '--latest'] },
+  pnpm: { cmd: 'pnpm', args: ['up', '-r', '--latest'] },
   yarn: { cmd: 'yarn', args: ['upgrade', '--latest'] },
   npm: { cmd: 'npm', args: ['install'] },
 } as const
