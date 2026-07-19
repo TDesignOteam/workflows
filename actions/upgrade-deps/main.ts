@@ -465,7 +465,7 @@ export function getPnpmUpdateCommands(
     })
   }
   if (catalogDependencies.length)
-    commands.push({ args: ['install'], cwd: workspaceDir })
+    commands.push({ args: ['install', '--no-frozen-lockfile'], cwd: workspaceDir })
 
   return commands
 }

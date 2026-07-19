@@ -234,7 +234,7 @@ catalogs:
         cwd: 'repo/packages/site',
       },
       {
-        args: ['install'],
+        args: ['install', '--no-frozen-lockfile'],
         cwd: '/repo',
       },
     ])

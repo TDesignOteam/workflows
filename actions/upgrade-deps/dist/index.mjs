@@ -28201,7 +28201,7 @@ function getPnpmUpdateCommands(deps, catalogDependencies, targetPath, workspaceD
 		cwd: targetPath
 	});
 	if (catalogDependencies.length) commands.push({
-		args: ["install"],
+		args: ["install", "--no-frozen-lockfile"],
 		cwd: workspaceDir
 	});
 	return commands;
