@@ -4,6 +4,6 @@ on:
 
 jobs:
   call-check:
-    uses: TDesignOteam/workflows/.github/workflows/reusable-spell-check.yml@83293c1063bcb1af6e91e2e9c7d6a9dd3b69089f # main
+    uses: TDesignOteam/workflows/.github/workflows/reusable-spell-check.yml@2c83bb5eec2aa598759e8ce57f0af326ed022056 # main
     with:
       config: .github/workflows/typos-config.toml
