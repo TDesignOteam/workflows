@@ -17,6 +17,7 @@ interface TriggerContext {
 
 export interface DependencyInfo {
   name: string
+  repositoryDirectory?: string
   version: string
   repositoryUrl?: string
   release?: DependencyRelease
@@ -306,7 +307,7 @@ export async function fetchPackageVersion(pkg: string): Promise<DependencyInfo> 
       throw new Error(`status code: ${response.status}`)
     }
     const { version, repository } = await response.json() as {
-      repository?: string | { url?: string }
+      repository?: string | { directory?: string, url?: string }
       version?: string
     }
     if (!version) {
@@ -314,7 +315,13 @@ export async function fetchPackageVersion(pkg: string): Promise<DependencyInfo> 
     }
     core.info(`Latest version of ${pkg} is ${version}`)
     const repositoryUrl = typeof repository === 'string' ? repository : repository?.url
-    return { name: pkg, version, ...(repositoryUrl ? { repositoryUrl } : {}) }
+    const repositoryDirectory = typeof repository === 'object' ? repository?.directory : undefined
+    return {
+      name: pkg,
+      version,
+      ...(repositoryUrl ? { repositoryUrl } : {}),
+      ...(repositoryDirectory ? { repositoryDirectory } : {}),
+    }
   }
   catch (error) {
     throw new Error(`Failed to get ${pkg} info from npm registry: ${error instanceof Error ? error.message : String(error)}`)
@@ -325,23 +332,41 @@ export async function resolveDependencyInfos(deps: string[]): Promise<Dependency
   return Promise.all(deps.map(fetchPackageVersion))
 }
 
-function getReleaseTags(dep: DependencyInfo): string[] {
-  return [...new Set([
-    `${dep.name}@${dep.version}`,
-    dep.version,
-    `v${dep.version}`,
-  ])]
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+export function extractVersionChangelog(content: string, version: string): string | undefined {
+  const lines = content.split('\n')
+  const versionPattern = new RegExp(`(?:^|[^0-9a-z])v?${escapeRegExp(version)}(?=$|[^0-9a-z])`, 'i')
+
+  const startIndex = lines.findIndex((line) => {
+    const heading = getMarkdownHeading(line)
+    const headingText = heading?.replace(/\]\([^)]*\)/g, ']')
+    return headingText !== undefined && versionPattern.test(headingText)
+  })
+  if (startIndex === -1)
+    return undefined
+
+  const headingLevel = lines[startIndex].match(/^#+/)?.[0].length
+  if (!headingLevel)
+    return undefined
+
+  const endIndex = lines.findIndex((line, index) => (
+    index > startIndex && (line.match(/^#{1,6}(?=[ \t])/)?.[0].length ?? 7) <= headingLevel
+  ))
+  return lines.slice(startIndex, endIndex === -1 ? undefined : endIndex).join('\n').trim()
 }
 
 export async function fetchDependencyRelease(dep: DependencyInfo, token: string): Promise<DependencyRelease | undefined> {
   const repository = parseGithubRepository(dep.repositoryUrl)
   if (!repository) {
-    core.warning(`No GitHub repository found for ${dep.name}; skipping release notes`)
+    core.warning(`No GitHub repository found for ${dep.name}; skipping changelog`)
     return undefined
   }
 
   const headers: Record<string, string> = {
-    'Accept': 'application/vnd.github+json',
+    'Accept': 'application/vnd.github.raw+json',
     'X-GitHub-Api-Version': '2022-11-28',
   }
   if (token && token !== 'test') {
@@ -349,35 +374,38 @@ export async function fetchDependencyRelease(dep: DependencyInfo, token: string)
   }
 
   try {
-    for (const tag of getReleaseTags(dep)) {
-      const response = await fetch(
-        `https://api.github.com/repos/${repository.owner}/${repository.repo}/releases/tags/${encodeURIComponent(tag)}`,
-        { headers },
-      )
-      if (response.status === 404)
-        continue
-      if (!response.ok)
-        throw new Error(`status code: ${response.status}`)
+    const changelogPath = [...(dep.repositoryDirectory?.split('/').filter(Boolean) ?? []), 'CHANGELOG.md']
+      .map(segment => encodeURIComponent(segment))
+      .join('/')
+    const response = await fetch(
+      `https://api.github.com/repos/${repository.owner}/${repository.repo}/contents/${changelogPath}`,
+      { headers },
+    )
+    if (response.status === 404) {
+      core.warning(`No CHANGELOG.md found for ${dep.name}`)
+      return undefined
+    }
+    if (!response.ok)
+      throw new Error(`status code: ${response.status}`)
 
-      const release = await response.json() as { body?: string | null, html_url?: string }
-      if (!release.html_url)
-        throw new Error('release URL not found')
+    const body = extractVersionChangelog(await response.text(), dep.version)
+    if (!body) {
+      core.warning(`No ${dep.version} entry found in CHANGELOG.md for ${dep.name}`)
+      return undefined
+    }
 
-      core.info(`Release notes found for ${dep.name}@${dep.version}: ${release.html_url}`)
-      return {
-        body: release.body?.trim() || 'No release notes provided.',
-        tag,
-        url: release.html_url,
-      }
+    const url = `https://github.com/${repository.owner}/${repository.repo}/blob/HEAD/${changelogPath}`
+    core.info(`Changelog found for ${dep.name}@${dep.version}: ${url}`)
+    return {
+      body,
+      tag: `${dep.name}@${dep.version}`,
+      url,
     }
   }
   catch (error) {
-    core.warning(`Failed to get release notes for ${dep.name}@${dep.version}: ${error instanceof Error ? error.message : String(error)}`)
+    core.warning(`Failed to get CHANGELOG.md for ${dep.name}@${dep.version}: ${error instanceof Error ? error.message : String(error)}`)
     return undefined
   }
-
-  core.warning(`No GitHub release found for ${dep.name}@${dep.version}`)
-  return undefined
 }
 
 export async function resolveDependencyReleases(deps: DependencyInfo[], token: string): Promise<DependencyInfo[]> {
@@ -588,7 +616,7 @@ export function getReleaseNotesMarkdown(deps: DependencyInfo[]): string {
   return deps.map((dep) => {
     const npmUrl = `https://www.npmjs.com/package/${dep.name}/v/${dep.version}`
     if (!dep.release) {
-      return `#### [\`${dep.name}@${dep.version}\`](${npmUrl})\n\n未找到对应的 GitHub Release Notes。`
+      return `#### [\`${dep.name}@${dep.version}\`](${npmUrl})\n\n未在仓库的 CHANGELOG.md 中找到对应版本日志。`
     }
 
     return `#### [\`${dep.name}@${dep.version}\`](${dep.release.url})\n\n${formatReleaseBody(dep.release.body)}`

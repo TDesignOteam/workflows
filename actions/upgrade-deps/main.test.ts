@@ -5,6 +5,7 @@ import * as exec from '@actions/exec'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   buildPullRequestBody,
+  extractVersionChangelog,
   fetchDependencyRelease,
   fetchPackageVersion,
   findPnpmWorkspaceFile,
@@ -100,6 +101,7 @@ describe('升级依赖', () => {
     vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({
       version: '0.5.7',
       repository: {
+        directory: 'packages/view',
         type: 'git',
         url: 'git+https://github.com/Tencent/tdesign-icons.git',
       },
@@ -107,6 +109,7 @@ describe('升级依赖', () => {
 
     await expect(fetchPackageVersion('tdesign-icons-view')).resolves.toEqual({
       name: 'tdesign-icons-view',
+      repositoryDirectory: 'packages/view',
       version: '0.5.7',
       repositoryUrl: 'git+https://github.com/Tencent/tdesign-icons.git',
     })
@@ -252,48 +255,75 @@ catalogs:
     expect(parseGithubRepository('https://gitlab.com/Tencent/tdesign-icons.git')).toBeUndefined()
   })
 
-  it('按 package@version 标签提取 GitHub Release', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({
-      body: '## 🌈 0.5.7\n\n### Bug Fixes\n\n- Fix missing icons',
-      html_url: 'https://github.com/Tencent/tdesign-icons/releases/tag/tdesign-icons-view%400.5.7',
-    }), { status: 200 }))
+  it('从依赖包目录的 CHANGELOG.md 提取目标版本', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(`# tdesign-icons-view
+
+## 🌈 0.5.7
+
+### Bug Fixes
+
+- Fix missing icons
+
+## 🌈 0.5.6
+
+### Features
+
+- Previous change`, { status: 200 }))
 
     await expect(fetchDependencyRelease({
       name: 'tdesign-icons-view',
+      repositoryDirectory: 'packages/view',
       version: '0.5.7',
       repositoryUrl: 'git+https://github.com/Tencent/tdesign-icons.git',
     }, 'test')).resolves.toEqual({
       body: '## 🌈 0.5.7\n\n### Bug Fixes\n\n- Fix missing icons',
       tag: 'tdesign-icons-view@0.5.7',
-      url: 'https://github.com/Tencent/tdesign-icons/releases/tag/tdesign-icons-view%400.5.7',
+      url: 'https://github.com/Tencent/tdesign-icons/blob/HEAD/packages/view/CHANGELOG.md',
     })
 
     expect(fetch).toHaveBeenCalledWith(
-      'https://api.github.com/repos/Tencent/tdesign-icons/releases/tags/tdesign-icons-view%400.5.7',
+      'https://api.github.com/repos/Tencent/tdesign-icons/contents/packages/view/CHANGELOG.md',
       {
         headers: {
-          'Accept': 'application/vnd.github+json',
+          'Accept': 'application/vnd.github.raw+json',
           'X-GitHub-Api-Version': '2022-11-28',
         },
       },
     )
   })
 
-  it('release 不存在时依次尝试 version 和 vversion 标签', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(new Response('', { status: 404 }))
-    vi.mocked(fetch).mockResolvedValueOnce(new Response('', { status: 404 }))
-    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({
-      body: 'Release notes',
-      html_url: 'https://github.com/vitejs/vite/releases/tag/v7.0.0',
-    }), { status: 200 }))
+  it('未在 CHANGELOG.md 找到目标版本时不返回其他版本日志', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response('## 6.0.0\n\n### Features\n\n- Previous change', { status: 200 }))
 
     await expect(fetchDependencyRelease({
       name: 'vite',
       version: '7.0.0',
       repositoryUrl: 'https://github.com/vitejs/vite.git',
-    }, 'test')).resolves.toMatchObject({ tag: 'v7.0.0' })
+    }, 'test')).resolves.toBeUndefined()
 
-    expect(fetch).toHaveBeenCalledTimes(3)
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('按标题层级截取版本日志', () => {
+    expect(extractVersionChangelog(`# Changelog
+
+## [1.2.2](https://example.com/compare/v1.2.1...v1.2.3)
+
+- Previous change
+
+## [v1.2.3](https://example.com/v1.2.3)
+
+### Bug Fixes
+
+- Fix issue
+
+## 1.2.2
+
+- Previous change`, '1.2.3')).toBe(`## [v1.2.3](https://example.com/v1.2.3)
+
+### Bug Fixes
+
+- Fix issue`)
   })
 
   it('根据 TDesign PR 模板填入升级摘要和版本日志', () => {
@@ -563,7 +593,7 @@ catalogs:
 
     expect(body).toMatch(/^## 依赖升级/)
     expect(body).toContain('## 版本日志')
-    expect(body).toContain('未找到对应的 GitHub Release Notes。')
+    expect(body).toContain('未在仓库的 CHANGELOG.md 中找到对应版本日志。')
     expect(body).toContain('- chore: upgrade vite to 7.0.0')
     expect(body).toContain('## Checklist\n\n- [ ] Reviewed')
   })

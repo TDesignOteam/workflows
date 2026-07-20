@@ -28082,10 +28082,12 @@ async function fetchPackageVersion(pkg) {
 		if (!version) throw new Error("no version found");
 		info(`Latest version of ${pkg} is ${version}`);
 		const repositoryUrl = typeof repository === "string" ? repository : repository?.url;
+		const repositoryDirectory = typeof repository === "object" ? repository?.directory : void 0;
 		return {
 			name: pkg,
 			version,
-			...repositoryUrl ? { repositoryUrl } : {}
+			...repositoryUrl ? { repositoryUrl } : {},
+			...repositoryDirectory ? { repositoryDirectory } : {}
 		};
 	} catch (error) {
 		throw new Error(`Failed to get ${pkg} info from npm registry: ${error instanceof Error ? error.message : String(error)}`);
@@ -28094,43 +28096,57 @@ async function fetchPackageVersion(pkg) {
 async function resolveDependencyInfos(deps) {
 	return Promise.all(deps.map(fetchPackageVersion));
 }
-function getReleaseTags(dep) {
-	return [.../* @__PURE__ */ new Set([
-		`${dep.name}@${dep.version}`,
-		dep.version,
-		`v${dep.version}`
-	])];
+function escapeRegExp(value) {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function extractVersionChangelog(content, version) {
+	const lines = content.split("\n");
+	const versionPattern = new RegExp(`(?:^|[^0-9a-z])v?${escapeRegExp(version)}(?=$|[^0-9a-z])`, "i");
+	const startIndex = lines.findIndex((line) => {
+		const headingText = getMarkdownHeading(line)?.replace(/\]\([^)]*\)/g, "]");
+		return headingText !== void 0 && versionPattern.test(headingText);
+	});
+	if (startIndex === -1) return void 0;
+	const headingLevel = lines[startIndex].match(/^#+/)?.[0].length;
+	if (!headingLevel) return void 0;
+	const endIndex = lines.findIndex((line, index) => index > startIndex && (line.match(/^#{1,6}(?=[ \t])/)?.[0].length ?? 7) <= headingLevel);
+	return lines.slice(startIndex, endIndex === -1 ? void 0 : endIndex).join("\n").trim();
 }
 async function fetchDependencyRelease(dep, token) {
 	const repository = parseGithubRepository(dep.repositoryUrl);
 	if (!repository) {
-		warning(`No GitHub repository found for ${dep.name}; skipping release notes`);
+		warning(`No GitHub repository found for ${dep.name}; skipping changelog`);
 		return;
 	}
 	const headers = {
-		"Accept": "application/vnd.github+json",
+		"Accept": "application/vnd.github.raw+json",
 		"X-GitHub-Api-Version": "2022-11-28"
 	};
 	if (token && token !== "test") headers.Authorization = `Bearer ${token}`;
 	try {
-		for (const tag of getReleaseTags(dep)) {
-			const response = await fetch(`https://api.github.com/repos/${repository.owner}/${repository.repo}/releases/tags/${encodeURIComponent(tag)}`, { headers });
-			if (response.status === 404) continue;
-			if (!response.ok) throw new Error(`status code: ${response.status}`);
-			const release = await response.json();
-			if (!release.html_url) throw new Error("release URL not found");
-			info(`Release notes found for ${dep.name}@${dep.version}: ${release.html_url}`);
-			return {
-				body: release.body?.trim() || "No release notes provided.",
-				tag,
-				url: release.html_url
-			};
+		const changelogPath = [...dep.repositoryDirectory?.split("/").filter(Boolean) ?? [], "CHANGELOG.md"].map((segment) => encodeURIComponent(segment)).join("/");
+		const response = await fetch(`https://api.github.com/repos/${repository.owner}/${repository.repo}/contents/${changelogPath}`, { headers });
+		if (response.status === 404) {
+			warning(`No CHANGELOG.md found for ${dep.name}`);
+			return;
 		}
+		if (!response.ok) throw new Error(`status code: ${response.status}`);
+		const body = extractVersionChangelog(await response.text(), dep.version);
+		if (!body) {
+			warning(`No ${dep.version} entry found in CHANGELOG.md for ${dep.name}`);
+			return;
+		}
+		const url = `https://github.com/${repository.owner}/${repository.repo}/blob/HEAD/${changelogPath}`;
+		info(`Changelog found for ${dep.name}@${dep.version}: ${url}`);
+		return {
+			body,
+			tag: `${dep.name}@${dep.version}`,
+			url
+		};
 	} catch (error) {
-		warning(`Failed to get release notes for ${dep.name}@${dep.version}: ${error instanceof Error ? error.message : String(error)}`);
+		warning(`Failed to get CHANGELOG.md for ${dep.name}@${dep.version}: ${error instanceof Error ? error.message : String(error)}`);
 		return;
 	}
-	warning(`No GitHub release found for ${dep.name}@${dep.version}`);
 }
 async function resolveDependencyReleases(deps, token) {
 	return Promise.all(deps.map(async (dep) => ({
@@ -28311,7 +28327,7 @@ function getDependencySummary(deps) {
 function getReleaseNotesMarkdown(deps) {
 	return deps.map((dep) => {
 		const npmUrl = `https://www.npmjs.com/package/${dep.name}/v/${dep.version}`;
-		if (!dep.release) return `#### [\`${dep.name}@${dep.version}\`](${npmUrl})\n\n未找到对应的 GitHub Release Notes。`;
+		if (!dep.release) return `#### [\`${dep.name}@${dep.version}\`](${npmUrl})\n\n未在仓库的 CHANGELOG.md 中找到对应版本日志。`;
 		return `#### [\`${dep.name}@${dep.version}\`](${dep.release.url})\n\n${formatReleaseBody(dep.release.body)}`;
 	}).join("\n\n");
 }
