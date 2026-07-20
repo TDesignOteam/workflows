@@ -79,6 +79,14 @@ const COMPONENT_REPOSITORIES = new Set([
   'tdesign-vue-next',
 ])
 
+const SNAPSHOT_UPDATE_SCRIPTS: Record<string, string> = {
+  'tdesign-mobile-react': 'test:update',
+  'tdesign-mobile-vue': 'test:update',
+  'tdesign-react': 'test:update',
+  'tdesign-vue': 'test:update',
+  'tdesign-vue-next': 'test:vue:update',
+}
+
 const NO_CHANGELOG_DEPENDENCIES = new Set([
   '@tdesign/site-components',
   '@tdesign/theme-generator',
@@ -499,6 +507,23 @@ export function getPnpmUpdateCommands(
   return commands
 }
 
+export function getSnapshotUpdateCommand(
+  packageManager: PackageManager,
+  deps: DependencyInfo[],
+  targetRepo: string,
+  repoPath: string,
+): PnpmUpdateCommand | undefined {
+  if (!deps.some(dep => /^tdesign-icons(?:-|$)/.test(dep.name)))
+    return undefined
+
+  const script = SNAPSHOT_UPDATE_SCRIPTS[targetRepo]
+  if (!script)
+    return undefined
+
+  const args = packageManager === 'npm' ? ['run', script] : [script]
+  return { args, cwd: repoPath }
+}
+
 async function preparePnpmCatalogUpdates(
   workspaceFile: string,
   deps: DependencyInfo[],
@@ -560,12 +585,16 @@ async function updatePnpmDependencies(deps: DependencyInfo[], repo: string, targ
 export async function updatePackageDependencies(packageManager: PackageManager, deps: DependencyInfo[], repo: string, targetDir: string): Promise<void> {
   if (packageManager === 'pnpm') {
     await updatePnpmDependencies(deps, repo, targetDir)
-    return
+  }
+  else {
+    const repoPath = getRepoPath(repo, targetDir)
+    const { cmd, args } = PACKAGE_MANAGER_COMMANDS[packageManager]
+    await exec.exec(cmd, [...args, ...deps.map(dep => dep.name)], { cwd: repoPath })
   }
 
-  const repoPath = getRepoPath(repo, targetDir)
-  const { cmd, args } = PACKAGE_MANAGER_COMMANDS[packageManager]
-  await exec.exec(cmd, [...args, ...deps.map(dep => dep.name)], { cwd: repoPath })
+  const snapshotCommand = getSnapshotUpdateCommand(packageManager, deps, repo, getRepoPath(repo, ''))
+  if (snapshotCommand)
+    await exec.exec(packageManager, snapshotCommand.args, { cwd: snapshotCommand.cwd })
 }
 
 export async function readPullRequestTemplate(repoPath: string): Promise<string | undefined> {

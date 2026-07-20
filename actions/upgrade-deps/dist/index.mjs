@@ -27938,6 +27938,13 @@ const COMPONENT_REPOSITORIES = /* @__PURE__ */ new Set([
 	"tdesign-vue",
 	"tdesign-vue-next"
 ]);
+const SNAPSHOT_UPDATE_SCRIPTS = {
+	"tdesign-mobile-react": "test:update",
+	"tdesign-mobile-vue": "test:update",
+	"tdesign-react": "test:update",
+	"tdesign-vue": "test:update",
+	"tdesign-vue-next": "test:vue:update"
+};
 const NO_CHANGELOG_DEPENDENCIES = /* @__PURE__ */ new Set(["@tdesign/site-components", "@tdesign/theme-generator"]);
 const NO_CHANGELOG_CHECKBOX = "- [x] 本条 PR 不需要纳入 Changelog";
 const CHANGELOG_TARGET_SECTIONS = {
@@ -28217,6 +28224,15 @@ function getPnpmUpdateCommands(deps, catalogDependencies, targetPath, workspaceD
 	});
 	return commands;
 }
+function getSnapshotUpdateCommand(packageManager, deps, targetRepo, repoPath) {
+	if (!deps.some((dep) => /^tdesign-icons(?:-|$)/.test(dep.name))) return void 0;
+	const script = SNAPSHOT_UPDATE_SCRIPTS[targetRepo];
+	if (!script) return void 0;
+	return {
+		args: packageManager === "npm" ? ["run", script] : [script],
+		cwd: repoPath
+	};
+}
 async function preparePnpmCatalogUpdates(workspaceFile, deps) {
 	const workspaceContent = await readFile(workspaceFile, "utf8");
 	const catalogResult = updatePnpmCatalogs(workspaceContent, deps);
@@ -28274,13 +28290,14 @@ async function updatePnpmDependencies(deps, repo, targetDir) {
 	for (const command of commands) await exec("pnpm", command.args, { cwd: command.cwd });
 }
 async function updatePackageDependencies(packageManager, deps, repo, targetDir) {
-	if (packageManager === "pnpm") {
-		await updatePnpmDependencies(deps, repo, targetDir);
-		return;
+	if (packageManager === "pnpm") await updatePnpmDependencies(deps, repo, targetDir);
+	else {
+		const repoPath = getRepoPath(repo, targetDir);
+		const { cmd, args } = PACKAGE_MANAGER_COMMANDS[packageManager];
+		await exec(cmd, [...args, ...deps.map((dep) => dep.name)], { cwd: repoPath });
 	}
-	const repoPath = getRepoPath(repo, targetDir);
-	const { cmd, args } = PACKAGE_MANAGER_COMMANDS[packageManager];
-	await exec(cmd, [...args, ...deps.map((dep) => dep.name)], { cwd: repoPath });
+	const snapshotCommand = getSnapshotUpdateCommand(packageManager, deps, repo, getRepoPath(repo, ""));
+	if (snapshotCommand) await exec(packageManager, snapshotCommand.args, { cwd: snapshotCommand.cwd });
 }
 async function readPullRequestTemplate(repoPath) {
 	for (const templatePath of PR_TEMPLATE_PATHS) try {

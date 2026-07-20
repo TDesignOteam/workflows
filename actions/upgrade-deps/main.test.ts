@@ -13,6 +13,7 @@ import {
   getChangelogMarkdown,
   getPnpmUpdateCommands,
   getPrTitle,
+  getSnapshotUpdateCommand,
   parseDependencyInputs,
   parseGithubRepository,
   resolveDependencyInfos,
@@ -128,6 +129,11 @@ describe('升级依赖', () => {
     expect(exec.exec).toHaveBeenLastCalledWith('npm', ['install', 'vite'], { cwd: './tdesign-vue-next' })
   })
 
+  it('icons 依赖升级后执行快照更新命令', async () => {
+    await updatePackageDependencies('npm', [{ name: 'tdesign-icons-vue-next', version: '0.4.6' }], 'tdesign-vue-next', '')
+    expect(exec.exec).toHaveBeenLastCalledWith('npm', ['run', 'test:vue:update'], { cwd: './tdesign-vue-next' })
+  })
+
   it('从 target-dir 查找最近的 pnpm workspace 且不越出 clone', async () => {
     const tempDir = await mkdtemp(path.join(tmpdir(), 'upgrade-deps-'))
     const cloneRoot = path.join(tempDir, 'repo')
@@ -241,6 +247,19 @@ catalogs:
         cwd: '/repo',
       },
     ])
+  })
+
+  it('升级 icons 依赖后更新对应仓库快照', () => {
+    expect(getSnapshotUpdateCommand('pnpm', [{ name: 'tdesign-icons-vue-next', version: '0.4.6' }], 'tdesign-vue-next', './tdesign-vue-next')).toEqual({
+      args: ['test:vue:update'],
+      cwd: './tdesign-vue-next',
+    })
+    expect(getSnapshotUpdateCommand('npm', [{ name: 'tdesign-icons-react', version: '0.6.6' }], 'tdesign-react', './tdesign-react')).toEqual({
+      args: ['run', 'test:update'],
+      cwd: './tdesign-react',
+    })
+    expect(getSnapshotUpdateCommand('pnpm', [{ name: 'vite', version: '7.0.0' }], 'tdesign-vue-next', './tdesign-vue-next')).toBeUndefined()
+    expect(getSnapshotUpdateCommand('pnpm', [{ name: 'tdesign-icons-view', version: '0.5.7' }], 'tdesign', './tdesign')).toBeUndefined()
   })
 
   it('解析 npm 常见的 GitHub 仓库地址', () => {
