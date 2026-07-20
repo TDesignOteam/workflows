@@ -28033,13 +28033,13 @@ function updatePnpmCatalogs(content, deps) {
 		content: updatedContent
 	};
 }
-function updatePackageManifestVersions(content, deps, manifestPath = "package.json") {
+function updatePackageManifestVersions(content, deps, manifestPath = "package.json", dependencyFields = DEPENDENCY_FIELDS) {
 	const errors = [];
 	const manifest = parse(content, errors, { allowTrailingComma: true });
 	if (errors.length || !manifest || typeof manifest !== "object" || Array.isArray(manifest)) throw new Error(`Failed to parse ${manifestPath}`);
 	let updatedContent = content;
 	let updated = false;
-	for (const field of DEPENDENCY_FIELDS) {
+	for (const field of dependencyFields) {
 		const dependencies = manifest[field];
 		if (!dependencies || typeof dependencies !== "object" || Array.isArray(dependencies)) continue;
 		for (const dep of deps) {
@@ -28057,6 +28057,32 @@ function updatePackageManifestVersions(content, deps, manifestPath = "package.js
 		content: updatedContent,
 		updated
 	};
+}
+async function updatePeerDependencyVersions(packagePaths, deps, cloneRoot) {
+	let root;
+	try {
+		root = await realpath(path.resolve(cloneRoot));
+	} catch (error) {
+		if (error.code === "ENOENT") return;
+		throw error;
+	}
+	const updates = await Promise.all(packagePaths.map(async (packagePath) => {
+		const manifestPath = path.join(packagePath, "package.json");
+		let resolvedManifestPath;
+		try {
+			resolvedManifestPath = await realpath(manifestPath);
+			if (!isPathWithin(root, resolvedManifestPath)) throw new Error(`Package manifest is outside the clone: ${manifestPath}`);
+		} catch (error) {
+			if (error.code === "ENOENT") return void 0;
+			throw error;
+		}
+		const result = updatePackageManifestVersions(await readFile(resolvedManifestPath, "utf8"), deps, resolvedManifestPath, ["peerDependencies"]);
+		return result.updated ? {
+			content: result.content,
+			filePath: resolvedManifestPath
+		} : void 0;
+	}));
+	await Promise.all(updates.filter((update) => update !== void 0).map((update) => writeFile(update.filePath, update.content, "utf8")));
 }
 function parseGithubRepository(repositoryUrl) {
 	if (!repositoryUrl) return void 0;
@@ -28271,12 +28297,14 @@ async function updatePnpmDependencies(deps, repo, targetDir) {
 			"--latest",
 			...deps.map((dep) => dep.name)
 		], { cwd: targetPath });
+		await updatePeerDependencyVersions([targetPath], deps, cloneRoot);
 		return;
 	}
 	const { catalogDependencies, updates } = await preparePnpmCatalogUpdates(workspaceFile, deps);
 	await Promise.all(updates.map((update) => writeFile(update.filePath, update.content, "utf8")));
 	const commands = getPnpmUpdateCommands(deps, catalogDependencies, targetPath, path.dirname(workspaceFile));
 	for (const command of commands) await exec("pnpm", command.args, { cwd: command.cwd });
+	await updatePeerDependencyVersions(await listPnpmWorkspacePackagePaths(path.dirname(workspaceFile)), deps, cloneRoot);
 }
 async function updatePackageDependencies(packageManager, deps, repo, targetDir) {
 	if (packageManager === "pnpm") {
@@ -28286,6 +28314,7 @@ async function updatePackageDependencies(packageManager, deps, repo, targetDir) 
 	const repoPath = getRepoPath(repo, targetDir);
 	const { cmd, args } = PACKAGE_MANAGER_COMMANDS[packageManager];
 	await exec(cmd, [...args, ...deps.map((dep) => dep.name)], { cwd: repoPath });
+	await updatePeerDependencyVersions([repoPath], deps, getRepoPath(repo, ""));
 }
 async function readPullRequestTemplate(repoPath) {
 	for (const templatePath of PR_TEMPLATE_PATHS) try {
