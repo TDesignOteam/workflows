@@ -97,8 +97,6 @@ type PackageManager = keyof typeof PACKAGE_MANAGER_COMMANDS
 const DEPENDENCY_FIELDS = [
   'dependencies',
   'devDependencies',
-  'optionalDependencies',
-  'peerDependencies',
 ] as const
 
 type DependencyField = typeof DEPENDENCY_FIELDS[number]
@@ -277,45 +275,6 @@ export function updatePackageManifestVersions(
   }
 
   return { content: updatedContent, updated }
-}
-
-export async function updatePeerDependencyVersions(
-  packagePaths: string[],
-  deps: DependencyInfo[],
-  cloneRoot: string,
-): Promise<void> {
-  let root: string
-  try {
-    root = await realpath(path.resolve(cloneRoot))
-  }
-  catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT')
-      return
-    throw error
-  }
-
-  const updates = await Promise.all(packagePaths.map(async (packagePath): Promise<FileUpdate | undefined> => {
-    const manifestPath = path.join(packagePath, 'package.json')
-    let resolvedManifestPath: string
-    try {
-      resolvedManifestPath = await realpath(manifestPath)
-      if (!isPathWithin(root, resolvedManifestPath))
-        throw new Error(`Package manifest is outside the clone: ${manifestPath}`)
-    }
-    catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT')
-        return undefined
-      throw error
-    }
-
-    const content = await readFile(resolvedManifestPath, 'utf8')
-    const result = updatePackageManifestVersions(content, deps, resolvedManifestPath, ['peerDependencies'])
-    return result.updated ? { content: result.content, filePath: resolvedManifestPath } : undefined
-  }))
-
-  await Promise.all(updates
-    .filter((update): update is FileUpdate => update !== undefined)
-    .map(update => writeFile(update.filePath, update.content, 'utf8')))
 }
 
 export function parseGithubRepository(repositoryUrl?: string): GithubRepository | undefined {
@@ -586,7 +545,6 @@ async function updatePnpmDependencies(deps: DependencyInfo[], repo: string, targ
   const workspaceFile = await findPnpmWorkspaceFile(targetPath, cloneRoot)
   if (!workspaceFile) {
     await exec.exec('pnpm', ['-r', 'up', '--latest', ...deps.map(dep => dep.name)], { cwd: targetPath })
-    await updatePeerDependencyVersions([targetPath], deps, cloneRoot)
     return
   }
 
@@ -597,11 +555,6 @@ async function updatePnpmDependencies(deps: DependencyInfo[], repo: string, targ
   for (const command of commands) {
     await exec.exec('pnpm', command.args, { cwd: command.cwd })
   }
-  await updatePeerDependencyVersions(
-    await listPnpmWorkspacePackagePaths(path.dirname(workspaceFile)),
-    deps,
-    cloneRoot,
-  )
 }
 
 export async function updatePackageDependencies(packageManager: PackageManager, deps: DependencyInfo[], repo: string, targetDir: string): Promise<void> {
@@ -613,7 +566,6 @@ export async function updatePackageDependencies(packageManager: PackageManager, 
   const repoPath = getRepoPath(repo, targetDir)
   const { cmd, args } = PACKAGE_MANAGER_COMMANDS[packageManager]
   await exec.exec(cmd, [...args, ...deps.map(dep => dep.name)], { cwd: repoPath })
-  await updatePeerDependencyVersions([repoPath], deps, getRepoPath(repo, ''))
 }
 
 export async function readPullRequestTemplate(repoPath: string): Promise<string | undefined> {

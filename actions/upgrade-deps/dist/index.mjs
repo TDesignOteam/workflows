@@ -27945,12 +27945,7 @@ const CHANGELOG_TARGET_SECTIONS = {
 	"tdesign-react": ["tdesign-react"],
 	"tdesign-vue-next": ["tdesign-vue-next"]
 };
-const DEPENDENCY_FIELDS = [
-	"dependencies",
-	"devDependencies",
-	"optionalDependencies",
-	"peerDependencies"
-];
+const DEPENDENCY_FIELDS = ["dependencies", "devDependencies"];
 const SEMVER_PATTERN = /^([~^]?)((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[a-z-][0-9a-z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-z-][0-9a-z-]*))*)?(?:\+[0-9a-z-]+(?:\.[0-9a-z-]+)*)?)$/i;
 function slugify(value) {
 	return value.replace(/@/g, "").replace(/[^\w.-]+/g, "-").replace(/^-+|-+$/g, "");
@@ -28057,32 +28052,6 @@ function updatePackageManifestVersions(content, deps, manifestPath = "package.js
 		content: updatedContent,
 		updated
 	};
-}
-async function updatePeerDependencyVersions(packagePaths, deps, cloneRoot) {
-	let root;
-	try {
-		root = await realpath(path.resolve(cloneRoot));
-	} catch (error) {
-		if (error.code === "ENOENT") return;
-		throw error;
-	}
-	const updates = await Promise.all(packagePaths.map(async (packagePath) => {
-		const manifestPath = path.join(packagePath, "package.json");
-		let resolvedManifestPath;
-		try {
-			resolvedManifestPath = await realpath(manifestPath);
-			if (!isPathWithin(root, resolvedManifestPath)) throw new Error(`Package manifest is outside the clone: ${manifestPath}`);
-		} catch (error) {
-			if (error.code === "ENOENT") return void 0;
-			throw error;
-		}
-		const result = updatePackageManifestVersions(await readFile(resolvedManifestPath, "utf8"), deps, resolvedManifestPath, ["peerDependencies"]);
-		return result.updated ? {
-			content: result.content,
-			filePath: resolvedManifestPath
-		} : void 0;
-	}));
-	await Promise.all(updates.filter((update) => update !== void 0).map((update) => writeFile(update.filePath, update.content, "utf8")));
 }
 function parseGithubRepository(repositoryUrl) {
 	if (!repositoryUrl) return void 0;
@@ -28297,14 +28266,12 @@ async function updatePnpmDependencies(deps, repo, targetDir) {
 			"--latest",
 			...deps.map((dep) => dep.name)
 		], { cwd: targetPath });
-		await updatePeerDependencyVersions([targetPath], deps, cloneRoot);
 		return;
 	}
 	const { catalogDependencies, updates } = await preparePnpmCatalogUpdates(workspaceFile, deps);
 	await Promise.all(updates.map((update) => writeFile(update.filePath, update.content, "utf8")));
 	const commands = getPnpmUpdateCommands(deps, catalogDependencies, targetPath, path.dirname(workspaceFile));
 	for (const command of commands) await exec("pnpm", command.args, { cwd: command.cwd });
-	await updatePeerDependencyVersions(await listPnpmWorkspacePackagePaths(path.dirname(workspaceFile)), deps, cloneRoot);
 }
 async function updatePackageDependencies(packageManager, deps, repo, targetDir) {
 	if (packageManager === "pnpm") {
@@ -28314,7 +28281,6 @@ async function updatePackageDependencies(packageManager, deps, repo, targetDir) 
 	const repoPath = getRepoPath(repo, targetDir);
 	const { cmd, args } = PACKAGE_MANAGER_COMMANDS[packageManager];
 	await exec(cmd, [...args, ...deps.map((dep) => dep.name)], { cwd: repoPath });
-	await updatePeerDependencyVersions([repoPath], deps, getRepoPath(repo, ""));
 }
 async function readPullRequestTemplate(repoPath) {
 	for (const templatePath of PR_TEMPLATE_PATHS) try {

@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import * as exec from '@actions/exec'
@@ -18,7 +18,6 @@ import {
   resolveDependencyInfos,
   updatePackageDependencies,
   updatePackageManifestVersions,
-  updatePeerDependencyVersions,
   updatePnpmCatalogs,
   updateVersionSpecifier,
   validatePackageManager,
@@ -189,7 +188,7 @@ catalogs:
     expect(result.content).toContain('eslint: ^9.0.0')
   })
 
-  it('更新 JSONC 中与 catalog 依赖混用的直接版本声明', () => {
+  it('只更新 JSONC 中的 dependencies 和 devDependencies', () => {
     const content = `{
   // catalog and direct declarations can coexist
   "dependencies": {
@@ -209,25 +208,7 @@ catalogs:
     expect(result.content).toContain('// catalog and direct declarations can coexist')
     expect(result.content).toContain('"vite": "catalog:build"')
     expect(result.content).toContain('"vite": "^7.0.0"')
-    expect(result.content).toContain('"vite": "~7.0.0"')
-  })
-
-  it('包管理器执行后更新 peerDependencies 版本', async () => {
-    const tempDir = await mkdtemp(path.join(tmpdir(), 'upgrade-deps-'))
-    try {
-      await writeFile(path.join(tempDir, 'package.json'), `{
-  "peerDependencies": {
-    "vite": "^6.0.0"
-  }
-}`)
-
-      await updatePeerDependencyVersions([tempDir], [{ name: 'vite', version: '7.0.0' }], tempDir)
-
-      await expect(readFile(path.join(tempDir, 'package.json'), 'utf8')).resolves.toContain('"vite": "^7.0.0"')
-    }
-    finally {
-      await rm(tempDir, { force: true, recursive: true })
-    }
+    expect(result.content).toContain('"vite": "~6.0.0"')
   })
 
   it('复杂 catalog 或直接版本声明会中止更新', () => {
