@@ -565,12 +565,19 @@ async function preparePnpmCatalogUpdates(
   return { catalogDependencies: catalogResult.catalogDependencies, updates }
 }
 
+async function printPnpmLockfileDiff(workspaceDir: string): Promise<void> {
+  core.startGroup('pnpm-lock.yaml diff')
+  await exec.exec('git', ['diff', '--', 'pnpm-lock.yaml'], { cwd: workspaceDir })
+  core.endGroup()
+}
+
 async function updatePnpmDependencies(deps: DependencyInfo[], repo: string, targetDir: string): Promise<void> {
   const cloneRoot = getRepoPath(repo, '')
   const targetPath = getRepoPath(repo, targetDir)
   const workspaceFile = await findPnpmWorkspaceFile(targetPath, cloneRoot)
   if (!workspaceFile) {
     await exec.exec('pnpm', ['-r', 'up', '--latest', ...deps.map(dep => dep.name)], { cwd: targetPath })
+    await printPnpmLockfileDiff(targetPath)
     return
   }
 
@@ -587,6 +594,7 @@ async function updatePnpmDependencies(deps: DependencyInfo[], repo: string, targ
       ...(env ? { env: { ...env, CI: 'false' } } : {}),
     })
   }
+  await printPnpmLockfileDiff(path.dirname(workspaceFile))
 }
 
 export async function updatePackageDependencies(packageManager: PackageManager, deps: DependencyInfo[], repo: string, targetDir: string): Promise<void> {

@@ -28272,6 +28272,15 @@ async function preparePnpmCatalogUpdates(workspaceFile, deps) {
 		updates
 	};
 }
+async function printPnpmLockfileDiff(workspaceDir) {
+	startGroup("pnpm-lock.yaml diff");
+	await exec("git", [
+		"diff",
+		"--",
+		"pnpm-lock.yaml"
+	], { cwd: workspaceDir });
+	endGroup();
+}
 async function updatePnpmDependencies(deps, repo, targetDir) {
 	const cloneRoot = getRepoPath(repo, "");
 	const targetPath = getRepoPath(repo, targetDir);
@@ -28283,6 +28292,7 @@ async function updatePnpmDependencies(deps, repo, targetDir) {
 			"--latest",
 			...deps.map((dep) => dep.name)
 		], { cwd: targetPath });
+		await printPnpmLockfileDiff(targetPath);
 		return;
 	}
 	const { catalogDependencies, updates } = await preparePnpmCatalogUpdates(workspaceFile, deps);
@@ -28298,6 +28308,7 @@ async function updatePnpmDependencies(deps, repo, targetDir) {
 			} } : {}
 		});
 	}
+	await printPnpmLockfileDiff(path.dirname(workspaceFile));
 }
 async function updatePackageDependencies(packageManager, deps, repo, targetDir) {
 	if (packageManager === "pnpm") await updatePnpmDependencies(deps, repo, targetDir);
