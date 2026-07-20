@@ -1,5 +1,5 @@
 name: Upgrade Dependencies
-description: Upgrade dependencies to specified versions
+description: Upgrade dependencies to their latest versions
 
 inputs:
   token:
@@ -20,14 +20,14 @@ inputs:
     required: false
     default: npm
   deps:
-    description: Dependencies to upgrade in format "package1@version1 package2@version2"
+    description: Package names to upgrade, separated by spaces or newlines
     required: true
   target-dir:
     description: Target directory to upgrade dependencies
     required: false
     default: ''
   title:
-    description: "Custom PR title (optional, defaults to 'chore(deps): upgrade ...')"
+    description: "Custom PR title (optional, defaults to 'chore: upgrade ...')"
     required: false
     default: ''
 

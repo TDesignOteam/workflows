@@ -30,12 +30,18 @@ catalogs:
     eslint:
       specifier: ^10.7.0
       version: 10.7.0
+    jsonc-parser:
+      specifier: ^3.3.1
+      version: 3.3.1
     tsdown:
       specifier: ^0.22.5
       version: 0.22.5
     vitest:
       specifier: ^4.1.10
       version: 4.1.10
+    yaml:
+      specifier: ^2.9.0
+      version: 2.9.0
 
 importers:
 
@@ -138,6 +144,12 @@ importers:
       '@workflows/utils':
         specifier: workspace:*
         version: link:../../packages/utils
+      jsonc-parser:
+        specifier: 'catalog:'
+        version: 3.3.1
+      yaml:
+        specifier: 'catalog:'
+        version: 2.9.0
     devDependencies:
       '@octokit/plugin-rest-endpoint-methods':
         specifier: 'catalog:'
@@ -1651,6 +1663,9 @@ packages:
     resolution: {integrity: sha512-75EA7EWZExL/j+MDKQrRbdzcRI2HOkRlmUw8fZJc1ioqFEOvBsq7Rt+A6yCxOt9w/TYNpkt52gC6nm/g5tFIng==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
 
+  jsonc-parser@3.3.1:
+    resolution: {integrity: sha512-HUgH65KyejrUFPvHFPbqOY0rsFip3Bo5wb4ngvdi1EpCYWUQDC5V+Y7mZws+DLkr4M//zQJoanu1SP+87Dv1oQ==}
+
   katex@0.16.45:
     resolution: {integrity: sha512-pQpZbdBu7wCTmQUh7ufPmLr0pFoObnGUoL/yhtwJDgmmQpbkg/0HSVti25Fu4rmd1oCR6NGWe9vqTWuWv3GcNA==}
     hasBin: true
@@ -2348,11 +2363,6 @@ packages:
   yaml-eslint-parser@2.0.0:
     resolution: {integrity: sha512-h0uDm97wvT2bokfwwTmY6kJ1hp6YDFL0nRHwNKz8s/VD1FH/vvZjAKoMUE+un0eaYBSG7/c6h+lJTP+31tjgTw==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
-
-  yaml@2.8.2:
-    resolution: {integrity: sha512-mplynKqc1C2hTVYxd0PU2xQAc22TI1vShAYGksCCfxbn/dFwnHTNi1bvYsBTkhdUNtGIf5xNOg938rrSSYvS9A==}
-    engines: {node: '>= 14.6'}
-    hasBin: true
 
   yaml@2.9.0:
     resolution: {integrity: sha512-2AvhNX3mb8zd6Zy7INTtSpl1F15HW6Wnqj0srWlkKLcpYl/gMIMJiyuGq2KeI2YFxUPjdlB+3Lc10seMLtL4cA==}
@@ -3792,6 +3802,8 @@ snapshots:
       eslint-visitor-keys: 5.0.1
       semver: 7.8.5
 
+  jsonc-parser@3.3.1: {}
+
   katex@0.16.45:
     dependencies:
       commander: 8.3.0
@@ -4615,9 +4627,7 @@ snapshots:
   yaml-eslint-parser@2.0.0:
     dependencies:
       eslint-visitor-keys: 5.0.1
-      yaml: 2.8.2
-
-  yaml@2.8.2: {}
+      yaml: 2.9.0
 
   yaml@2.9.0: {}
 
