@@ -1,6 +1,7 @@
 import type { ParseError } from 'jsonc-parser'
 import { readFile, realpath, writeFile } from 'node:fs/promises'
 import * as path from 'node:path'
+import { env as processEnv } from 'node:process'
 import * as core from '@actions/core'
 import * as exec from '@actions/exec'
 import * as github from '@actions/github'
@@ -502,7 +503,7 @@ export function getPnpmUpdateCommands(
     })
   }
   if (catalogDependencies.length)
-    commands.push({ args: ['install', '--no-frozen-lockfile'], cwd: workspaceDir })
+    commands.push({ args: ['install'], cwd: workspaceDir })
 
   return commands
 }
@@ -578,7 +579,13 @@ async function updatePnpmDependencies(deps: DependencyInfo[], repo: string, targ
 
   const commands = getPnpmUpdateCommands(deps, catalogDependencies, targetPath, path.dirname(workspaceFile))
   for (const command of commands) {
-    await exec.exec('pnpm', command.args, { cwd: command.cwd })
+    const env = command.args[0] === 'install'
+      ? Object.fromEntries(Object.entries(processEnv).filter((entry): entry is [string, string] => entry[1] !== undefined))
+      : undefined
+    await exec.exec('pnpm', command.args, {
+      cwd: command.cwd,
+      ...(env ? { env: { ...env, CI: 'false' } } : {}),
+    })
   }
 }
 

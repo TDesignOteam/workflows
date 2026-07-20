@@ -10,6 +10,7 @@ import * as child from "child_process";
 import { setTimeout as setTimeout$1 } from "timers";
 import { readFile, realpath, writeFile } from "node:fs/promises";
 import * as path from "node:path";
+import { env } from "node:process";
 //#region \0rolldown/runtime.js
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -28219,7 +28220,7 @@ function getPnpmUpdateCommands(deps, catalogDependencies, targetPath, workspaceD
 		cwd: targetPath
 	});
 	if (catalogDependencies.length) commands.push({
-		args: ["install", "--no-frozen-lockfile"],
+		args: ["install"],
 		cwd: workspaceDir
 	});
 	return commands;
@@ -28287,7 +28288,16 @@ async function updatePnpmDependencies(deps, repo, targetDir) {
 	const { catalogDependencies, updates } = await preparePnpmCatalogUpdates(workspaceFile, deps);
 	await Promise.all(updates.map((update) => writeFile(update.filePath, update.content, "utf8")));
 	const commands = getPnpmUpdateCommands(deps, catalogDependencies, targetPath, path.dirname(workspaceFile));
-	for (const command of commands) await exec("pnpm", command.args, { cwd: command.cwd });
+	for (const command of commands) {
+		const env$1 = command.args[0] === "install" ? Object.fromEntries(Object.entries(env).filter((entry) => entry[1] !== void 0)) : void 0;
+		await exec("pnpm", command.args, {
+			cwd: command.cwd,
+			...env$1 ? { env: {
+				...env$1,
+				CI: "false"
+			} } : {}
+		});
+	}
 }
 async function updatePackageDependencies(packageManager, deps, repo, targetDir) {
 	if (packageManager === "pnpm") await updatePnpmDependencies(deps, repo, targetDir);
