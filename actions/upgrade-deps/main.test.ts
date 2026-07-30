@@ -96,7 +96,7 @@ describe('升级依赖', () => {
     expect(exec.exec).toHaveBeenLastCalledWith('npm', ['install', 'vite'], { cwd: './tdesign-vue-next' })
 
     await updatePackageDependencies('pnpm', ['@tdesign/site-components'], 'tdesign-vue-next', 'site')
-    expect(exec.exec).toHaveBeenLastCalledWith('pnpm', ['up', '--latest', '@tdesign/site-components'], { cwd: 'tdesign-vue-next/site' })
+    expect(exec.exec).toHaveBeenLastCalledWith('pnpm', ['up', '-r', '--latest', '@tdesign/site-components'], { cwd: 'tdesign-vue-next/site' })
   })
 
   it('生成分支名和默认 PR 标题', () => {
