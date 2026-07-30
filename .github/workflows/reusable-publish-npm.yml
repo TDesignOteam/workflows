@@ -52,7 +52,7 @@ on:
 jobs:
   publish-npm:
     runs-on: ubuntu-latest
-    if: github.event.ref_type == 'tag' && !inputs.publish-npm
+    if: github.event.ref_type == 'tag' && !inputs.skip-publish-npm
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -89,7 +89,7 @@ jobs:
 
   publish-tag-website:
     runs-on: ubuntu-latest
-    if: github.event.ref_type == 'tag' && !inputs.publish-tag-website
+    if: github.event.ref_type == 'tag' && !inputs.skip-publish-tag-website
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -124,7 +124,7 @@ jobs:
 
   publish-official-website:
     runs-on: ubuntu-latest
-    if: github.event.ref_type == 'tag' && !inputs.publish-official-website
+    if: github.event.ref_type == 'tag' && !inputs.skip-publish-official-website
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
