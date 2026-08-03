@@ -21,11 +21,11 @@ jobs:
     if: ${{ inputs.github-repo == github.repository && github.event_name == 'push' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
-      - uses: docker://tencentcom/git-sync@sha256:233c89bd41472ea530322509cc624604ac6c3cc566feebdfbab66d827aac73b7
+      - uses: docker://tencentcom/git-sync@sha256:b7c4672616ddea5b89948dcd034610b29d37d8430e74b4bc83b421c963c25f77
         env:
           PLUGIN_TARGET_URL: https://cnb.cool/${{ inputs.cnb-repo }}.git
           PLUGIN_AUTH_TYPE: https
