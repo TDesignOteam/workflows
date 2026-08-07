@@ -13,12 +13,12 @@ catalog:
   '@actions/core': ^3.0.1
   '@actions/exec': ^3.0.0
   '@actions/github': ^9.1.1
-  '@antfu/eslint-config': ^9.1.0
-  '@octokit/plugin-rest-endpoint-methods': ^17.0.0
+  '@antfu/eslint-config': ^9.2.0
+  '@octokit/plugin-rest-endpoint-methods': ^18.0.0
   '@types/node': ^24.13.3
   '@typescript/native-preview': 7.0.0-dev.20260707.2
-  eslint: ^10.7.0
+  eslint: ^10.8.0
   jsonc-parser: ^3.3.1
-  tsdown: ^0.22.5
+  tsdown: ^0.22.14
   vitest: ^4.1.10
   yaml: ^2.9.0
