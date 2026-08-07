@@ -21292,6 +21292,352 @@ function applyEdits(text, edits) {
 	return text;
 }
 //#endregion
+//#region constants.ts
+const PACKAGE_MANAGER_COMMANDS = {
+	pnpm: {
+		cmd: "pnpm",
+		args: [
+			"up",
+			"-r",
+			"--latest"
+		]
+	},
+	yarn: {
+		cmd: "yarn",
+		args: ["upgrade", "--latest"]
+	},
+	npm: {
+		cmd: "npm",
+		args: ["install"]
+	}
+};
+const PR_TEMPLATE_PATHS = [
+	".github/PULL_REQUEST_TEMPLATE.md",
+	".github/pull_request_template.md",
+	"PULL_REQUEST_TEMPLATE.md",
+	"pull_request_template.md",
+	"docs/PULL_REQUEST_TEMPLATE.md",
+	"docs/pull_request_template.md"
+];
+const COMPONENT_REPOSITORIES = /* @__PURE__ */ new Set([
+	"tdesign-flutter",
+	"tdesign-miniprogram",
+	"tdesign-mobile-react",
+	"tdesign-mobile-vue",
+	"tdesign-react",
+	"tdesign-vue",
+	"tdesign-vue-next"
+]);
+const NO_CHANGELOG_DEPENDENCIES = /* @__PURE__ */ new Set(["@tdesign/site-components", "@tdesign/theme-generator"]);
+const NO_CHANGELOG_CHECKBOX = "- [x] 本条 PR 不需要纳入 Changelog";
+const CHANGELOG_TARGET_SECTIONS = {
+	"tdesign-miniprogram": ["tdesign-miniprogram", "@tdesign/uniapp"],
+	"tdesign-react": ["tdesign-react"],
+	"tdesign-vue-next": ["tdesign-vue-next"]
+};
+const DEPENDENCY_FIELDS = ["dependencies", "devDependencies"];
+const SEMVER_PATTERN = /^([~^]?)((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[a-z-][0-9a-z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-z-][0-9a-z-]*))*)?(?:\+[0-9a-z-]+(?:\.[0-9a-z-]+)*)?)$/i;
+//#endregion
+//#region dependencies.ts
+function slugify(value) {
+	return value.replace(/@/g, "").replace(/[^\w.-]+/g, "-").replace(/^-+|-+$/g, "");
+}
+function getBranchName(deps) {
+	return `chore/deps/upgrade-${deps.map((dep) => `${slugify(dep.name)}-${slugify(dep.version)}`).join("-")}`;
+}
+function getPrTitle(deps) {
+	return `chore: upgrade ${deps.map((dep) => `${dep.name} to ${dep.version}`).join(", ")}`;
+}
+function parseDependencyName(spec) {
+	const value = spec.trim();
+	if (!value) throw new Error("Empty dependency name");
+	if ((value.startsWith("@") ? value.indexOf("@", value.indexOf("/") + 1) : value.lastIndexOf("@")) > 0) throw new Error(`Dependency versions are not supported: ${spec}. Please pass package names only.`);
+	return value;
+}
+function parseDependencyInputs(inputs) {
+	const deps = inputs.flatMap((input) => input.split(/\s+/)).map((item) => item.trim()).filter(Boolean).map(parseDependencyName);
+	if (!deps.length) throw new Error("Missing deps input");
+	return deps;
+}
+function validatePackageManager(packageManager) {
+	if (packageManager in PACKAGE_MANAGER_COMMANDS) return packageManager;
+	throw new Error(`Unsupported package-manager "${packageManager}". Supported values: npm, yarn, pnpm.`);
+}
+function updateVersionSpecifier(specifier, version, location) {
+	const match = specifier.match(SEMVER_PATTERN);
+	if (!match) throw new Error(`Unsupported version specifier "${specifier}" for ${location}. Supported formats: ^1.2.3, ~1.2.3, or 1.2.3.`);
+	const target = version.match(SEMVER_PATTERN);
+	if (!target || target[1]) throw new Error(`Invalid target version "${version}" for ${location}`);
+	return `${match[1]}${target[2]}`;
+}
+function updatePackageManifestVersions(content, deps, manifestPath = "package.json", dependencyFields = DEPENDENCY_FIELDS) {
+	const errors = [];
+	const manifest = parse(content, errors, { allowTrailingComma: true });
+	if (errors.length || !manifest || typeof manifest !== "object" || Array.isArray(manifest)) throw new Error(`Failed to parse ${manifestPath}`);
+	let updatedContent = content;
+	let updated = false;
+	for (const field of dependencyFields) {
+		const dependencies = manifest[field];
+		if (!dependencies || typeof dependencies !== "object" || Array.isArray(dependencies)) continue;
+		for (const dep of deps) {
+			const specifier = dependencies[dep.name];
+			if (specifier === void 0) continue;
+			if (typeof specifier !== "string") throw new Error(`Unsupported version specifier for ${manifestPath}#${field}.${dep.name}: expected a string`);
+			if (specifier.startsWith("catalog:")) continue;
+			const nextSpecifier = updateVersionSpecifier(specifier, dep.version, `${manifestPath}#${field}.${dep.name}`);
+			if (nextSpecifier === specifier) continue;
+			updatedContent = applyEdits(updatedContent, modify(updatedContent, [field, dep.name], nextSpecifier, {}));
+			updated = true;
+		}
+	}
+	return {
+		content: updatedContent,
+		updated
+	};
+}
+async function fetchPackageVersion(pkg) {
+	try {
+		const response = await fetch(`https://registry.npmjs.org/${pkg}/latest`);
+		if (!response.ok) throw new Error(`status code: ${response.status}`);
+		const { version, repository } = await response.json();
+		if (!version) throw new Error("no version found");
+		const repositoryUrl = typeof repository === "string" ? repository : repository?.url;
+		const repositoryDirectory = typeof repository === "object" ? repository?.directory : void 0;
+		return {
+			name: pkg,
+			version,
+			...repositoryUrl ? { repositoryUrl } : {},
+			...repositoryDirectory ? { repositoryDirectory } : {}
+		};
+	} catch (error) {
+		throw new Error(`Failed to get ${pkg} info from npm registry: ${error instanceof Error ? error.message : String(error)}`);
+	}
+}
+function resolveDependencyInfos(deps) {
+	return Promise.all(deps.map(fetchPackageVersion));
+}
+//#endregion
+//#region github.ts
+function parseGithubRepository(repositoryUrl) {
+	if (!repositoryUrl) return void 0;
+	const normalized = repositoryUrl.replace(/^git\+/, "").replace(/^git@github\.com:/, "https://github.com/").replace(/^ssh:\/\/git@github\.com\//, "https://github.com/").replace(/^git:\/\/github\.com\//, "https://github.com/");
+	try {
+		const url = new URL(normalized);
+		if (url.hostname !== "github.com") return void 0;
+		const [owner, name] = url.pathname.replace(/^\//, "").split("/");
+		const repo = name?.replace(/\.git$/, "");
+		return owner && repo ? {
+			owner,
+			repo
+		} : void 0;
+	} catch {
+		return;
+	}
+}
+function getMarkdownHeading(line) {
+	const prefix = line.match(/^#{1,6}[ \t]+/);
+	return prefix ? line.slice(prefix[0].length).trim() : void 0;
+}
+function extractVersionChangelog(content, version) {
+	const pattern = new RegExp(`(?:^|[^0-9a-z])v?${version.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?=$|[^0-9a-z])`, "i");
+	const lines = content.split("\n");
+	const start = lines.findIndex((line) => {
+		const heading = getMarkdownHeading(line);
+		return heading !== void 0 && pattern.test(heading.replace(/\]\([^)]*\)/g, "]"));
+	});
+	if (start === -1) return void 0;
+	const level = lines[start].match(/^#+/)?.[0].length;
+	if (!level) return void 0;
+	const end = lines.findIndex((line, index) => index > start && (line.match(/^#{1,6}(?=[ \t])/)?.[0].length ?? 7) <= level);
+	return lines.slice(start, end === -1 ? void 0 : end).join("\n").trim();
+}
+async function fetchDependencyRelease(dep, token) {
+	const repository = parseGithubRepository(dep.repositoryUrl);
+	if (!repository) {
+		warning(`No GitHub repository found for ${dep.name}; skipping changelog`);
+		return;
+	}
+	const headers = {
+		"Accept": "application/vnd.github.raw+json",
+		"X-GitHub-Api-Version": "2022-11-28"
+	};
+	if (token && token !== "test") headers.Authorization = `Bearer ${token}`;
+	try {
+		const changelogPath = [...dep.repositoryDirectory?.split("/").filter(Boolean) ?? [], "CHANGELOG.md"].map(encodeURIComponent).join("/");
+		const response = await fetch(`https://api.github.com/repos/${repository.owner}/${repository.repo}/contents/${changelogPath}`, { headers });
+		if (response.status === 404) {
+			warning(`No CHANGELOG.md found for ${dep.name}`);
+			return;
+		}
+		if (!response.ok) throw new Error(`status code: ${response.status}`);
+		const body = extractVersionChangelog(await response.text(), dep.version);
+		if (!body) {
+			warning(`No ${dep.version} entry found in CHANGELOG.md for ${dep.name}`);
+			return;
+		}
+		const url = `https://github.com/${repository.owner}/${repository.repo}/blob/HEAD/${changelogPath}`;
+		return {
+			body,
+			tag: `${dep.name}@${dep.version}`,
+			url
+		};
+	} catch (error) {
+		warning(`Failed to get CHANGELOG.md for ${dep.name}@${dep.version}: ${error instanceof Error ? error.message : String(error)}`);
+		return;
+	}
+}
+function resolveDependencyReleases(deps, token) {
+	return Promise.all(deps.map(async (dep) => ({
+		...dep,
+		release: await fetchDependencyRelease(dep, token)
+	})));
+}
+async function readPullRequestTemplate(repoPath) {
+	for (const templatePath of PR_TEMPLATE_PATHS) try {
+		return await readFile(`${repoPath}/${templatePath}`, "utf8");
+	} catch (error) {
+		if (error.code !== "ENOENT") throw error;
+	}
+}
+//#endregion
+//#region pull-request.ts
+function heading(line) {
+	const prefix = line.match(/^#{1,6}[ \t]+/);
+	return prefix ? line.slice(prefix[0].length).trim() : void 0;
+}
+function insertAfter(body, target, content) {
+	const lines = body.split("\n");
+	const index = lines.findIndex((line) => {
+		const value = heading(line);
+		return value !== void 0 && (typeof target === "string" ? value === target : target.test(value));
+	});
+	if (index === -1) return {
+		body,
+		inserted: false
+	};
+	lines.splice(index + 1, 0, "", content);
+	return {
+		body: lines.join("\n"),
+		inserted: true
+	};
+}
+function formatReleaseBody(body) {
+	return body.trim().replace(/^(#{1,6})(?=\s)/gm, (value) => "#".repeat(Math.min(6, value.length + 3)));
+}
+function getDependencySummary(deps) {
+	return [
+		"自动升级以下依赖：",
+		"",
+		...deps.map((dep) => `- \`${dep.name}\` 升级至 \`${dep.version}\``)
+	].join("\n");
+}
+function getReleaseNotesMarkdown(deps) {
+	return deps.map((dep) => {
+		const npmUrl = `https://www.npmjs.com/package/${dep.name}/v/${dep.version}`;
+		return dep.release ? `#### [\`${dep.name}@${dep.version}\`](${dep.release.url})\n\n${formatReleaseBody(dep.release.body)}` : `#### [\`${dep.name}@${dep.version}\`](${npmUrl})\n\n未在仓库的 CHANGELOG.md 中找到对应版本日志。`;
+	}).join("\n\n");
+}
+function getChangelogType(value) {
+	const heading = value.toLowerCase();
+	if (/breaking changes?|破坏性/.test(heading)) return "feat!";
+	if (/bug fixes?|fixes|修复/.test(heading)) return "fix";
+	if (/features?|新特性|新增功能/.test(heading)) return "feat";
+	if (/performance|性能/.test(heading)) return "perf";
+	if (/documentation|\bdocs?\b|文档/.test(heading)) return "docs";
+	if (/refactor|重构/.test(heading)) return "refactor";
+	if (/tests?|测试/.test(heading)) return "test";
+	if (/\bci\b|持续集成/.test(heading)) return "ci";
+	if (/build|构建/.test(heading)) return "build";
+	if (/styles?|代码风格/.test(heading)) return "style";
+	if (/others?|其他/.test(heading)) return "chore";
+}
+function parseReleaseChangelog(body) {
+	const entries = [];
+	const parents = [];
+	let type;
+	for (const line of body.split("\n")) {
+		const value = heading(line);
+		if (value !== void 0) {
+			type = getChangelogType(value);
+			parents.length = 0;
+			continue;
+		}
+		const prefix = line.match(/^([ \t]*)[-*+][ \t]+/);
+		if (!prefix || !type) continue;
+		const indent = prefix[1].replace(/\t/g, "  ").length;
+		const text = line.slice(prefix[0].length).trim();
+		if (!text) continue;
+		while (parents.length && parents[parents.length - 1].indent >= indent) parents.pop();
+		if (text.endsWith(":")) {
+			parents.push({
+				indent,
+				text: text.slice(0, -1)
+			});
+			continue;
+		}
+		const parent = parents.map((item) => item.text).join(": ");
+		entries.push({
+			type,
+			text: parent ? `${parent}: ${text}` : text
+		});
+	}
+	return entries;
+}
+function formatType(type, scoped) {
+	const breaking = type.endsWith("!");
+	return `${breaking ? type.slice(0, -1) : type}${scoped ? "(Icon)" : ""}${breaking ? "!" : ""}`;
+}
+function getChangelogMarkdown(deps, targetRepo) {
+	const scoped = COMPONENT_REPOSITORIES.has(targetRepo);
+	return deps.filter((dep) => !NO_CHANGELOG_DEPENDENCIES.has(dep.name)).flatMap((dep) => {
+		const entries = dep.release ? parseReleaseChangelog(dep.release.body) : [];
+		return entries.length ? entries.map((entry) => `- ${formatType(entry.type, scoped)}: ${entry.text}`) : [`- ${formatType("chore", scoped)}: upgrade ${dep.name} to ${dep.version}`];
+	}).join("\n");
+}
+function buildNoChangelogBody(template) {
+	if (!template) return NO_CHANGELOG_CHECKBOX;
+	const body = template.trim();
+	const updated = body.replace(/^- \[ \] 本条 PR 不需要纳入 Changelog\r?$/m, NO_CHANGELOG_CHECKBOX);
+	return updated === body ? `${body}\n\n${NO_CHANGELOG_CHECKBOX}` : updated;
+}
+function fillCheckboxes(template) {
+	const labels = [
+		"其他",
+		"文档已补充或无须补充",
+		"代码演示已提供或无须提供",
+		"TypeScript 定义已补充或无须补充",
+		"Changelog 已提供或无须提供"
+	];
+	return template.replace(/^- \[ \] (.+)$/gm, (line, label) => labels.includes(label.trim()) ? line.replace("[ ]", "[x]") : line).replace(/^- fix\(组件名称\): 处理问题或特性描述 \.\.\.$/gm, "");
+}
+function insertChangelog(body, repo, changelog) {
+	let result = body;
+	let inserted = false;
+	for (const section of CHANGELOG_TARGET_SECTIONS[repo] ?? []) {
+		const update = insertAfter(result, section, changelog);
+		result = update.body;
+		inserted ||= update.inserted;
+	}
+	return inserted ? {
+		body: result,
+		inserted
+	} : insertAfter(result, /更新日志|changelog|release notes/i, changelog);
+}
+function buildPullRequestBody(template, deps, targetRepo) {
+	if (deps.length && deps.every((dep) => NO_CHANGELOG_DEPENDENCIES.has(dep.name))) return buildNoChangelogBody(template);
+	const background = `${getDependencySummary(deps)}\n\n${getReleaseNotesMarkdown(deps)}`;
+	const changelog = getChangelogMarkdown(deps, targetRepo);
+	if (!template) return `## 依赖升级\n\n${background}\n\n## 版本日志\n\n${changelog}`;
+	let body = fillCheckboxes(template.trim());
+	body = insertAfter(body, /相关 Issue|related issues?/i, "无").body;
+	const backgroundResult = insertAfter(body, /需求背景|解决方案|background|summary|description/i, background);
+	body = backgroundResult.body;
+	const changelogResult = insertChangelog(body, targetRepo, changelog);
+	body = changelogResult.body;
+	const fallback = [!backgroundResult.inserted ? `## 依赖升级\n\n${background}` : "", !changelogResult.inserted ? `## 版本日志\n\n${changelog}` : ""].filter(Boolean);
+	return fallback.length ? `${fallback.join("\n\n")}\n\n${body}` : body;
+}
+//#endregion
 //#region ../../node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/dist/nodes/identity.js
 var require_identity = /* @__PURE__ */ __commonJSMin(((exports) => {
 	const ALIAS = Symbol.for("yaml.alias");
@@ -27857,7 +28203,7 @@ var require_public_api = /* @__PURE__ */ __commonJSMin(((exports) => {
 	exports.stringify = stringify;
 }));
 //#endregion
-//#region main.ts
+//#region workspace.ts
 var import_dist = (/* @__PURE__ */ __commonJSMin(((exports) => {
 	var composer = require_composer();
 	var Document = require_Document();
@@ -27904,262 +28250,49 @@ var import_dist = (/* @__PURE__ */ __commonJSMin(((exports) => {
 	exports.visit = visit.visit;
 	exports.visitAsync = visit.visitAsync;
 })))();
-const PACKAGE_MANAGER_COMMANDS = {
-	pnpm: {
-		cmd: "pnpm",
-		args: [
-			"up",
-			"-r",
-			"--latest"
-		]
-	},
-	yarn: {
-		cmd: "yarn",
-		args: ["upgrade", "--latest"]
-	},
-	npm: {
-		cmd: "npm",
-		args: ["install"]
-	}
-};
-const PR_TEMPLATE_PATHS = [
-	".github/PULL_REQUEST_TEMPLATE.md",
-	".github/pull_request_template.md",
-	"PULL_REQUEST_TEMPLATE.md",
-	"pull_request_template.md",
-	"docs/PULL_REQUEST_TEMPLATE.md",
-	"docs/pull_request_template.md"
-];
-const COMPONENT_REPOSITORIES = /* @__PURE__ */ new Set([
-	"tdesign-flutter",
-	"tdesign-miniprogram",
-	"tdesign-mobile-react",
-	"tdesign-mobile-vue",
-	"tdesign-react",
-	"tdesign-vue",
-	"tdesign-vue-next"
-]);
-const SNAPSHOT_UPDATE_SCRIPTS = {
-	"tdesign-mobile-react": "test:update",
-	"tdesign-mobile-vue": "test:update",
-	"tdesign-react": "test:update",
-	"tdesign-vue": "test:update",
-	"tdesign-vue-next": "test:vue:update"
-};
-const NO_CHANGELOG_DEPENDENCIES = /* @__PURE__ */ new Set(["@tdesign/site-components", "@tdesign/theme-generator"]);
-const NO_CHANGELOG_CHECKBOX = "- [x] 本条 PR 不需要纳入 Changelog";
-const CHANGELOG_TARGET_SECTIONS = {
-	"tdesign-miniprogram": ["tdesign-miniprogram", "@tdesign/uniapp"],
-	"tdesign-react": ["tdesign-react"],
-	"tdesign-vue-next": ["tdesign-vue-next"]
-};
-const DEPENDENCY_FIELDS = ["dependencies", "devDependencies"];
-const SEMVER_PATTERN = /^([~^]?)((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[a-z-][0-9a-z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-z-][0-9a-z-]*))*)?(?:\+[0-9a-z-]+(?:\.[0-9a-z-]+)*)?)$/i;
-function slugify(value) {
-	return value.replace(/@/g, "").replace(/[^\w.-]+/g, "-").replace(/^-+|-+$/g, "");
-}
-function getBranchName(deps) {
-	return `chore/deps/upgrade-${deps.map((d) => `${slugify(d.name)}-${slugify(d.version)}`).join("-")}`;
-}
-function getPrTitle(deps) {
-	return `chore: upgrade ${deps.map((d) => `${d.name} to ${d.version}`).join(", ")}`;
-}
-function getRepoPath(repo, targetDir) {
-	const base = `./${repo}`;
-	return targetDir ? path.join(base, targetDir) : base;
-}
-function parseDependencyName(spec) {
-	const value = spec.trim();
-	if (!value) throw new Error("Empty dependency name");
-	if ((value.startsWith("@") ? value.indexOf("@", value.indexOf("/") + 1) : value.lastIndexOf("@")) > 0) throw new Error(`Dependency versions are not supported: ${spec}. Please pass package names only.`);
-	return value;
-}
-function parseDependencyInputs(inputs) {
-	const deps = inputs.flatMap((input) => input.split(/\s+/)).map((item) => item.trim()).filter(Boolean).map(parseDependencyName);
-	if (!deps.length) throw new Error("Missing deps input");
-	return deps;
-}
-function validatePackageManager(packageManager) {
-	if (packageManager in PACKAGE_MANAGER_COMMANDS) return packageManager;
-	throw new Error(`Unsupported package-manager "${packageManager}". Supported values: npm, yarn, pnpm.`);
-}
-function updateVersionSpecifier(specifier, version, location) {
-	const match = specifier.match(SEMVER_PATTERN);
-	if (!match) throw new Error(`Unsupported version specifier "${specifier}" for ${location}. Supported formats: ^1.2.3, ~1.2.3, or 1.2.3.`);
-	const targetVersion = version.match(SEMVER_PATTERN);
-	if (!targetVersion || targetVersion[1]) throw new Error(`Invalid target version "${version}" for ${location}`);
-	return `${match[1]}${targetVersion[2]}`;
-}
 function formatYamlScalar(source, value) {
 	if (source.startsWith("'")) return `'${value}'`;
 	if (source.startsWith("\"")) return JSON.stringify(value);
 	return value;
 }
+function isPathWithin(root, candidate) {
+	const relative = path.relative(root, candidate);
+	return relative === "" || !path.isAbsolute(relative) && relative !== ".." && !relative.startsWith(`..${path.sep}`);
+}
 function updatePnpmCatalogs(content, deps) {
 	const document = (0, import_dist.parseDocument)(content);
 	if (document.errors.length) throw new Error(`Failed to parse pnpm-workspace.yaml: ${document.errors[0].message}`);
-	const depVersions = new Map(deps.map((dep) => [dep.name, dep.version]));
-	const catalogDependencies = /* @__PURE__ */ new Set();
+	const versions = new Map(deps.map((dep) => [dep.name, dep.version]));
+	const found = /* @__PURE__ */ new Set();
 	const edits = [];
 	const updateCatalog = (catalog, location) => {
 		if (catalog == null) return;
 		if (!(0, import_dist.isMap)(catalog)) throw new Error(`Invalid pnpm catalog at ${location}: expected a mapping`);
 		for (const pair of catalog.items) {
 			if (!(0, import_dist.isScalar)(pair.key) || typeof pair.key.value !== "string") continue;
-			const name = pair.key.value;
-			const version = depVersions.get(name);
+			const version = versions.get(pair.key.value);
 			if (!version) continue;
-			if (!(0, import_dist.isScalar)(pair.value) || typeof pair.value.value !== "string" || !pair.value.range) throw new Error(`Unsupported catalog value for ${location}.${name}: expected a version string`);
-			const specifier = pair.value.value;
-			const nextSpecifier = updateVersionSpecifier(specifier, version, `${location}.${name}`);
+			if (!(0, import_dist.isScalar)(pair.value) || typeof pair.value.value !== "string" || !pair.value.range) throw new Error(`Unsupported catalog value for ${location}.${pair.key.value}: expected a version string`);
 			const [start, end] = pair.value.range;
 			edits.push({
-				end,
 				start,
-				value: formatYamlScalar(content.slice(start, end), nextSpecifier)
+				end,
+				value: formatYamlScalar(content.slice(start, end), updateVersionSpecifier(pair.value.value, version, `${location}.${pair.key.value}`))
 			});
-			catalogDependencies.add(name);
+			found.add(pair.key.value);
 		}
 	};
 	updateCatalog(document.get("catalog", true), "catalog");
-	const namedCatalogs = document.get("catalogs", true);
-	if (namedCatalogs != null) {
-		if (!(0, import_dist.isMap)(namedCatalogs)) throw new Error("Invalid pnpm catalogs: expected a mapping");
-		for (const pair of namedCatalogs.items) {
-			if (!(0, import_dist.isScalar)(pair.key) || typeof pair.key.value !== "string") continue;
-			updateCatalog(pair.value, `catalogs.${pair.key.value}`);
-		}
+	const catalogs = document.get("catalogs", true);
+	if (catalogs != null) {
+		if (!(0, import_dist.isMap)(catalogs)) throw new Error("Invalid pnpm catalogs: expected a mapping");
+		for (const pair of catalogs.items) if ((0, import_dist.isScalar)(pair.key) && typeof pair.key.value === "string") updateCatalog(pair.value, `catalogs.${pair.key.value}`);
 	}
 	const updatedContent = edits.sort((a, b) => b.start - a.start).reduce((result, edit) => `${result.slice(0, edit.start)}${edit.value}${result.slice(edit.end)}`, content);
 	return {
-		catalogDependencies: [...catalogDependencies],
+		catalogDependencies: [...found],
 		content: updatedContent
 	};
-}
-function updatePackageManifestVersions(content, deps, manifestPath = "package.json", dependencyFields = DEPENDENCY_FIELDS) {
-	const errors = [];
-	const manifest = parse(content, errors, { allowTrailingComma: true });
-	if (errors.length || !manifest || typeof manifest !== "object" || Array.isArray(manifest)) throw new Error(`Failed to parse ${manifestPath}`);
-	let updatedContent = content;
-	let updated = false;
-	for (const field of dependencyFields) {
-		const dependencies = manifest[field];
-		if (!dependencies || typeof dependencies !== "object" || Array.isArray(dependencies)) continue;
-		for (const dep of deps) {
-			const specifier = dependencies[dep.name];
-			if (specifier === void 0) continue;
-			if (typeof specifier !== "string") throw new Error(`Unsupported version specifier for ${manifestPath}#${field}.${dep.name}: expected a string`);
-			if (specifier.startsWith("catalog:")) continue;
-			const nextSpecifier = updateVersionSpecifier(specifier, dep.version, `${manifestPath}#${field}.${dep.name}`);
-			if (nextSpecifier === specifier) continue;
-			updatedContent = applyEdits(updatedContent, modify(updatedContent, [field, dep.name], nextSpecifier, {}));
-			updated = true;
-		}
-	}
-	return {
-		content: updatedContent,
-		updated
-	};
-}
-function parseGithubRepository(repositoryUrl) {
-	if (!repositoryUrl) return void 0;
-	const normalizedUrl = repositoryUrl.replace(/^git\+/, "").replace(/^git@github\.com:/, "https://github.com/").replace(/^ssh:\/\/git@github\.com\//, "https://github.com/").replace(/^git:\/\/github\.com\//, "https://github.com/");
-	try {
-		const url = new URL(normalizedUrl);
-		if (url.hostname !== "github.com") return void 0;
-		const [owner, repoName] = url.pathname.replace(/^\//, "").split("/");
-		const repo = repoName?.replace(/\.git$/, "");
-		return owner && repo ? {
-			owner,
-			repo
-		} : void 0;
-	} catch {
-		return;
-	}
-}
-async function fetchPackageVersion(pkg) {
-	try {
-		const response = await fetch(`https://registry.npmjs.org/${pkg}/latest`);
-		if (!response.ok) throw new Error(`status code: ${response.status}`);
-		const { version, repository } = await response.json();
-		if (!version) throw new Error("no version found");
-		info(`Latest version of ${pkg} is ${version}`);
-		const repositoryUrl = typeof repository === "string" ? repository : repository?.url;
-		const repositoryDirectory = typeof repository === "object" ? repository?.directory : void 0;
-		return {
-			name: pkg,
-			version,
-			...repositoryUrl ? { repositoryUrl } : {},
-			...repositoryDirectory ? { repositoryDirectory } : {}
-		};
-	} catch (error) {
-		throw new Error(`Failed to get ${pkg} info from npm registry: ${error instanceof Error ? error.message : String(error)}`);
-	}
-}
-async function resolveDependencyInfos(deps) {
-	return Promise.all(deps.map(fetchPackageVersion));
-}
-function escapeRegExp(value) {
-	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-function extractVersionChangelog(content, version) {
-	const lines = content.split("\n");
-	const versionPattern = new RegExp(`(?:^|[^0-9a-z])v?${escapeRegExp(version)}(?=$|[^0-9a-z])`, "i");
-	const startIndex = lines.findIndex((line) => {
-		const headingText = getMarkdownHeading(line)?.replace(/\]\([^)]*\)/g, "]");
-		return headingText !== void 0 && versionPattern.test(headingText);
-	});
-	if (startIndex === -1) return void 0;
-	const headingLevel = lines[startIndex].match(/^#+/)?.[0].length;
-	if (!headingLevel) return void 0;
-	const endIndex = lines.findIndex((line, index) => index > startIndex && (line.match(/^#{1,6}(?=[ \t])/)?.[0].length ?? 7) <= headingLevel);
-	return lines.slice(startIndex, endIndex === -1 ? void 0 : endIndex).join("\n").trim();
-}
-async function fetchDependencyRelease(dep, token) {
-	const repository = parseGithubRepository(dep.repositoryUrl);
-	if (!repository) {
-		warning(`No GitHub repository found for ${dep.name}; skipping changelog`);
-		return;
-	}
-	const headers = {
-		"Accept": "application/vnd.github.raw+json",
-		"X-GitHub-Api-Version": "2022-11-28"
-	};
-	if (token && token !== "test") headers.Authorization = `Bearer ${token}`;
-	try {
-		const changelogPath = [...dep.repositoryDirectory?.split("/").filter(Boolean) ?? [], "CHANGELOG.md"].map((segment) => encodeURIComponent(segment)).join("/");
-		const response = await fetch(`https://api.github.com/repos/${repository.owner}/${repository.repo}/contents/${changelogPath}`, { headers });
-		if (response.status === 404) {
-			warning(`No CHANGELOG.md found for ${dep.name}`);
-			return;
-		}
-		if (!response.ok) throw new Error(`status code: ${response.status}`);
-		const body = extractVersionChangelog(await response.text(), dep.version);
-		if (!body) {
-			warning(`No ${dep.version} entry found in CHANGELOG.md for ${dep.name}`);
-			return;
-		}
-		const url = `https://github.com/${repository.owner}/${repository.repo}/blob/HEAD/${changelogPath}`;
-		info(`Changelog found for ${dep.name}@${dep.version}: ${url}`);
-		return {
-			body,
-			tag: `${dep.name}@${dep.version}`,
-			url
-		};
-	} catch (error) {
-		warning(`Failed to get CHANGELOG.md for ${dep.name}@${dep.version}: ${error instanceof Error ? error.message : String(error)}`);
-		return;
-	}
-}
-async function resolveDependencyReleases(deps, token) {
-	return Promise.all(deps.map(async (dep) => ({
-		...dep,
-		release: await fetchDependencyRelease(dep, token)
-	})));
-}
-function isPathWithin(root, candidate) {
-	const relativePath = path.relative(root, candidate);
-	return relativePath === "" || !path.isAbsolute(relativePath) && relativePath !== ".." && !relativePath.startsWith(`..${path.sep}`);
 }
 async function findPnpmWorkspaceFile(startDir, cloneRoot) {
 	const root = await realpath(path.resolve(cloneRoot));
@@ -28197,289 +28330,105 @@ async function listPnpmWorkspacePackagePaths(workspaceDir) {
 		throw new Error(`Failed to read pnpm workspace packages: ${error instanceof Error ? error.message : String(error)}`);
 	}
 	const root = await realpath(path.resolve(workspaceDir));
-	const packagePaths = /* @__PURE__ */ new Set([root]);
+	const paths = /* @__PURE__ */ new Set([root]);
 	for (const pkg of packages) {
 		if (!pkg.path) continue;
 		const packagePath = await realpath(path.resolve(root, pkg.path));
 		if (!isPathWithin(root, packagePath)) throw new Error(`pnpm returned a package path outside the workspace: ${pkg.path}`);
-		packagePaths.add(packagePath);
+		paths.add(packagePath);
 	}
-	return [...packagePaths];
+	return [...paths];
 }
 function getPnpmUpdateCommands(deps, catalogDependencies, targetPath, workspaceDir) {
 	const catalogNames = new Set(catalogDependencies);
-	const nonCatalogDependencies = deps.filter((dep) => !catalogNames.has(dep.name));
-	const commands = [];
-	if (nonCatalogDependencies.length) commands.push({
+	const regular = deps.filter((dep) => !catalogNames.has(dep.name));
+	return [...regular.length ? [{
 		args: [
 			"-r",
 			"up",
 			"--latest",
-			...nonCatalogDependencies.map((dep) => dep.name)
+			...regular.map((dep) => dep.name)
 		],
 		cwd: targetPath
-	});
-	if (catalogDependencies.length) commands.push({
+	}] : [], ...catalogDependencies.length ? [{
 		args: ["install"],
 		cwd: workspaceDir
-	});
-	return commands;
+	}] : []];
 }
 function getSnapshotUpdateCommand(packageManager, deps, targetRepo, repoPath) {
 	if (!deps.some((dep) => /^tdesign-icons(?:-|$)/.test(dep.name))) return void 0;
-	const script = SNAPSHOT_UPDATE_SCRIPTS[targetRepo];
-	if (!script) return void 0;
-	return {
+	const script = {
+		"tdesign-mobile-react": "test:update",
+		"tdesign-mobile-vue": "test:update",
+		"tdesign-react": "test:update",
+		"tdesign-vue": "test:update",
+		"tdesign-vue-next": "test:vue:update"
+	}[targetRepo];
+	return script ? {
 		args: packageManager === "npm" ? ["run", script] : [script],
 		cwd: repoPath
-	};
+	} : void 0;
 }
-async function preparePnpmCatalogUpdates(workspaceFile, deps) {
-	const workspaceContent = await readFile(workspaceFile, "utf8");
-	const catalogResult = updatePnpmCatalogs(workspaceContent, deps);
-	if (!catalogResult.catalogDependencies.length) return {
-		catalogDependencies: [],
-		updates: []
-	};
-	const catalogNames = new Set(catalogResult.catalogDependencies);
-	const catalogDeps = deps.filter((dep) => catalogNames.has(dep.name));
-	const workspaceDir = path.dirname(workspaceFile);
-	const packagePaths = await listPnpmWorkspacePackagePaths(workspaceDir);
-	const updates = (await Promise.all(packagePaths.map(async (packagePath) => {
-		const manifestPath = path.join(packagePath, "package.json");
-		let content;
-		let resolvedManifestPath;
-		try {
-			resolvedManifestPath = await realpath(manifestPath);
-			if (!isPathWithin(workspaceDir, resolvedManifestPath)) throw new Error(`Package manifest is outside the workspace: ${manifestPath}`);
-			content = await readFile(resolvedManifestPath, "utf8");
-		} catch (error) {
-			if (error.code === "ENOENT") return void 0;
-			throw error;
-		}
-		const result = updatePackageManifestVersions(content, catalogDeps, resolvedManifestPath);
-		return result.updated ? {
-			content: result.content,
-			filePath: resolvedManifestPath
-		} : void 0;
-	}))).filter((update) => update !== void 0);
-	if (catalogResult.content !== workspaceContent) updates.unshift({
-		content: catalogResult.content,
-		filePath: workspaceFile
-	});
-	return {
-		catalogDependencies: catalogResult.catalogDependencies,
-		updates
-	};
-}
-async function printPnpmLockfileDiff(workspaceDir) {
-	startGroup("pnpm-lock.yaml diff");
-	await exec("git", [
-		"diff",
-		"--",
-		"pnpm-lock.yaml"
-	], { cwd: workspaceDir });
-	endGroup();
-}
-async function updatePnpmDependencies(deps, repo, targetDir) {
-	const cloneRoot = getRepoPath(repo, "");
-	const targetPath = getRepoPath(repo, targetDir);
-	const workspaceFile = await findPnpmWorkspaceFile(targetPath, cloneRoot);
-	if (!workspaceFile) {
-		await exec("pnpm", [
+async function updatePackageDependencies(packageManager, deps, repo, targetDir) {
+	const targetPath = `./${repo}${targetDir ? `/${targetDir}` : ""}`;
+	if (packageManager !== "pnpm") await exec(packageManager, [...{
+		yarn: ["upgrade", "--latest"],
+		npm: ["install"]
+	}[packageManager], ...deps.map((dep) => dep.name)], { cwd: targetPath });
+	else {
+		const workspaceFile = await findPnpmWorkspaceFile(targetPath, `./${repo}`);
+		if (!workspaceFile) await exec("pnpm", [
 			"-r",
 			"up",
 			"--latest",
 			...deps.map((dep) => dep.name)
 		], { cwd: targetPath });
-		await printPnpmLockfileDiff(targetPath);
-		return;
-	}
-	const { catalogDependencies, updates } = await preparePnpmCatalogUpdates(workspaceFile, deps);
-	await Promise.all(updates.map((update) => writeFile(update.filePath, update.content, "utf8")));
-	const commands = getPnpmUpdateCommands(deps, catalogDependencies, targetPath, path.dirname(workspaceFile));
-	for (const command of commands) {
-		const env$1 = command.args[0] === "install" ? Object.fromEntries(Object.entries(env).filter((entry) => entry[1] !== void 0)) : void 0;
-		await exec("pnpm", command.args, {
-			cwd: command.cwd,
-			...env$1 ? { env: {
-				...env$1,
-				CI: "false"
-			} } : {}
-		});
-	}
-	await printPnpmLockfileDiff(path.dirname(workspaceFile));
-}
-async function updatePackageDependencies(packageManager, deps, repo, targetDir) {
-	if (packageManager === "pnpm") await updatePnpmDependencies(deps, repo, targetDir);
-	else {
-		const repoPath = getRepoPath(repo, targetDir);
-		const { cmd, args } = PACKAGE_MANAGER_COMMANDS[packageManager];
-		await exec(cmd, [...args, ...deps.map((dep) => dep.name)], { cwd: repoPath });
-	}
-	const snapshotCommand = getSnapshotUpdateCommand(packageManager, deps, repo, getRepoPath(repo, ""));
-	if (snapshotCommand) await exec(packageManager, snapshotCommand.args, { cwd: snapshotCommand.cwd });
-}
-async function readPullRequestTemplate(repoPath) {
-	for (const templatePath of PR_TEMPLATE_PATHS) try {
-		return await readFile(path.join(repoPath, templatePath), "utf8");
-	} catch (error) {
-		if (error.code !== "ENOENT") throw error;
-	}
-}
-function getMarkdownHeading(line) {
-	const prefix = line.match(/^#{1,6}[ \t]+/);
-	return prefix ? line.slice(prefix[0].length).trim() : void 0;
-}
-function insertAfterHeading(body, heading, content) {
-	const lines = body.split("\n");
-	const headingIndex = lines.findIndex((line) => {
-		const value = getMarkdownHeading(line);
-		return value !== void 0 && (typeof heading === "string" ? value === heading : heading.test(value));
-	});
-	if (headingIndex === -1) return {
-		body,
-		inserted: false
-	};
-	lines.splice(headingIndex + 1, 0, "", content);
-	return {
-		body: lines.join("\n"),
-		inserted: true
-	};
-}
-function formatReleaseBody(body) {
-	return body.trim().replace(/^(#{1,6})(?=\s)/gm, (heading) => "#".repeat(Math.min(6, heading.length + 3)));
-}
-function getDependencySummary(deps) {
-	return [
-		"自动升级以下依赖：",
-		"",
-		...deps.map((dep) => `- \`${dep.name}\` 升级至 \`${dep.version}\``)
-	].join("\n");
-}
-function getReleaseNotesMarkdown(deps) {
-	return deps.map((dep) => {
-		const npmUrl = `https://www.npmjs.com/package/${dep.name}/v/${dep.version}`;
-		if (!dep.release) return `#### [\`${dep.name}@${dep.version}\`](${npmUrl})\n\n未在仓库的 CHANGELOG.md 中找到对应版本日志。`;
-		return `#### [\`${dep.name}@${dep.version}\`](${dep.release.url})\n\n${formatReleaseBody(dep.release.body)}`;
-	}).join("\n\n");
-}
-function getChangelogType(heading) {
-	const value = heading.toLowerCase();
-	if (/breaking changes?|破坏性/.test(value)) return "feat!";
-	if (/bug fixes?|fixes|修复/.test(value)) return "fix";
-	if (/features?|新特性|新增功能/.test(value)) return "feat";
-	if (/performance|性能/.test(value)) return "perf";
-	if (/documentation|\bdocs?\b|文档/.test(value)) return "docs";
-	if (/refactor|重构/.test(value)) return "refactor";
-	if (/tests?|测试/.test(value)) return "test";
-	if (/\bci\b|持续集成/.test(value)) return "ci";
-	if (/build|构建/.test(value)) return "build";
-	if (/styles?|代码风格/.test(value)) return "style";
-	if (/others?|其他/.test(value)) return "chore";
-}
-function parseReleaseChangelog(body) {
-	const entries = [];
-	const parents = [];
-	let currentType;
-	for (const line of body.split("\n")) {
-		const heading = getMarkdownHeading(line);
-		if (heading !== void 0) {
-			currentType = getChangelogType(heading);
-			parents.length = 0;
-			continue;
-		}
-		const bulletPrefix = line.match(/^([ \t]*)[-*+][ \t]+/);
-		if (!bulletPrefix || !currentType) continue;
-		const indent = bulletPrefix[1].replace(/\t/g, "  ").length;
-		const text = line.slice(bulletPrefix[0].length).trim();
-		if (!text) continue;
-		while (parents.length && parents[parents.length - 1].indent >= indent) parents.pop();
-		if (text.endsWith(":")) {
-			parents.push({
-				indent,
-				text: text.slice(0, -1)
+		else {
+			const original = await readFile(workspaceFile, "utf8");
+			const catalog = updatePnpmCatalogs(original, deps);
+			const catalogNames = new Set(catalog.catalogDependencies);
+			const catalogDeps = deps.filter((dep) => catalogNames.has(dep.name));
+			const packagePaths = await listPnpmWorkspacePackagePaths(path.dirname(workspaceFile));
+			const updates = [];
+			for (const packagePath of packagePaths) {
+				const manifest = path.join(packagePath, "package.json");
+				try {
+					const result = updatePackageManifestVersions(await readFile(manifest, "utf8"), catalogDeps, manifest);
+					if (result.updated) updates.push({
+						filePath: manifest,
+						content: result.content
+					});
+				} catch (error) {
+					if (error.code !== "ENOENT") throw error;
+				}
+			}
+			if (catalog.content !== original) updates.unshift({
+				filePath: workspaceFile,
+				content: catalog.content
 			});
-			continue;
+			await Promise.all(updates.map((update) => writeFile(update.filePath, update.content, "utf8")));
+			for (const command of getPnpmUpdateCommands(deps, catalog.catalogDependencies, targetPath, path.dirname(workspaceFile))) await exec("pnpm", command.args, {
+				cwd: command.cwd,
+				...command.args[0] === "install" ? { env: {
+					...env,
+					CI: "false"
+				} } : {}
+			});
 		}
-		const parentText = parents.map((parent) => parent.text).join(": ");
-		entries.push({
-			text: parentText ? `${parentText}: ${text}` : text,
-			type: currentType
-		});
 	}
-	return entries;
+	const snapshot = getSnapshotUpdateCommand(packageManager, deps, repo, `./${repo}`);
+	if (snapshot) await exec(packageManager, snapshot.args, { cwd: snapshot.cwd });
 }
-function formatChangelogType(type, scoped) {
-	const breaking = type.endsWith("!");
-	return `${breaking ? type.slice(0, -1) : type}${scoped ? "(Icon)" : ""}${breaking ? "!" : ""}`;
-}
-function getChangelogMarkdown(deps, targetRepo) {
-	const scoped = COMPONENT_REPOSITORIES.has(targetRepo);
-	return deps.filter((dep) => !NO_CHANGELOG_DEPENDENCIES.has(dep.name)).flatMap((dep) => {
-		const entries = dep.release ? parseReleaseChangelog(dep.release.body) : [];
-		if (!entries.length) return [`- ${formatChangelogType("chore", scoped)}: upgrade ${dep.name} to ${dep.version}`];
-		return entries.map((entry) => `- ${formatChangelogType(entry.type, scoped)}: ${entry.text}`);
-	}).join("\n");
-}
-function buildNoChangelogPullRequestBody(template) {
-	if (!template) return NO_CHANGELOG_CHECKBOX;
-	const body = template.trim();
-	const updatedBody = body.replace(/^- \[ \] 本条 PR 不需要纳入 Changelog\r?$/m, NO_CHANGELOG_CHECKBOX);
-	return updatedBody === body ? `${body}\n\n${NO_CHANGELOG_CHECKBOX}` : updatedBody;
-}
-function fillTDesignCheckboxes(template) {
-	const checkedLabels = [
-		"其他",
-		"文档已补充或无须补充",
-		"代码演示已提供或无须提供",
-		"TypeScript 定义已补充或无须补充",
-		"Changelog 已提供或无须提供"
-	];
-	return template.replace(/^- \[ \] (.+)$/gm, (line, label) => checkedLabels.includes(label.trim()) ? line.replace("[ ]", "[x]") : line).replace(/^- fix\(组件名称\): 处理问题或特性描述 \.\.\.$/gm, "");
-}
-function insertChangelog(body, targetRepo, changelog) {
-	const targetSections = CHANGELOG_TARGET_SECTIONS[targetRepo] ?? [];
-	let result = body;
-	let inserted = false;
-	for (const section of targetSections) {
-		const sectionResult = insertAfterHeading(result, section, changelog);
-		result = sectionResult.body;
-		inserted ||= sectionResult.inserted;
-	}
-	if (inserted) return {
-		body: result,
-		inserted
-	};
-	return insertAfterHeading(result, /更新日志|changelog|release notes/i, changelog);
-}
-function buildPullRequestBody(template, deps, targetRepo) {
-	if (deps.length && deps.every((dep) => NO_CHANGELOG_DEPENDENCIES.has(dep.name))) return buildNoChangelogPullRequestBody(template);
-	const background = `${getDependencySummary(deps)}\n\n${getReleaseNotesMarkdown(deps)}`;
-	const changelog = getChangelogMarkdown(deps, targetRepo);
-	if (!template) return `## 依赖升级\n\n${background}\n\n## 版本日志\n\n${changelog}`;
-	let body = fillTDesignCheckboxes(template.trim());
-	body = insertAfterHeading(body, /相关 Issue|related issues?/i, "无").body;
-	const backgroundResult = insertAfterHeading(body, /需求背景|解决方案|background|summary|description/i, background);
-	body = backgroundResult.body;
-	const changelogResult = insertChangelog(body, targetRepo, changelog);
-	body = changelogResult.body;
-	const fallbackSections = [!backgroundResult.inserted ? `## 依赖升级\n\n${background}` : "", !changelogResult.inserted ? `## 版本日志\n\n${changelog}` : ""].filter(Boolean);
-	return fallbackSections.length ? `${fallbackSections.join("\n\n")}\n\n${body}` : body;
-}
+//#endregion
+//#region main.ts
 async function updateDependencies(context) {
 	const packageManager = validatePackageManager(getInput("package-manager") || "npm");
 	const targetDir = getInput("target-dir") || "";
 	const customTitle = getInput("title") || "";
-	const deps = parseDependencyInputs(getMultilineInput("deps", {
+	let depInfos = await resolveDependencyInfos(parseDependencyInputs(getMultilineInput("deps", {
 		required: true,
 		trimWhitespace: true
-	}));
-	info(`deps: ${JSON.stringify(deps)}`);
-	info(`target-dir: ${targetDir || "default (repo root)"}`);
-	if (customTitle) info(`custom-title: ${customTitle}`);
-	let depInfos = await resolveDependencyInfos(deps);
-	info(`depInfos: ${JSON.stringify(depInfos)}`);
+	})));
 	if (packageManager !== "npm") await exec("corepack", ["enable"]);
 	const gitHelper = new GitHelper({
 		repo: context.repo,
@@ -28489,7 +28438,7 @@ async function updateDependencies(context) {
 	});
 	const baseBranch = await gitHelper.clone();
 	await gitHelper.initSubmodule();
-	const pullRequestTemplate = await readPullRequestTemplate(getRepoPath(context.repo, ""));
+	const template = await readPullRequestTemplate(`./${context.repo}`);
 	depInfos = await resolveDependencyReleases(depInfos, context.token);
 	const branchName = getBranchName(depInfos);
 	await gitHelper.createBranch(branchName);
@@ -28498,11 +28447,9 @@ async function updateDependencies(context) {
 		info("No changes to commit");
 		return;
 	}
-	startGroup("Changes to commit");
 	await gitHelper.printDiff();
-	endGroup();
 	const title = customTitle || getPrTitle(depInfos);
-	const body = buildPullRequestBody(pullRequestTemplate, depInfos, context.repo);
+	const body = buildPullRequestBody(template, depInfos, context.repo);
 	await gitHelper.commit(title);
 	await gitHelper.push(branchName);
 	await new GithubHelper({
@@ -28513,19 +28460,11 @@ async function updateDependencies(context) {
 	}).createPR(title, branchName, body, baseBranch);
 }
 async function main() {
-	const repo = getInput("repo") || context.repo.repo;
-	const owner = getInput("owner") || context.repo.owner;
-	const token = getInput("token", { required: true });
-	const dryRun = getBooleanInput("dry-run");
-	startGroup("upgrade-deps");
-	info(`repo: ${repo}`);
-	info(`owner: ${owner}`);
-	endGroup();
 	await updateDependencies({
-		repo,
-		owner,
-		token,
-		dryRun
+		repo: getInput("repo") || context.repo.repo,
+		owner: getInput("owner") || context.repo.owner,
+		token: getInput("token", { required: true }),
+		dryRun: getBooleanInput("dry-run")
 	});
 }
 //#endregion
