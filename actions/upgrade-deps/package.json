@@ -10,7 +10,9 @@
     "@actions/core": "catalog:",
     "@actions/exec": "catalog:",
     "@actions/github": "catalog:",
-    "@workflows/utils": "workspace:*"
+    "@workflows/utils": "workspace:*",
+    "jsonc-parser": "catalog:",
+    "yaml": "catalog:"
   },
   "devDependencies": {
     "@octokit/plugin-rest-endpoint-methods": "catalog:",
