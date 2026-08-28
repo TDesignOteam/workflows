@@ -29,7 +29,7 @@ var __copyProps = (to, from, except, desc) => {
 	}
 	return to;
 };
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", {
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(isNodeMode || !mod || !mod.__esModule || !__hasOwnProp.call(mod, "default") ? __defProp(target, "default", {
 	value: mod,
 	enumerable: true
 }) : target, mod));
@@ -1857,7 +1857,7 @@ var require_dispatcher_base = /* @__PURE__ */ __commonJSMin(((exports, module) =
 			}
 			if (callback === void 0) return new Promise((resolve, reject) => {
 				this.destroy(err, (err, data) => {
-					return err ? reject(err) : resolve(data);
+					return err ? /* istanbul ignore next: should never error */ reject(err) : resolve(data);
 				});
 			});
 			if (typeof callback !== "function") throw new InvalidArgumentError("invalid callback");
@@ -2327,7 +2327,7 @@ var require_connect = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 				assert$24(!httpSocket, "httpSocket can only be sent on TLS update");
 				port = port || 80;
 				socket = net$1.connect({
-					highWaterMark: 64 * 1024,
+					highWaterMark: 65536,
 					...options,
 					localAddress,
 					port,
@@ -3806,10 +3806,7 @@ var require_util$6 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 				case "strict-origin-when-cross-origin":
 					if (request.origin && urlHasHttpsScheme(request.origin) && !urlHasHttpsScheme(requestCurrentURL(request))) serializedOrigin = null;
 					break;
-				case "same-origin":
-					if (!sameOrigin(request, requestCurrentURL(request))) serializedOrigin = null;
-					break;
-				default:
+				case "same-origin": if (!sameOrigin(request, requestCurrentURL(request))) serializedOrigin = null;
 			}
 			request.headersList.append("origin", serializedOrigin, true);
 		}
@@ -4091,9 +4088,7 @@ var require_util$6 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 					case "value":
 						result = value;
 						break;
-					case "key+value":
-						result = [key, value];
-						break;
+					case "key+value": result = [key, value];
 				}
 				return {
 					value: result,
@@ -6797,7 +6792,7 @@ var require_client = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#region ../../node_modules/.pnpm/undici@6.23.0/node_modules/undici/lib/dispatcher/fixed-queue.js
 var require_fixed_queue = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	const kSize = 2048;
-	const kMask = kSize - 1;
+	const kMask = 2047;
 	var FixedCircularBuffer = class {
 		constructor() {
 			this.bottom = 0;
@@ -7582,7 +7577,7 @@ var require_retry_handler = /* @__PURE__ */ __commonJSMin(((exports, module) => 
 			this.retryOpts = {
 				retry: retryFn ?? RetryHandler[kRetryHandlerDefaultRetry],
 				retryAfter: retryAfter ?? true,
-				maxTimeout: maxTimeout ?? 30 * 1e3,
+				maxTimeout: maxTimeout ?? 3e4,
 				minTimeout: minTimeout ?? 500,
 				timeoutFactor: timeoutFactor ?? 2,
 				maxRetries: maxRetries ?? 5,
@@ -7826,7 +7821,7 @@ var require_readable = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	const kContentLength = Symbol("kContentLength");
 	const noop = () => {};
 	var BodyReadable = class extends Readable$2 {
-		constructor({ resume, abort, contentType = "", contentLength, highWaterMark = 64 * 1024 }) {
+		constructor({ resume, abort, contentType = "", contentLength, highWaterMark = 65536 }) {
 			super({
 				autoDestroy: true,
 				read: resume,
@@ -7905,7 +7900,7 @@ var require_readable = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return this[kBody];
 		}
 		async dump(opts) {
-			let limit = Number.isFinite(opts?.limit) ? opts.limit : 128 * 1024;
+			let limit = Number.isFinite(opts?.limit) ? opts.limit : 131072;
 			const signal = opts?.signal;
 			if (signal != null && (typeof signal !== "object" || !("aborted" in signal))) throw new InvalidArgumentError("signal must be an AbortSignal");
 			signal?.throwIfAborted();
@@ -8044,7 +8039,7 @@ var require_util$5 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	const assert$13 = __require("node:assert");
 	const { ResponseStatusCodeError } = require_errors$1();
 	const { chunksDecode } = require_readable();
-	const CHUNK_LIMIT = 128 * 1024;
+	const CHUNK_LIMIT = 131072;
 	async function getResolveErrorBodyCallback({ callback, body, contentType, statusCode, statusMessage, headers }) {
 		assert$13(body);
 		let chunks = [];
@@ -9543,7 +9538,7 @@ var require_dump = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	const { InvalidArgumentError, RequestAbortedError } = require_errors$1();
 	const DecoratorHandler = require_decorator_handler();
 	var DumpHandler = class extends DecoratorHandler {
-		#maxSize = 1024 * 1024;
+		#maxSize = 1048576;
 		#abort = null;
 		#dumped = false;
 		#aborted = false;
@@ -9593,7 +9588,7 @@ var require_dump = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			this.#handler.onComplete(trailers);
 		}
 	};
-	function createDumpInterceptor({ maxSize: defaultMaxSize } = { maxSize: 1024 * 1024 }) {
+	function createDumpInterceptor({ maxSize: defaultMaxSize } = { maxSize: 1048576 }) {
 		return (dispatch) => {
 			return function Intercept(opts, handler) {
 				const { dumpMaxSize = defaultMaxSize } = opts;
@@ -9764,9 +9759,7 @@ var require_dns = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 					this.#handler.onError(err);
 					return;
 				case "ENOTFOUND": this.#state.deleteRecord(this.#origin);
-				default:
-					this.#handler.onError(err);
-					break;
+				default: this.#handler.onError(err);
 			}
 		}
 	};
@@ -15086,7 +15079,6 @@ var require_eventsource_stream = /* @__PURE__ */ __commonJSMin(((exports, module
 				default:
 					if (this.buffer[0] === BOM[0] && this.buffer[1] === BOM[1] && this.buffer[2] === BOM[2]) this.buffer = this.buffer.subarray(3);
 					this.checkBOM = false;
-					break;
 			}
 			while (this.pos < this.buffer.length) {
 				if (this.eventEndCheck) {
@@ -15152,9 +15144,7 @@ var require_eventsource_stream = /* @__PURE__ */ __commonJSMin(((exports, module
 				case "id":
 					if (isValidLastEventId(value)) event[field] = value;
 					break;
-				case "event":
-					if (value.length > 0) event[field] = value;
-					break;
+				case "event": if (value.length > 0) event[field] = value;
 			}
 		}
 		/**
@@ -17194,7 +17184,7 @@ var import_lib = /* @__PURE__ */ __toESM((/* @__PURE__ */ __commonJSMin(((export
 			req.on("socket", (sock) => {
 				socket = sock;
 			});
-			req.setTimeout(this._socketTimeout || 3 * 6e4, () => {
+			req.setTimeout(this._socketTimeout || 18e4, () => {
 				if (socket) socket.end();
 				handleResult(/* @__PURE__ */ new Error(`Request timeout: ${info.options.path}`));
 			});
@@ -20603,9 +20593,7 @@ function format(documentText, range, options) {
 					else if ((secondToken === 12 || secondToken === 13) && !needsLineBreak) replaceContent = cachedSpaces[1];
 					else if (secondToken !== 5 && secondToken !== 17) hasError = true;
 					break;
-				case 16:
-					hasError = true;
-					break;
+				case 16: hasError = true;
 			}
 			if (numberLineBreaks > 0 && (secondToken === 12 || secondToken === 13)) replaceContent = newLinesAndIndent();
 		}
@@ -20868,9 +20856,7 @@ function visit(text, visitor, options = ParseOptions.DEFAULT) {
 				case 2:
 					handleError(12);
 					break;
-				case 6:
-					handleError(16);
-					break;
+				case 6: handleError(16);
 			}
 			switch (token) {
 				case 12:
@@ -21292,7 +21278,7 @@ function applyEdits(text, edits) {
 	return text;
 }
 //#endregion
-//#region constants.ts
+//#region src/constants.ts
 const PACKAGE_MANAGER_COMMANDS = {
 	pnpm: {
 		cmd: "pnpm",
@@ -21338,7 +21324,7 @@ const CHANGELOG_TARGET_SECTIONS = {
 const DEPENDENCY_FIELDS = ["dependencies", "devDependencies"];
 const SEMVER_PATTERN = /^([~^]?)((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[a-z-][0-9a-z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-z-][0-9a-z-]*))*)?(?:\+[0-9a-z-]+(?:\.[0-9a-z-]+)*)?)$/i;
 //#endregion
-//#region dependencies.ts
+//#region src/dependencies.ts
 function slugify(value) {
 	return value.replace(/@/g, "").replace(/[^\w.-]+/g, "-").replace(/^-+|-+$/g, "");
 }
@@ -21417,7 +21403,7 @@ function resolveDependencyInfos(deps) {
 	return Promise.all(deps.map(fetchPackageVersion));
 }
 //#endregion
-//#region github.ts
+//#region src/github.ts
 function parseGithubRepository(repositoryUrl) {
 	if (!repositoryUrl) return void 0;
 	const normalized = repositoryUrl.replace(/^git\+/, "").replace(/^git@github\.com:/, "https://github.com/").replace(/^ssh:\/\/git@github\.com\//, "https://github.com/").replace(/^git:\/\/github\.com\//, "https://github.com/");
@@ -21500,7 +21486,7 @@ async function readPullRequestTemplate(repoPath) {
 	}
 }
 //#endregion
-//#region pull-request.ts
+//#region src/pull-request.ts
 function heading(line) {
 	const prefix = line.match(/^#{1,6}[ \t]+/);
 	return prefix ? line.slice(prefix[0].length).trim() : void 0;
@@ -21925,7 +21911,6 @@ var require_directives = /* @__PURE__ */ __commonJSMin(((exports) => {
 						version: "1.2"
 					};
 					this.tags = Object.assign({}, Directives.defaultTags);
-					break;
 			}
 			return res;
 		}
@@ -22777,7 +22762,7 @@ var require_stringifyString = /* @__PURE__ */ __commonJSMin(((exports) => {
 	}
 	let blockEndNewlines;
 	try {
-		blockEndNewlines = /* @__PURE__ */ new RegExp("(^|(?<!\n))\n+(?!\n|$)", "g");
+		blockEndNewlines = new RegExp("(^|(?<!\n))\n+(?!\n|$)", "g");
 	} catch {
 		blockEndNewlines = /\n+(?!\n|$)/g;
 	}
@@ -24103,9 +24088,7 @@ var require_int = /* @__PURE__ */ __commonJSMin(((exports) => {
 				case 8:
 					str = `0o${str}`;
 					break;
-				case 16:
-					str = `0x${str}`;
-					break;
+				case 16: str = `0x${str}`;
 			}
 			const n = BigInt(str);
 			return sign === "-" ? BigInt(-1) * n : n;
@@ -25634,9 +25617,7 @@ var require_resolve_flow_scalar = /* @__PURE__ */ __commonJSMin(((exports) => {
 				badChar = `block scalar indicator ${source[0]}`;
 				break;
 			case "@":
-			case "`":
-				badChar = `reserved character ${source[0]}`;
-				break;
+			case "`": badChar = `reserved character ${source[0]}`;
 		}
 		if (badChar) onError(0, "BAD_SCALAR_START", `Plain value cannot start with ${badChar}`);
 		return foldLines(source);
@@ -25655,8 +25636,8 @@ var require_resolve_flow_scalar = /* @__PURE__ */ __commonJSMin(((exports) => {
 		*/
 		let first, line;
 		try {
-			first = /* @__PURE__ */ new RegExp("(.*?)(?<![ 	])[ 	]*\r?\n", "sy");
-			line = /* @__PURE__ */ new RegExp("[ 	]*(.*?)(?:(?<![ 	])[ 	]*)?\r?\n", "sy");
+			first = new RegExp("(.*?)(?<![ 	])[ 	]*\r?\n", "sy");
+			line = new RegExp("[ 	]*(.*?)(?:(?<![ 	])[ 	]*)?\r?\n", "sy");
 		} catch {
 			first = /(.*?)[ \t]*\r?\n/sy;
 			line = /[ \t]*(.*?)[ \t]*\r?\n/sy;
@@ -28203,7 +28184,7 @@ var require_public_api = /* @__PURE__ */ __commonJSMin(((exports) => {
 	exports.stringify = stringify;
 }));
 //#endregion
-//#region workspace.ts
+//#region src/workspace.ts
 var import_dist = (/* @__PURE__ */ __commonJSMin(((exports) => {
 	var composer = require_composer();
 	var Document = require_Document();
@@ -28420,7 +28401,7 @@ async function updatePackageDependencies(packageManager, deps, repo, targetDir) 
 	if (snapshot) await exec(packageManager, snapshot.args, { cwd: snapshot.cwd });
 }
 //#endregion
-//#region main.ts
+//#region src/main.ts
 async function updateDependencies(context) {
 	const packageManager = validatePackageManager(getInput("package-manager") || "npm");
 	const targetDir = getInput("target-dir") || "";
@@ -28468,7 +28449,7 @@ async function main() {
 	});
 }
 //#endregion
-//#region index.ts
+//#region src/index.ts
 main().catch((error) => {
 	setFailed(`upgrade-deps failed: ${error instanceof Error ? error.message : String(error)}`);
 });

@@ -13,16 +13,21 @@ import {
   getChangelogMarkdown,
   getPnpmUpdateCommands,
   getPrTitle,
+  getReleaseNotesMarkdown,
   getSnapshotUpdateCommand,
+  listPnpmWorkspacePackagePaths,
   parseDependencyInputs,
+  parseDependencyName,
   parseGithubRepository,
+  parseReleaseChangelog,
+  readPullRequestTemplate,
   resolveDependencyInfos,
   updatePackageDependencies,
   updatePackageManifestVersions,
   updatePnpmCatalogs,
   updateVersionSpecifier,
   validatePackageManager,
-} from './main'
+} from '../src/main'
 
 vi.mock('@actions/core', () => ({
   endGroup: vi.fn(),
@@ -72,6 +77,12 @@ describe('升级依赖', () => {
   it('拒绝带版本号的依赖输入', () => {
     expect(() => parseDependencyInputs(['vite@7.0.0'])).toThrow('Dependency versions are not supported')
     expect(() => parseDependencyInputs(['@tdesign/site-components@0.19.1'])).toThrow('Dependency versions are not supported')
+  })
+
+  it('保留合法版本号的范围前缀和预发布信息', () => {
+    expect(updateVersionSpecifier('^1.2.3', '2.0.0-beta.1', 'dependencies.vite')).toBe('^2.0.0-beta.1')
+    expect(updateVersionSpecifier('~1.2.3', '2.0.0+build.1', 'dependencies.vite')).toBe('~2.0.0+build.1')
+    expect(parseDependencyName('  vite  ')).toBe('vite')
   })
 
   it('拒绝空依赖输入', () => {
@@ -124,9 +135,20 @@ describe('升级依赖', () => {
     )
   })
 
+  it('npm 元数据缺少版本号时中止流程', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({}), { status: 200 }))
+
+    await expect(fetchPackageVersion('vite')).rejects.toThrow('no version found')
+  })
+
   it('按包管理器执行升级命令', async () => {
     await updatePackageDependencies('npm', [{ name: 'vite', version: '7.0.0' }], 'tdesign-vue-next', '')
     expect(exec.exec).toHaveBeenLastCalledWith('npm', ['install', 'vite'], { cwd: './tdesign-vue-next' })
+  })
+
+  it('按 yarn 执行升级命令', async () => {
+    await updatePackageDependencies('yarn', [{ name: 'vite', version: '7.0.0' }], 'tdesign-vue-next', 'packages/site')
+    expect(exec.exec).toHaveBeenLastCalledWith('yarn', ['upgrade', '--latest', 'vite'], { cwd: './tdesign-vue-next/packages/site' })
   })
 
   it('icons 依赖升级后执行快照更新命令', async () => {
@@ -163,6 +185,37 @@ describe('升级依赖', () => {
     }
     finally {
       await rm(tempDir, { force: true, recursive: true })
+    }
+  })
+
+  it('读取 pnpm workspace 包路径并拒绝 workspace 外路径', async () => {
+    const tempDir = await mkdtemp(path.join(tmpdir(), 'upgrade-deps-packages-'))
+    const outsideDir = path.join(path.dirname(tempDir), `${path.basename(tempDir)}-outside`)
+    try {
+      await mkdir(path.join(tempDir, 'packages', 'site'), { recursive: true })
+      await mkdir(outsideDir)
+      vi.mocked(exec.getExecOutput).mockResolvedValueOnce({ stdout: JSON.stringify([
+        { path: 'packages/site' },
+        { path: `../${path.basename(outsideDir)}` },
+        {},
+      ]), stderr: '', exitCode: 0 })
+
+      await expect(listPnpmWorkspacePackagePaths(tempDir)).rejects.toThrow('outside the workspace')
+
+      vi.mocked(exec.getExecOutput).mockResolvedValueOnce({ stdout: JSON.stringify([
+        { path: 'packages/site' },
+        { path: 'packages/site' },
+        {},
+      ]), stderr: '', exitCode: 0 })
+      await expect(listPnpmWorkspacePackagePaths(tempDir)).resolves.toEqual([
+        await realpath(tempDir),
+        await realpath(path.join(tempDir, 'packages', 'site')),
+      ])
+      expect(exec.getExecOutput).toHaveBeenLastCalledWith('pnpm', ['-r', 'list', '--depth', '-1', '--json'], { cwd: tempDir, silent: true })
+    }
+    finally {
+      await rm(tempDir, { force: true, recursive: true })
+      await rm(outsideDir, { force: true, recursive: true })
     }
   })
 
@@ -311,6 +364,16 @@ catalogs:
     )
   })
 
+  it('changelog 不存在时跳过 release', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response('', { status: 404 }))
+
+    await expect(fetchDependencyRelease({
+      name: 'vite',
+      version: '7.0.0',
+      repositoryUrl: 'https://github.com/vitejs/vite.git',
+    }, 'test')).resolves.toBeUndefined()
+  })
+
   it('未在 CHANGELOG.md 找到目标版本时不返回其他版本日志', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(new Response('## 6.0.0\n\n### Features\n\n- Previous change', { status: 200 }))
 
@@ -343,6 +406,39 @@ catalogs:
 ### Bug Fixes
 
 - Fix issue`)
+  })
+
+  it('解析带嵌套 scope 的 release 日志', () => {
+    expect(parseReleaseChangelog(`### Features
+- Button:
+  - Add loading state
+  - Add disabled state
+### Tests
+- Add unit tests`)).toEqual([
+      { type: 'feat', text: 'Button: Add loading state' },
+      { type: 'feat', text: 'Button: Add disabled state' },
+      { type: 'test', text: 'Add unit tests' },
+    ])
+  })
+
+  it('无 release 时生成 npm 链接和提示', () => {
+    expect(getReleaseNotesMarkdown([{ name: 'vite', version: '7.0.0' }])).toBe(
+      '#### [`vite@7.0.0`](https://www.npmjs.com/package/vite/v/7.0.0)\n\n未在仓库的 CHANGELOG.md 中找到对应版本日志。',
+    )
+  })
+
+  it('按候选路径读取第一个存在的 PR 模板', async () => {
+    const tempDir = await mkdtemp(path.join(tmpdir(), 'upgrade-deps-template-'))
+    try {
+      await mkdir(path.join(tempDir, '.github'), { recursive: true })
+      await writeFile(path.join(tempDir, 'PULL_REQUEST_TEMPLATE.md'), 'fallback')
+      await writeFile(path.join(tempDir, '.github', 'pull_request_template.md'), 'preferred')
+
+      await expect(readPullRequestTemplate(tempDir)).resolves.toBe('preferred')
+    }
+    finally {
+      await rm(tempDir, { force: true, recursive: true })
+    }
   })
 
   it('根据 TDesign PR 模板填入升级摘要和版本日志', () => {

@@ -2,7 +2,7 @@
   "name": "upgrade-deps",
   "type": "module",
   "private": true,
-  "main": "index.ts",
+  "main": "src/index.ts",
   "scripts": {
     "build": "tsdown"
   },
