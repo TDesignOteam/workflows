@@ -21573,11 +21573,14 @@ function formatType(type, scoped) {
 	const breaking = type.endsWith("!");
 	return `${breaking ? type.slice(0, -1) : type}${scoped ? "(Icon)" : ""}${breaking ? "!" : ""}`;
 }
+function formatCrossRepositoryLinks(text) {
+	return text.replace(/\[#(\d+)\]\((https:\/\/github\.com\/Tencent\/tdesign-icons\/pull\/\1)\)/g, "[icons#$1]($2)");
+}
 function getChangelogMarkdown(deps, targetRepo) {
 	const scoped = COMPONENT_REPOSITORIES.has(targetRepo);
 	return deps.filter((dep) => !NO_CHANGELOG_DEPENDENCIES.has(dep.name)).flatMap((dep) => {
 		const entries = dep.release ? parseReleaseChangelog(dep.release.body) : [];
-		return entries.length ? entries.map((entry) => `- ${formatType(entry.type, scoped)}: ${entry.text}`) : [`- ${formatType("chore", scoped)}: upgrade ${dep.name} to ${dep.version}`];
+		return entries.length ? entries.map((entry) => `- ${formatType(entry.type, scoped)}: ${formatCrossRepositoryLinks(entry.text)}`) : [`- ${formatType("chore", scoped)}: upgrade ${dep.name} to ${dep.version}`];
 	}).join("\n");
 }
 function buildNoChangelogBody(template) {
@@ -21607,7 +21610,7 @@ function insertChangelog(body, repo, changelog) {
 	return inserted ? {
 		body: result,
 		inserted
-	} : insertAfter(result, /更新日志|changelog|release notes/i, changelog);
+	} : insertAfter(result, "📝 更新日志", changelog);
 }
 function buildPullRequestBody(template, deps, targetRepo) {
 	if (deps.length && deps.every((dep) => NO_CHANGELOG_DEPENDENCIES.has(dep.name))) return buildNoChangelogBody(template);
