@@ -100,11 +100,15 @@ function formatType(type: ChangelogType, scoped: boolean): string {
   return `${base}${scoped ? '(Icon)' : ''}${breaking ? '!' : ''}`
 }
 
+function formatCrossRepositoryLinks(text: string): string {
+  return text.replace(/\[#(\d+)\]\((https:\/\/github\.com\/Tencent\/tdesign-icons\/pull\/\1)\)/g, '[icons#$1]($2)')
+}
+
 export function getChangelogMarkdown(deps: DependencyInfo[], targetRepo: string): string {
   const scoped = COMPONENT_REPOSITORIES.has(targetRepo)
   return deps.filter(dep => !NO_CHANGELOG_DEPENDENCIES.has(dep.name)).flatMap((dep) => {
     const entries = dep.release ? parseReleaseChangelog(dep.release.body) : []
-    return entries.length ? entries.map(entry => `- ${formatType(entry.type, scoped)}: ${entry.text}`) : [`- ${formatType('chore', scoped)}: upgrade ${dep.name} to ${dep.version}`]
+    return entries.length ? entries.map(entry => `- ${formatType(entry.type, scoped)}: ${formatCrossRepositoryLinks(entry.text)}`) : [`- ${formatType('chore', scoped)}: upgrade ${dep.name} to ${dep.version}`]
   }).join('\n')
 }
 
@@ -129,7 +133,7 @@ function insertChangelog(body: string, repo: string, changelog: string): { body:
     result = update.body
     inserted ||= update.inserted
   }
-  return inserted ? { body: result, inserted } : insertAfter(result, /更新日志|changelog|release notes/i, changelog)
+  return inserted ? { body: result, inserted } : insertAfter(result, '📝 更新日志', changelog)
 }
 
 export function buildPullRequestBody(template: string | undefined, deps: DependencyInfo[], targetRepo: string): string {

@@ -482,11 +482,42 @@ catalogs:
     expect(body).toContain('- `tdesign-icons-view` 升级至 `0.5.7`')
     expect(body).toContain('#### [`tdesign-icons-view@0.5.7`]')
     expect(body).toContain('##### 🌈 0.5.7 `2026-07-15`\n\n###### 🐞 Bug Fixes')
-    expect(body).toContain('### 📝 更新日志\n\n- fix: 修复 fullscreen、logo-wecom-filled、no-result-filled、tree-list、wifi-no-filled 5 个图标搜索缺失 @liweijie0812 ([#264](https://github.com/Tencent/tdesign-icons/pull/264))')
+    expect(body).toContain('### 📝 更新日志\n\n- fix: 修复 fullscreen、logo-wecom-filled、no-result-filled、tree-list、wifi-no-filled 5 个图标搜索缺失 @liweijie0812 ([icons#264](https://github.com/Tencent/tdesign-icons/pull/264))')
     expect(body).not.toContain('fix(组件名称)')
     expect(body).toContain('- [x] 其他')
     expect(body).toContain('- [ ] 本条 PR 不需要纳入 Changelog')
     expect(body).toContain('- [x] Changelog 已提供或无须提供')
+  })
+
+  it('单仓模板不将 CHANGELOG 链接误认为更新日志区块', () => {
+    const template = `### 💡 需求背景和解决方案
+
+<!-- 请描述背景 -->
+
+### 📝 更新日志
+
+<!-- 请描述更新日志 -->
+
+- fix(组件名称): 处理问题或特性描述 ...
+
+- [ ] 本条 PR 不需要纳入 Changelog
+
+### ☑️ 请求合并前的自查清单
+
+- [ ] Changelog 已提供或无须提供`
+    const changelog = '- fix(Icon): 修复 usb 原始图标的图层 ID 错误 @uyarn ([icons#298](https://github.com/Tencent/tdesign-icons/pull/298))'
+    const body = buildPullRequestBody(template, [{
+      name: 'tdesign-icons-vue-next',
+      version: '0.4.11',
+      release: {
+        body: '## 🌈 0.4.11 `2026-08-28`\n\n### 🐞 Bug Fixes\n\n- 修复 usb 原始图标的图层 ID 错误 @uyarn ([#298](https://github.com/Tencent/tdesign-icons/pull/298))',
+        tag: 'tdesign-icons-vue-next@0.4.11',
+        url: 'https://github.com/Tencent/tdesign-icons/blob/HEAD/packages/vue-next/CHANGELOG.md',
+      },
+    }], 'tdesign-mobile-vue')
+
+    expect(body).toContain(`### 📝 更新日志\n\n${changelog}`)
+    expect(body).not.toContain(`CHANGELOG.md)\n\n${changelog}`)
   })
 
   it('仅升级无需 Changelog 的依赖时只勾选对应选项', () => {
