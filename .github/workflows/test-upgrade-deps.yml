@@ -83,7 +83,7 @@ jobs:
         with:
           token: ${{ github.token }}
           dry-run: true
-          repo: tdesign-vue-react
+          repo: tdesign-react
           owner: Tencent
           package-manager: pnpm
           deps: tdesign-icons-react
