@@ -4,7 +4,7 @@ on:
     branches:
       - main
     paths:
-      - actions/upgrade-deps/dist/*\
+      - actions/upgrade-deps/dist/*
       - workflows/test-upgrade-deps.yml
 
 jobs:
