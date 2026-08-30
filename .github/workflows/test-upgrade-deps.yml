@@ -5,7 +5,7 @@ on:
       - main
     paths:
       - actions/upgrade-deps/dist/*
-      - workflows/test-upgrade-deps.yml
+      - .github/workflows/test-upgrade-deps.yml
 
 jobs:
   tdesign-vue:
