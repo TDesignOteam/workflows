@@ -19926,7 +19926,8 @@ var GitHelper = class {
 		return stdout.trim() !== "";
 	}
 	async printDiff() {
-		await exec("git", ["diff"], { cwd: this.repoPath });
+		const { stdout } = await getExecOutput("git", ["--no-pager", "diff"], { cwd: this.repoPath });
+		info(stdout || "No dependency changes");
 	}
 };
 //#endregion

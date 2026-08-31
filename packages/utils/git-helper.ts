@@ -123,6 +123,7 @@ export class GitHelper {
   }
 
   async printDiff(): Promise<void> {
-    await exec('git', ['diff'], { cwd: this.repoPath })
+    const { stdout } = await getExecOutput('git', ['--no-pager', 'diff'], { cwd: this.repoPath })
+    info(stdout || 'No dependency changes')
   }
 }
