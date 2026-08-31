@@ -84,7 +84,7 @@ jobs:
           token: ${{ github.token }}
           dry-run: true
           repo: tdesign-react
-          owner: Tencent
+          owner: liweijie0812
           package-manager: pnpm
           deps: tdesign-icons-react
 
