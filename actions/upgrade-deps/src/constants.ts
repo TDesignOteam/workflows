@@ -1,5 +1,5 @@
 export const PACKAGE_MANAGER_COMMANDS = {
-  pnpm: { cmd: 'pnpm', args: ['up', '-r', '--latest'] },
+  pnpm: { cmd: 'pnpm', args: ['up', '-r'] },
   yarn: { cmd: 'yarn', args: ['upgrade', '--latest'] },
   npm: { cmd: 'npm', args: ['install'] },
 } as const

@@ -292,7 +292,7 @@ catalogs:
       { name: 'eslint', version: '10.0.0' },
     ], ['vite'], 'repo/packages/site', '/repo')).toEqual([
       {
-        args: ['-r', 'up', '--latest', 'eslint'],
+        args: ['-r', 'up', 'eslint'],
         cwd: 'repo/packages/site',
       },
       {

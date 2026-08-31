@@ -8,6 +8,7 @@
     "lint": "eslint",
     "lint:fix": "eslint --fix",
     "test": "vitest run",
+    "test:update": "vitest run --update",
     "typecheck": "tsgo --noEmit"
   },
   "devDependencies": {
