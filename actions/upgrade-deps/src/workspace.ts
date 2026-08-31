@@ -108,7 +108,7 @@ export function getPnpmUpdateCommands(deps: DependencyInfo[], catalogDependencie
   const catalogNames = new Set(catalogDependencies)
   const regular = deps.filter(dep => !catalogNames.has(dep.name))
   return [
-    ...(regular.length ? [{ args: ['-r', 'up', '--latest', ...regular.map(dep => dep.name)], cwd: targetPath }] : []),
+    ...(regular.length ? [{ args: ['-r', 'up', ...regular.map(dep => dep.name)], cwd: targetPath }] : []),
     ...(catalogDependencies.length ? [{ args: ['install'], cwd: workspaceDir }] : []),
   ]
 }

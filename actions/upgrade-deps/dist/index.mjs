@@ -28331,7 +28331,6 @@ function getPnpmUpdateCommands(deps, catalogDependencies, targetPath, workspaceD
 		args: [
 			"-r",
 			"up",
-			"--latest",
 			...regular.map((dep) => dep.name)
 		],
 		cwd: targetPath
