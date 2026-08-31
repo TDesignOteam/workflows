@@ -21282,11 +21282,7 @@ function applyEdits(text, edits) {
 const PACKAGE_MANAGER_COMMANDS = {
 	pnpm: {
 		cmd: "pnpm",
-		args: [
-			"up",
-			"-r",
-			"--latest"
-		]
+		args: ["up", "-r"]
 	},
 	yarn: {
 		cmd: "yarn",
@@ -28330,7 +28326,6 @@ function getPnpmUpdateCommands(deps, catalogDependencies, targetPath, workspaceD
 		args: [
 			"-r",
 			"up",
-			"--latest",
 			...regular.map((dep) => dep.name)
 		],
 		cwd: targetPath
