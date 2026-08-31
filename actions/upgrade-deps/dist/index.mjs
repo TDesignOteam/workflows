@@ -19926,7 +19926,8 @@ var GitHelper = class {
 		return stdout.trim() !== "";
 	}
 	async printDiff() {
-		await exec("git", ["diff"], { cwd: this.repoPath });
+		const { stdout } = await getExecOutput("git", ["--no-pager", "diff"], { cwd: this.repoPath });
+		info(stdout || "No dependency changes");
 	}
 };
 //#endregion
@@ -28330,7 +28331,6 @@ function getPnpmUpdateCommands(deps, catalogDependencies, targetPath, workspaceD
 		args: [
 			"-r",
 			"up",
-			"--latest",
 			...regular.map((dep) => dep.name)
 		],
 		cwd: targetPath
@@ -28355,53 +28355,65 @@ function getSnapshotUpdateCommand(packageManager, deps, targetRepo, repoPath) {
 }
 async function updatePackageDependencies(packageManager, deps, repo, targetDir) {
 	const targetPath = `./${repo}${targetDir ? `/${targetDir}` : ""}`;
-	if (packageManager !== "pnpm") await exec(packageManager, [...{
-		yarn: ["upgrade", "--latest"],
-		npm: ["install"]
-	}[packageManager], ...deps.map((dep) => dep.name)], { cwd: targetPath });
-	else {
-		const workspaceFile = await findPnpmWorkspaceFile(targetPath, `./${repo}`);
-		if (!workspaceFile) await exec("pnpm", [
-			"-r",
-			"up",
-			"--latest",
-			...deps.map((dep) => dep.name)
-		], { cwd: targetPath });
+	startGroup("Install dependencies");
+	try {
+		if (packageManager !== "pnpm") await exec(packageManager, [...{
+			yarn: ["upgrade", "--latest"],
+			npm: ["install"]
+		}[packageManager], ...deps.map((dep) => dep.name)], { cwd: targetPath });
 		else {
-			const original = await readFile(workspaceFile, "utf8");
-			const catalog = updatePnpmCatalogs(original, deps);
-			const catalogNames = new Set(catalog.catalogDependencies);
-			const catalogDeps = deps.filter((dep) => catalogNames.has(dep.name));
-			const packagePaths = await listPnpmWorkspacePackagePaths(path.dirname(workspaceFile));
-			const updates = [];
-			for (const packagePath of packagePaths) {
-				const manifest = path.join(packagePath, "package.json");
-				try {
-					const result = updatePackageManifestVersions(await readFile(manifest, "utf8"), catalogDeps, manifest);
-					if (result.updated) updates.push({
-						filePath: manifest,
-						content: result.content
-					});
-				} catch (error) {
-					if (error.code !== "ENOENT") throw error;
+			const workspaceFile = await findPnpmWorkspaceFile(targetPath, `./${repo}`);
+			if (!workspaceFile) await exec("pnpm", [
+				"-r",
+				"up",
+				"--latest",
+				...deps.map((dep) => dep.name)
+			], { cwd: targetPath });
+			else {
+				const original = await readFile(workspaceFile, "utf8");
+				const catalog = updatePnpmCatalogs(original, deps);
+				const catalogNames = new Set(catalog.catalogDependencies);
+				const catalogDeps = deps.filter((dep) => catalogNames.has(dep.name));
+				const packagePaths = await listPnpmWorkspacePackagePaths(path.dirname(workspaceFile));
+				const updates = [];
+				for (const packagePath of packagePaths) {
+					const manifest = path.join(packagePath, "package.json");
+					try {
+						const result = updatePackageManifestVersions(await readFile(manifest, "utf8"), catalogDeps, manifest);
+						if (result.updated) updates.push({
+							filePath: manifest,
+							content: result.content
+						});
+					} catch (error) {
+						if (error.code !== "ENOENT") throw error;
+					}
 				}
+				if (catalog.content !== original) updates.unshift({
+					filePath: workspaceFile,
+					content: catalog.content
+				});
+				await Promise.all(updates.map((update) => writeFile(update.filePath, update.content, "utf8")));
+				for (const command of getPnpmUpdateCommands(deps, catalog.catalogDependencies, targetPath, path.dirname(workspaceFile))) await exec("pnpm", command.args, {
+					cwd: command.cwd,
+					...command.args[0] === "install" ? { env: {
+						...env,
+						CI: "false"
+					} } : {}
+				});
 			}
-			if (catalog.content !== original) updates.unshift({
-				filePath: workspaceFile,
-				content: catalog.content
-			});
-			await Promise.all(updates.map((update) => writeFile(update.filePath, update.content, "utf8")));
-			for (const command of getPnpmUpdateCommands(deps, catalog.catalogDependencies, targetPath, path.dirname(workspaceFile))) await exec("pnpm", command.args, {
-				cwd: command.cwd,
-				...command.args[0] === "install" ? { env: {
-					...env,
-					CI: "false"
-				} } : {}
-			});
 		}
+	} finally {
+		endGroup();
 	}
 	const snapshot = getSnapshotUpdateCommand(packageManager, deps, repo, `./${repo}`);
-	if (snapshot) await exec(packageManager, snapshot.args, { cwd: snapshot.cwd });
+	if (snapshot) {
+		startGroup("Update snapshots");
+		try {
+			await exec(packageManager, snapshot.args, { cwd: snapshot.cwd });
+		} finally {
+			endGroup();
+		}
+	}
 }
 //#endregion
 //#region src/main.ts
@@ -28431,7 +28443,12 @@ async function updateDependencies(context) {
 		info("No changes to commit");
 		return;
 	}
-	await gitHelper.printDiff();
+	startGroup("Dependency diff");
+	try {
+		await gitHelper.printDiff();
+	} finally {
+		endGroup();
+	}
 	const title = customTitle || getPrTitle(depInfos);
 	const body = buildPullRequestBody(template, depInfos, context.repo);
 	await gitHelper.commit(title);
