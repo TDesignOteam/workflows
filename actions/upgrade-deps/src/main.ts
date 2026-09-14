@@ -34,7 +34,13 @@ export async function updateDependencies(context: TriggerContext): Promise<void>
     core.info('No changes to commit')
     return
   }
-  await gitHelper.printDiff()
+  core.startGroup('Dependency diff')
+  try {
+    await gitHelper.printDiff()
+  }
+  finally {
+    core.endGroup()
+  }
   const title = customTitle || getPrTitle(depInfos)
   const body = buildPullRequestBody(template, depInfos, context.repo)
   await gitHelper.commit(title)

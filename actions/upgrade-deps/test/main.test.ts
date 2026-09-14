@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
+import * as core from '@actions/core'
 import * as exec from '@actions/exec'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -144,6 +145,8 @@ describe('升级依赖', () => {
   it('按包管理器执行升级命令', async () => {
     await updatePackageDependencies('npm', [{ name: 'vite', version: '7.0.0' }], 'tdesign-vue-next', '')
     expect(exec.exec).toHaveBeenLastCalledWith('npm', ['install', 'vite'], { cwd: './tdesign-vue-next' })
+    expect(core.startGroup).toHaveBeenCalledWith('Install dependencies')
+    expect(core.endGroup).toHaveBeenCalledTimes(1)
   })
 
   it('按 yarn 执行升级命令', async () => {
@@ -154,6 +157,8 @@ describe('升级依赖', () => {
   it('icons 依赖升级后执行快照更新命令', async () => {
     await updatePackageDependencies('npm', [{ name: 'tdesign-icons-vue-next', version: '0.4.6' }], 'tdesign-vue-next', '')
     expect(exec.exec).toHaveBeenLastCalledWith('npm', ['run', 'test:vue:update'], { cwd: './tdesign-vue-next' })
+    expect(core.startGroup).toHaveBeenCalledWith('Update snapshots')
+    expect(core.endGroup).toHaveBeenCalledTimes(2)
   })
 
   it('从 target-dir 查找最近的 pnpm workspace 且不越出 clone', async () => {
