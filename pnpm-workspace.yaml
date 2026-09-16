@@ -1,14 +1,13 @@
 catalogMode: prefer
-
 cleanupUnusedCatalogs: true
-
-shellEmulator: true
-
+minimumReleaseAgeExcludePrune: true
 trustPolicy: no-downgrade
+shellEmulator: true
 
 packages:
   - actions/*
   - packages/*
+
 catalog:
   '@actions/core': ^3.0.1
   '@actions/exec': ^3.0.0
