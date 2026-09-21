@@ -180,8 +180,8 @@ catalogs:
       specifier: ^18.0.0
       version: 18.0.0
     '@types/node':
-      specifier: ^24.13.4
-      version: 24.13.4
+      specifier: ^24.13.6
+      version: 24.13.6
     '@typescript/native-preview':
       specifier: 7.0.0-dev.20260707.2
       version: 7.0.0-dev.20260707.2
@@ -235,7 +235,7 @@ importers:
         version: 18.0.0(@octokit/core@7.0.6)
       '@types/node':
         specifier: 'catalog:'
-        version: 24.13.4
+        version: 24.13.6
       tsdown:
         specifier: 'catalog:'
         version: 0.23.0(@typescript/native-preview@7.0.0-dev.20260707.2)(typescript@5.9.3)
@@ -248,7 +248,7 @@ importers:
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
-        version: 24.13.4
+        version: 24.13.6
       tsdown:
         specifier: 'catalog:'
         version: 0.23.0(@typescript/native-preview@7.0.0-dev.20260707.2)(typescript@5.9.3)
@@ -264,7 +264,7 @@ importers:
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
-        version: 24.13.4
+        version: 24.13.6
       tsdown:
         specifier: 'catalog:'
         version: 0.23.0(@typescript/native-preview@7.0.0-dev.20260707.2)(typescript@5.9.3)
@@ -283,7 +283,7 @@ importers:
         version: 18.0.0(@octokit/core@7.0.6)
       '@types/node':
         specifier: 'catalog:'
-        version: 24.13.4
+        version: 24.13.6
       tsdown:
         specifier: 'catalog:'
         version: 0.23.0(@typescript/native-preview@7.0.0-dev.20260707.2)(typescript@5.9.3)
@@ -314,7 +314,7 @@ importers:
         version: 18.0.0(@octokit/core@7.0.6)
       '@types/node':
         specifier: 'catalog:'
-        version: 24.13.4
+        version: 24.13.6
       tsdown:
         specifier: 'catalog:'
         version: 0.23.0(@typescript/native-preview@7.0.0-dev.20260707.2)(typescript@5.9.3)
@@ -907,8 +907,8 @@ packages:
   '@types/ms@2.1.0':
     resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
 
-  '@types/node@24.13.4':
-    resolution: {integrity: sha512-YJ7EqCstVTzIr0fMr7qul/977en+pQHrfmuKIo6Zr9i75Be21dr3MovcfvGtyvi2HAUrRerWps5sMO9I7WaxDw==}
+  '@types/node@24.13.6':
+    resolution: {integrity: sha512-SGrw/h3KPFshy3OE6ZL53LMBG5vGQQ8/gIpiqz/kRZhPJ7HgwCEs8LBuNtWLa8dvGZVpSF7+Bf+c11HUrCb/yg==}
 
   '@types/node@26.5.1':
     resolution: {integrity: sha512-CzNm2FezW4VR/LjG6yUdiEgLE/rAQ9Slj5gCu/C2VrdcW7I0ahNZ8DRbHT7zOZ6r3ONgd/bsQIeSaoDGrd1C6g==}
@@ -3079,7 +3079,7 @@ snapshots:
 
   '@types/ms@2.1.0': {}
 
-  '@types/node@24.13.4':
+  '@types/node@24.13.6':
     dependencies:
       undici-types: 7.18.2
 
@@ -4040,7 +4040,7 @@ snapshots:
 
   magic-string@0.30.21:
     dependencies:
-      '@jridgewell/sourcemap-codec': 1.5.5
+      '@jridgewell/sourcemap-codec': 1.6.0
 
   magic-string@1.4.1:
     dependencies:
