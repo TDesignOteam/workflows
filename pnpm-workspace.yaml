@@ -1,7 +1,11 @@
 catalogMode: prefer
 cleanupUnusedCatalogs: true
 minimumReleaseAgeExcludePrune: true
+
 trustPolicy: no-downgrade
+trustPolicyExclude:
+  - why-is-node-running@3.2.2
+
 shellEmulator: true
 
 packages:
