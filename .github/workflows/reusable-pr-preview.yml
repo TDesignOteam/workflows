@@ -31,15 +31,22 @@ jobs:
       - run: |
           unzip _site.zip
 
-      - name: Upload surge service and generate preview URL
+      - name: Prepare deploy domain
         id: deploy
         run: |
           repository=${{github.repository}}
           project_name=${repository#*/}
           export DEPLOY_DOMAIN=https://preview-pr-${{ steps.pr.outputs.id }}-$project_name.surge.sh
-          npx surge --project ./_site --domain $DEPLOY_DOMAIN --token ${{ secrets.TDESIGN_SURGE_TOKEN }}
-          echo the preview URL is $DEPLOY_DOMAIN
+          echo "the preview URL is $DEPLOY_DOMAIN"
           echo "url=$DEPLOY_DOMAIN" >> $GITHUB_OUTPUT
+
+      - name: Deploy to Surge
+        uses: TDesignOteam/workflows/actions/setup-surge@main
+        with:
+          project: ./_site
+          domain: ${{ steps.deploy.outputs.url }}
+          token: ${{ secrets.TDESIGN_SURGE_TOKEN }}
+
       - name: update status comment
         uses: TDesignOteam/workflows/actions/maintain-one-comment@main
         with:
