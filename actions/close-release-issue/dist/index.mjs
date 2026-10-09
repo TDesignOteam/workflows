@@ -902,20 +902,22 @@ var require_tree = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			while (true) {
 				const code = key.charCodeAt(index);
 				if (code > 127) throw new TypeError("key must be ascii string");
-				if (node.code === code) if (length === ++index) {
-					node.value = value;
-					break;
-				} else if (node.middle !== null) node = node.middle;
-				else {
-					node.middle = new TstNode(key, value, index);
-					break;
-				}
-				else if (node.code < code) if (node.left !== null) node = node.left;
-				else {
-					node.left = new TstNode(key, value, index);
-					break;
-				}
-				else if (node.right !== null) node = node.right;
+				if (node.code === code) {
+					if (length === ++index) {
+						node.value = value;
+						break;
+					} else if (node.middle !== null) node = node.middle;
+					else {
+						node.middle = new TstNode(key, value, index);
+						break;
+					}
+				} else if (node.code < code) {
+					if (node.left !== null) node = node.left;
+					else {
+						node.left = new TstNode(key, value, index);
+						break;
+					}
+				} else if (node.right !== null) node = node.right;
 				else {
 					node.right = new TstNode(key, value, index);
 					break;
@@ -1589,15 +1591,16 @@ var require_request$1 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			if (Array.isArray(headers)) {
 				if (headers.length % 2 !== 0) throw new InvalidArgumentError("headers array must be even");
 				for (let i = 0; i < headers.length; i += 2) processHeader(this, headers[i], headers[i + 1]);
-			} else if (headers && typeof headers === "object") if (headers[Symbol.iterator]) for (const header of headers) {
-				if (!Array.isArray(header) || header.length !== 2) throw new InvalidArgumentError("headers must be in key-value pair format");
-				processHeader(this, header[0], header[1]);
-			}
-			else {
-				const keys = Object.keys(headers);
-				for (let i = 0; i < keys.length; ++i) processHeader(this, keys[i], headers[keys[i]]);
-			}
-			else if (headers != null) throw new InvalidArgumentError("headers must be an object or an array");
+			} else if (headers && typeof headers === "object") {
+				if (headers[Symbol.iterator]) for (const header of headers) {
+					if (!Array.isArray(header) || header.length !== 2) throw new InvalidArgumentError("headers must be in key-value pair format");
+					processHeader(this, header[0], header[1]);
+				}
+				else {
+					const keys = Object.keys(headers);
+					for (let i = 0; i < keys.length; ++i) processHeader(this, keys[i], headers[keys[i]]);
+				}
+			} else if (headers != null) throw new InvalidArgumentError("headers must be an object or an array");
 			validateHandler(handler, method, upgrade);
 			this.servername = servername || getServerName(this.host);
 			this[kHandler] = handler;
@@ -3934,8 +3937,10 @@ var require_util$6 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			const algorithm = item.algo;
 			const expectedValue = item.hash;
 			let actualValue = crypto.createHash(algorithm).update(bytes).digest("base64");
-			if (actualValue[actualValue.length - 1] === "=") if (actualValue[actualValue.length - 2] === "=") actualValue = actualValue.slice(0, -2);
-			else actualValue = actualValue.slice(0, -1);
+			if (actualValue[actualValue.length - 1] === "=") {
+				if (actualValue[actualValue.length - 2] === "=") actualValue = actualValue.slice(0, -2);
+				else actualValue = actualValue.slice(0, -1);
+			}
 			if (compareBase64Mixed(actualValue, expectedValue)) return true;
 		}
 		return false;
@@ -4378,12 +4383,14 @@ var require_util$6 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		let temporaryValue = "";
 		while (position.position < input.length) {
 			temporaryValue += collectASequenceOfCodePoints((char) => char !== "\"" && char !== ",", input, position);
-			if (position.position < input.length) if (input.charCodeAt(position.position) === 34) {
-				temporaryValue += collectAnHTTPQuotedString(input, position);
-				if (position.position < input.length) continue;
-			} else {
-				assert$22(input.charCodeAt(position.position) === 44);
-				position.position++;
+			if (position.position < input.length) {
+				if (input.charCodeAt(position.position) === 34) {
+					temporaryValue += collectAnHTTPQuotedString(input, position);
+					if (position.position < input.length) continue;
+				} else {
+					assert$22(input.charCodeAt(position.position) === 44);
+					position.position++;
+				}
 			}
 			temporaryValue = removeChars(temporaryValue, true, true, (char) => char === 9 || char === 32);
 			values.push(temporaryValue);
@@ -4633,9 +4640,10 @@ var require_formdata = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		[nodeUtil$2.inspect.custom](depth, options) {
 			const state = this[kState].reduce((a, b) => {
-				if (a[b.name]) if (Array.isArray(a[b.name])) a[b.name].push(b.value);
-				else a[b.name] = [a[b.name], b.value];
-				else a[b.name] = b.value;
+				if (a[b.name]) {
+					if (Array.isArray(a[b.name])) a[b.name].push(b.value);
+					else a[b.name] = [a[b.name], b.value];
+				} else a[b.name] = b.value;
 				return a;
 			}, { __proto__: null });
 			options.depth ??= depth;
@@ -5247,10 +5255,12 @@ var require_client_h1 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 					timers.clearTimeout(this.timeout);
 					this.timeout = null;
 				}
-				if (delay) if (type & USE_FAST_TIMER) this.timeout = timers.setFastTimeout(onParserTimeout, delay, new WeakRef(this));
-				else {
-					this.timeout = setTimeout(onParserTimeout, delay, new WeakRef(this));
-					this.timeout.unref();
+				if (delay) {
+					if (type & USE_FAST_TIMER) this.timeout = timers.setFastTimeout(onParserTimeout, delay, new WeakRef(this));
+					else {
+						this.timeout = setTimeout(onParserTimeout, delay, new WeakRef(this));
+						this.timeout.unref();
+					}
 				}
 				this.timeoutValue = delay;
 			} else if (this.timeout) {
@@ -5709,9 +5719,10 @@ var require_client_h1 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		/* istanbul ignore else: assertion */
 		if (!body || bodyLength === 0) writeBuffer(abort, null, client, request, socket, contentLength, header, expectsPayload);
 		else if (util.isBuffer(body)) writeBuffer(abort, body, client, request, socket, contentLength, header, expectsPayload);
-		else if (util.isBlobLike(body)) if (typeof body.stream === "function") writeIterable(abort, body.stream(), client, request, socket, contentLength, header, expectsPayload);
-		else writeBlob(abort, body, client, request, socket, contentLength, header, expectsPayload);
-		else if (util.isStream(body)) writeStream(abort, body, client, request, socket, contentLength, header, expectsPayload);
+		else if (util.isBlobLike(body)) {
+			if (typeof body.stream === "function") writeIterable(abort, body.stream(), client, request, socket, contentLength, header, expectsPayload);
+			else writeBlob(abort, body, client, request, socket, contentLength, header, expectsPayload);
+		} else if (util.isStream(body)) writeStream(abort, body, client, request, socket, contentLength, header, expectsPayload);
 		else if (util.isIterable(body)) writeIterable(abort, body, client, request, socket, contentLength, header, expectsPayload);
 		else assert$19(false);
 		return true;
@@ -5773,12 +5784,13 @@ var require_client_h1 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	}
 	function writeBuffer(abort, body, client, request, socket, contentLength, header, expectsPayload) {
 		try {
-			if (!body) if (contentLength === 0) socket.write(`${header}content-length: 0\r\n\r\n`, "latin1");
-			else {
-				assert$19(contentLength === null, "no body must not have content length");
-				socket.write(`${header}\r\n`, "latin1");
-			}
-			else if (util.isBuffer(body)) {
+			if (!body) {
+				if (contentLength === 0) socket.write(`${header}content-length: 0\r\n\r\n`, "latin1");
+				else {
+					assert$19(contentLength === null, "no body must not have content length");
+					socket.write(`${header}\r\n`, "latin1");
+				}
+			} else if (util.isBuffer(body)) {
 				assert$19(contentLength === body.byteLength, "buffer body must have content length");
 				socket.cork();
 				socket.write(`${header}content-length: ${contentLength}\r\n\r\n`, "latin1");
@@ -5894,11 +5906,14 @@ var require_client_h1 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			socket[kWriting] = false;
 			if (socket[kError]) throw socket[kError];
 			if (socket.destroyed) return;
-			if (bytesWritten === 0) if (expectsPayload) socket.write(`${header}content-length: 0\r\n\r\n`, "latin1");
-			else socket.write(`${header}\r\n`, "latin1");
-			else if (contentLength === null) socket.write("\r\n0\r\n\r\n", "latin1");
-			if (contentLength !== null && bytesWritten !== contentLength) if (client[kStrictContentLength]) throw new RequestContentLengthMismatchError();
-			else process.emitWarning(new RequestContentLengthMismatchError());
+			if (bytesWritten === 0) {
+				if (expectsPayload) socket.write(`${header}content-length: 0\r\n\r\n`, "latin1");
+				else socket.write(`${header}\r\n`, "latin1");
+			} else if (contentLength === null) socket.write("\r\n0\r\n\r\n", "latin1");
+			if (contentLength !== null && bytesWritten !== contentLength) {
+				if (client[kStrictContentLength]) throw new RequestContentLengthMismatchError();
+				else process.emitWarning(new RequestContentLengthMismatchError());
+			}
 			if (socket[kParser].timeout && socket[kParser].timeoutType === TIMEOUT_HEADERS) {
 				// istanbul ignore else: only for jest
 				if (socket[kParser].timeout.refresh) socket[kParser].timeout.refresh();
@@ -6019,12 +6034,14 @@ var require_client_h2 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	}
 	function resumeH2(client) {
 		const socket = client[kSocket];
-		if (socket?.destroyed === false) if (client[kSize] === 0 && client[kMaxConcurrentStreams] === 0) {
-			socket.unref();
-			client[kHTTP2Session].unref();
-		} else {
-			socket.ref();
-			client[kHTTP2Session].ref();
+		if (socket?.destroyed === false) {
+			if (client[kSize] === 0 && client[kMaxConcurrentStreams] === 0) {
+				socket.unref();
+				client[kHTTP2Session].unref();
+			} else {
+				socket.ref();
+				client[kHTTP2Session].ref();
+			}
 		}
 	}
 	function onHttp2SessionError(err) {
@@ -6208,9 +6225,10 @@ var require_client_h2 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			/* istanbul ignore else: assertion */
 			if (!body || contentLength === 0) writeBuffer(abort, stream, null, client, request, client[kSocket], contentLength, expectsPayload);
 			else if (util.isBuffer(body)) writeBuffer(abort, stream, body, client, request, client[kSocket], contentLength, expectsPayload);
-			else if (util.isBlobLike(body)) if (typeof body.stream === "function") writeIterable(abort, stream, body.stream(), client, request, client[kSocket], contentLength, expectsPayload);
-			else writeBlob(abort, stream, body, client, request, client[kSocket], contentLength, expectsPayload);
-			else if (util.isStream(body)) writeStream(abort, client[kSocket], expectsPayload, stream, body, client, request, contentLength);
+			else if (util.isBlobLike(body)) {
+				if (typeof body.stream === "function") writeIterable(abort, stream, body.stream(), client, request, client[kSocket], contentLength, expectsPayload);
+				else writeBlob(abort, stream, body, client, request, client[kSocket], contentLength, expectsPayload);
+			} else if (util.isStream(body)) writeStream(abort, client[kSocket], expectsPayload, stream, body, client, request, contentLength);
 			else if (util.isIterable(body)) writeIterable(abort, stream, body, client, request, client[kSocket], contentLength, expectsPayload);
 			else assert$18(false);
 		}
@@ -7661,13 +7679,15 @@ var require_retry_handler = /* @__PURE__ */ __commonJSMin(((exports, module) => 
 		onHeaders(statusCode, rawHeaders, resume, statusMessage) {
 			const headers = parseHeaders(rawHeaders);
 			this.retryCount += 1;
-			if (statusCode >= 300) if (this.retryOpts.statusCodes.includes(statusCode) === false) return this.handler.onHeaders(statusCode, rawHeaders, resume, statusMessage);
-			else {
-				this.abort(new RequestRetryError("Request failed", statusCode, {
-					headers,
-					data: { count: this.retryCount }
-				}));
-				return false;
+			if (statusCode >= 300) {
+				if (this.retryOpts.statusCodes.includes(statusCode) === false) return this.handler.onHeaders(statusCode, rawHeaders, resume, statusMessage);
+				else {
+					this.abort(new RequestRetryError("Request failed", statusCode, {
+						headers,
+						data: { count: this.retryCount }
+					}));
+					return false;
+				}
 			}
 			if (this.resume != null) {
 				this.resume = null;
@@ -8124,17 +8144,19 @@ var require_api_request = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			if (util.isStream(body)) body.on("error", (err) => {
 				this.onError(err);
 			});
-			if (this.signal) if (this.signal.aborted) this.reason = this.signal.reason ?? new RequestAbortedError();
-			else this.removeAbortListener = util.addAbortListener(this.signal, () => {
-				this.reason = this.signal.reason ?? new RequestAbortedError();
-				if (this.res) util.destroy(this.res.on("error", util.nop), this.reason);
-				else if (this.abort) this.abort(this.reason);
-				if (this.removeAbortListener) {
-					this.res?.off("close", this.removeAbortListener);
-					this.removeAbortListener();
-					this.removeAbortListener = null;
-				}
-			});
+			if (this.signal) {
+				if (this.signal.aborted) this.reason = this.signal.reason ?? new RequestAbortedError();
+				else this.removeAbortListener = util.addAbortListener(this.signal, () => {
+					this.reason = this.signal.reason ?? new RequestAbortedError();
+					if (this.res) util.destroy(this.res.on("error", util.nop), this.reason);
+					else if (this.abort) this.abort(this.reason);
+					if (this.removeAbortListener) {
+						this.res?.off("close", this.removeAbortListener);
+						this.removeAbortListener();
+						this.removeAbortListener = null;
+					}
+				});
+			}
 		}
 		onConnect(abort, context) {
 			if (this.reason) {
@@ -8168,22 +8190,24 @@ var require_api_request = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			if (this.removeAbortListener) res.on("close", this.removeAbortListener);
 			this.callback = null;
 			this.res = res;
-			if (callback !== null) if (this.throwOnError && statusCode >= 400) this.runInAsyncScope(getResolveErrorBodyCallback, null, {
-				callback,
-				body: res,
-				contentType,
-				statusCode,
-				statusMessage,
-				headers
-			});
-			else this.runInAsyncScope(callback, null, null, {
-				statusCode,
-				headers,
-				trailers: this.trailers,
-				opaque,
-				body: res,
-				context
-			});
+			if (callback !== null) {
+				if (this.throwOnError && statusCode >= 400) this.runInAsyncScope(getResolveErrorBodyCallback, null, {
+					callback,
+					body: res,
+					contentType,
+					statusCode,
+					statusMessage,
+					headers
+				});
+				else this.runInAsyncScope(callback, null, null, {
+					statusCode,
+					headers,
+					trailers: this.trailers,
+					opaque,
+					body: res,
+					context
+				});
+			}
 		}
 		onData(chunk) {
 			return this.res.push(chunk);
@@ -9082,10 +9106,12 @@ var require_mock_interceptor = /* @__PURE__ */ __commonJSMin(((exports, module) 
 			if (typeof opts !== "object") throw new InvalidArgumentError("opts must be an object");
 			if (typeof opts.path === "undefined") throw new InvalidArgumentError("opts.path must be defined");
 			if (typeof opts.method === "undefined") opts.method = "GET";
-			if (typeof opts.path === "string") if (opts.query) opts.path = buildURL(opts.path, opts.query);
-			else {
-				const parsedURL = new URL(opts.path, "data://");
-				opts.path = parsedURL.pathname + parsedURL.search;
+			if (typeof opts.path === "string") {
+				if (opts.query) opts.path = buildURL(opts.path, opts.query);
+				else {
+					const parsedURL = new URL(opts.path, "data://");
+					opts.path = parsedURL.pathname + parsedURL.search;
+				}
 			}
 			if (typeof opts.method === "string") opts.method = opts.method.toUpperCase();
 			this[kDispatchKey] = buildKey(opts);
@@ -9376,9 +9402,10 @@ var require_mock_agent = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			this[kIsMockActive] = true;
 		}
 		enableNetConnect(matcher) {
-			if (typeof matcher === "string" || typeof matcher === "function" || matcher instanceof RegExp) if (Array.isArray(this[kNetConnect])) this[kNetConnect].push(matcher);
-			else this[kNetConnect] = [matcher];
-			else if (typeof matcher === "undefined") this[kNetConnect] = true;
+			if (typeof matcher === "string" || typeof matcher === "function" || matcher instanceof RegExp) {
+				if (Array.isArray(this[kNetConnect])) this[kNetConnect].push(matcher);
+				else this[kNetConnect] = [matcher];
+			} else if (typeof matcher === "undefined") this[kNetConnect] = true;
 			else throw new InvalidArgumentError("Unsupported matcher. Must be one of String|Function|RegExp.");
 		}
 		disableNetConnect() {
@@ -9681,12 +9708,14 @@ var require_dns = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			const { records, offset } = hostnameRecords;
 			let family;
 			if (this.dualStack) {
-				if (affinity == null) if (offset == null || offset === maxInt) {
-					hostnameRecords.offset = 0;
-					affinity = 4;
-				} else {
-					hostnameRecords.offset++;
-					affinity = (hostnameRecords.offset & 1) === 1 ? 6 : 4;
+				if (affinity == null) {
+					if (offset == null || offset === maxInt) {
+						hostnameRecords.offset = 0;
+						affinity = 4;
+					} else {
+						hostnameRecords.offset++;
+						affinity = (hostnameRecords.offset & 1) === 1 ? 6 : 4;
+					}
 				}
 				if (records[affinity] != null && records[affinity].ips.length > 0) family = records[affinity];
 				else family = records[affinity === 4 ? 6 : 4];
@@ -11182,8 +11211,10 @@ var require_fetch = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		assert$4(!request.body || request.body.stream);
 		if (request.window === "client") request.window = request.client?.globalObject?.constructor?.name === "Window" ? request.client : "no-window";
 		if (request.origin === "client") request.origin = request.client.origin;
-		if (request.policyContainer === "client") if (request.client != null) request.policyContainer = clonePolicyContainer(request.client.policyContainer);
-		else request.policyContainer = makePolicyContainer();
+		if (request.policyContainer === "client") {
+			if (request.client != null) request.policyContainer = clonePolicyContainer(request.client.policyContainer);
+			else request.policyContainer = makePolicyContainer();
+		}
 		if (!request.headersList.contains("accept", true)) request.headersList.append("accept", "*/*", true);
 		if (!request.headersList.contains("accept-language", true)) request.headersList.append("accept-language", "*", true);
 		if (request.priority === null) {}
@@ -11452,8 +11483,10 @@ var require_fetch = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			if (!httpRequest.headersList.contains("cache-control", true)) httpRequest.headersList.append("cache-control", "no-cache", true);
 		}
 		if (httpRequest.headersList.contains("range", true)) httpRequest.headersList.append("accept-encoding", "identity", true);
-		if (!httpRequest.headersList.contains("accept-encoding", true)) if (urlHasHttpsScheme(requestCurrentURL(httpRequest))) httpRequest.headersList.append("accept-encoding", "br, gzip, deflate", true);
-		else httpRequest.headersList.append("accept-encoding", "gzip, deflate", true);
+		if (!httpRequest.headersList.contains("accept-encoding", true)) {
+			if (urlHasHttpsScheme(requestCurrentURL(httpRequest))) httpRequest.headersList.append("accept-encoding", "br, gzip, deflate", true);
+			else httpRequest.headersList.append("accept-encoding", "gzip, deflate", true);
+		}
 		httpRequest.headersList.delete("host", true);
 		if (includeCredentials) {}
 		httpRequest.cache = "no-store";
@@ -13867,8 +13900,10 @@ var require_util$1 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			failWebsocketConnection(ws, "Received invalid UTF-8 in text frame.");
 			return;
 		}
-		else if (type === opcodes.BINARY) if (ws[kBinaryType] === "blob") dataForEvent = new Blob([data]);
-		else dataForEvent = toArrayBuffer(data);
+		else if (type === opcodes.BINARY) {
+			if (ws[kBinaryType] === "blob") dataForEvent = new Blob([data]);
+			else dataForEvent = toArrayBuffer(data);
+		}
 		fireEvent("message", ws, createFastMessageEvent, {
 			origin: ws[kWebSocketURL].origin,
 			data: dataForEvent
@@ -15346,13 +15381,15 @@ var require_eventsource = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			};
 			fetchParams.processResponseEndOfBody = processEventSourceEndOfBody;
 			fetchParams.processResponse = (response) => {
-				if (isNetworkError(response)) if (response.aborted) {
-					this.close();
-					this.dispatchEvent(new Event("error"));
-					return;
-				} else {
-					this.#reconnect();
-					return;
+				if (isNetworkError(response)) {
+					if (response.aborted) {
+						this.close();
+						this.dispatchEvent(new Event("error"));
+						return;
+					} else {
+						this.#reconnect();
+						return;
+					}
 				}
 				const contentType = response.headersList.get("content-type", true);
 				const mimeType = contentType !== null ? parseMIMEType(contentType) : "failure";
@@ -16043,10 +16080,12 @@ var Context = class {
 	constructor() {
 		var _a, _b, _c;
 		this.payload = {};
-		if (process.env.GITHUB_EVENT_PATH) if (existsSync(process.env.GITHUB_EVENT_PATH)) this.payload = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, { encoding: "utf8" }));
-		else {
-			const path = process.env.GITHUB_EVENT_PATH;
-			process.stdout.write(`GITHUB_EVENT_PATH ${path} does not exist${EOL}`);
+		if (process.env.GITHUB_EVENT_PATH) {
+			if (existsSync(process.env.GITHUB_EVENT_PATH)) this.payload = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, { encoding: "utf8" }));
+			else {
+				const path = process.env.GITHUB_EVENT_PATH;
+				process.stdout.write(`GITHUB_EVENT_PATH ${path} does not exist${EOL}`);
+			}
 		}
 		this.eventName = process.env.GITHUB_EVENT_NAME;
 		this.sha = process.env.GITHUB_SHA;
@@ -16604,14 +16643,18 @@ var import_lib = /* @__PURE__ */ __toESM((/* @__PURE__ */ __commonJSMin(((export
 			let clientHeader;
 			if (this.requestOptions && this.requestOptions.headers) {
 				const headerValue = lowercaseKeys(this.requestOptions.headers)[Headers.ContentType];
-				if (headerValue) if (typeof headerValue === "number") clientHeader = String(headerValue);
-				else if (Array.isArray(headerValue)) clientHeader = headerValue.join(", ");
-				else clientHeader = headerValue;
+				if (headerValue) {
+					if (typeof headerValue === "number") clientHeader = String(headerValue);
+					else if (Array.isArray(headerValue)) clientHeader = headerValue.join(", ");
+					else clientHeader = headerValue;
+				}
 			}
 			const additionalValue = additionalHeaders[Headers.ContentType];
-			if (additionalValue !== void 0) if (typeof additionalValue === "number") return String(additionalValue);
-			else if (Array.isArray(additionalValue)) return additionalValue.join(", ");
-			else return additionalValue;
+			if (additionalValue !== void 0) {
+				if (typeof additionalValue === "number") return String(additionalValue);
+				else if (Array.isArray(additionalValue)) return additionalValue.join(", ");
+				else return additionalValue;
+			}
 			if (clientHeader !== void 0) return clientHeader;
 			return _default;
 		}
@@ -16907,9 +16950,10 @@ function isPlainObject$1(value) {
 function mergeDeep(defaults, options) {
 	const result = Object.assign({}, defaults);
 	Object.keys(options).forEach((key) => {
-		if (isPlainObject$1(options[key])) if (!(key in defaults)) Object.assign(result, { [key]: options[key] });
-		else result[key] = mergeDeep(defaults[key], options[key]);
-		else Object.assign(result, { [key]: options[key] });
+		if (isPlainObject$1(options[key])) {
+			if (!(key in defaults)) Object.assign(result, { [key]: options[key] });
+			else result[key] = mergeDeep(defaults[key], options[key]);
+		} else Object.assign(result, { [key]: options[key] });
 	});
 	return result;
 }
@@ -16982,31 +17026,33 @@ function isKeyOperator(operator) {
 }
 function getValues(context, operator, key, modifier) {
 	var value = context[key], result = [];
-	if (isDefined(value) && value !== "") if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-		value = value.toString();
-		if (modifier && modifier !== "*") value = value.substring(0, parseInt(modifier, 10));
-		result.push(encodeValue(operator, value, isKeyOperator(operator) ? key : ""));
-	} else if (modifier === "*") if (Array.isArray(value)) value.filter(isDefined).forEach(function(value2) {
-		result.push(encodeValue(operator, value2, isKeyOperator(operator) ? key : ""));
-	});
-	else Object.keys(value).forEach(function(k) {
-		if (isDefined(value[k])) result.push(encodeValue(operator, value[k], k));
-	});
-	else {
-		const tmp = [];
-		if (Array.isArray(value)) value.filter(isDefined).forEach(function(value2) {
-			tmp.push(encodeValue(operator, value2));
-		});
-		else Object.keys(value).forEach(function(k) {
-			if (isDefined(value[k])) {
-				tmp.push(encodeUnreserved(k));
-				tmp.push(encodeValue(operator, value[k].toString()));
-			}
-		});
-		if (isKeyOperator(operator)) result.push(encodeUnreserved(key) + "=" + tmp.join(","));
-		else if (tmp.length !== 0) result.push(tmp.join(","));
-	}
-	else if (operator === ";") {
+	if (isDefined(value) && value !== "") {
+		if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+			value = value.toString();
+			if (modifier && modifier !== "*") value = value.substring(0, parseInt(modifier, 10));
+			result.push(encodeValue(operator, value, isKeyOperator(operator) ? key : ""));
+		} else if (modifier === "*") {
+			if (Array.isArray(value)) value.filter(isDefined).forEach(function(value2) {
+				result.push(encodeValue(operator, value2, isKeyOperator(operator) ? key : ""));
+			});
+			else Object.keys(value).forEach(function(k) {
+				if (isDefined(value[k])) result.push(encodeValue(operator, value[k], k));
+			});
+		} else {
+			const tmp = [];
+			if (Array.isArray(value)) value.filter(isDefined).forEach(function(value2) {
+				tmp.push(encodeValue(operator, value2));
+			});
+			else Object.keys(value).forEach(function(k) {
+				if (isDefined(value[k])) {
+					tmp.push(encodeUnreserved(k));
+					tmp.push(encodeValue(operator, value[k].toString()));
+				}
+			});
+			if (isKeyOperator(operator)) result.push(encodeUnreserved(key) + "=" + tmp.join(","));
+			else if (tmp.length !== 0) result.push(tmp.join(","));
+		}
+	} else if (operator === ";") {
 		if (isDefined(value)) result.push(encodeUnreserved(key));
 	} else if (value === "" && (operator === "&" || operator === "?")) result.push(encodeUnreserved(key) + "=");
 	else if (value === "") result.push("");
@@ -17557,13 +17603,14 @@ var Octokit = class {
 		this.graphql = withCustomRequest(this.request).defaults(requestDefaults);
 		this.log = createLogger(options.log);
 		this.hook = hook;
-		if (!options.authStrategy) if (!options.auth) this.auth = async () => ({ type: "unauthenticated" });
-		else {
-			const auth = createTokenAuth(options.auth);
-			hook.wrap("request", auth.hook);
-			this.auth = auth;
-		}
-		else {
+		if (!options.authStrategy) {
+			if (!options.auth) this.auth = async () => ({ type: "unauthenticated" });
+			else {
+				const auth = createTokenAuth(options.auth);
+				hook.wrap("request", auth.hook);
+				this.auth = auth;
+			}
+		} else {
 			const { authStrategy, ...otherOptions } = options;
 			const auth = authStrategy(Object.assign({
 				request: this.request,
@@ -19160,9 +19207,9 @@ var GithubHelper = class {
 				...this.defaultRepoParams
 			});
 			return data.filter((item) => !item?.pull_request);
-		} catch (error$3) {
-			error(`获取Issue列表失败: ${error$3}`);
-			throw error$3;
+		} catch (error$4) {
+			error(`获取Issue列表失败: ${error$4}`);
+			throw error$4;
 		}
 	}
 	async closeIssue(issueNumber) {
@@ -19173,9 +19220,9 @@ var GithubHelper = class {
 				issue_number: issueNumber,
 				state: "closed"
 			});
-		} catch (error$4) {
-			error(`关闭Issue失败: ${error$4}`);
-			throw error$4;
+		} catch (error$5) {
+			error(`关闭Issue失败: ${error$5}`);
+			throw error$5;
 		}
 	}
 	async createPR(title, head, body, base = "develop") {
@@ -19194,9 +19241,9 @@ var GithubHelper = class {
 				body
 			});
 			return data;
-		} catch (error$2) {
-			error(`创建PR失败: ${error$2}`);
-			throw error$2;
+		} catch (error$3) {
+			error(`创建PR失败: ${error$3}`);
+			throw error$3;
 		}
 	}
 	async addComment(issueNumber, body) {
@@ -19211,9 +19258,9 @@ var GithubHelper = class {
 				body
 			});
 			return data;
-		} catch (error$5) {
-			error(`添加评论失败: ${error$5}`);
-			throw error$5;
+		} catch (error$6) {
+			error(`添加评论失败: ${error$6}`);
+			throw error$6;
 		}
 	}
 	async addLabels(issueNumber, labels) {
@@ -19228,9 +19275,9 @@ var GithubHelper = class {
 				labels
 			});
 			return data;
-		} catch (error$6) {
-			error(`添加标签失败: ${error$6}`);
-			throw error$6;
+		} catch (error$2) {
+			error(`添加标签失败: ${error$2}`);
+			throw error$2;
 		}
 	}
 };
