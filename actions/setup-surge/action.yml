@@ -11,9 +11,21 @@ inputs:
   token:
     description: The surge token for deploy
     required: true
+  spa:
+    description: 是否生成 200.html 支持 SPA 深链（详见 https://surge.sh/docs/guides/spa）
+    required: false
+    default: 'true'
 runs:
   using: composite
   steps:
+    - name: Enable SPA fallback (200.html)
+      if: ${{ inputs.spa == 'true' }}
+      shell: bash
+      run: |
+        if [ -f "${{ inputs.project }}/index.html" ] && [ ! -f "${{ inputs.project }}/200.html" ]; then
+          cp "${{ inputs.project }}/index.html" "${{ inputs.project }}/200.html"
+          echo "Created 200.html for SPA deep-link fallback."
+        fi
     - name: Deploy to Surge
       shell: bash
       run: |

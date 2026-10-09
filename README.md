@@ -20,7 +20,7 @@ TDesign 共享的 GitHub Actions 工作流。
 | `issues-helper` | GitHub issue 管理工具，支持创建评论、更新 issue、标记重复 issue |
 | `maintain-one-comment` | 为 issue/PR 维护一条唯一评论，重复执行时更新而不是新增 |
 | `setup-flutter` | 设置 Flutter 环境 |
-| `setup-surge` | 部署到 Surge |
+| `setup-surge` | 部署到 Surge（默认生成 `200.html` 支持 SPA 深链，可用 `spa: 'false'` 关闭） |
 | `upgrade-deps` | 升级依赖版本 |
 
 ## 使用方式
