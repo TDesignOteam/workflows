@@ -1,0 +1,54 @@
+name: AI Translate
+description: Translate text with an OpenAI-compatible LLM API and optionally post it as a comment
+
+branding:
+  icon: globe
+  color: blue
+
+inputs:
+  api-key:
+    description: API key for the LLM provider
+    required: true
+  base-url:
+    description: OpenAI-compatible API base URL
+    required: false
+    default: https://tokenhub.tencentmaas.com/v1
+  model:
+    description: Model name used for translation
+    required: false
+    default: hy-mt2-plus
+  target-lang:
+    description: Target language, e.g. 英语
+    required: true
+  source-text:
+    description: Text to translate
+    required: true
+  prompt:
+    description: Custom prompt template. Supports {targetLang} and {sourceText} placeholders; source text is appended when no placeholder is used
+    required: false
+  title:
+    description: Title heading prepended to the translated text, e.g. 会议确认. Output as-is without translation
+    required: false
+  issue-number:
+    description: Issue or pull request number to post the result as a comment. Skip commenting when not provided
+    required: false
+  token:
+    description: GitHub token used for commenting
+    required: false
+    default: ${{ github.token }}
+  owner:
+    description: Repository owner for commenting. Defaults to the current repository owner
+    required: false
+  repo:
+    description: Repository name for commenting. Defaults to the current repository name
+    required: false
+
+outputs:
+  translated-text:
+    description: Translated text, prefixed with the title heading when title is provided
+  comment-id:
+    description: Created comment ID. Empty when issue-number is not provided
+
+runs:
+  using: node24
+  main: dist/index.mjs

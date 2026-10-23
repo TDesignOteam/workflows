@@ -14,6 +14,7 @@ TDesign 共享的 GitHub Actions 工作流。
 
 | Action | 说明 |
 |--------|------|
+| `ai-translate` | 调用 OpenAI 兼容 API 翻译文本，输出 `translated-text`，支持自定义 prompt 模板、标题头，提供 `issue-number` 时自动发评论并输出 `comment-id` |
 | `check-email` | 检查 commit 邮箱是否符合规范（不能是 @tencent.com） |
 | `close-release-issue` | 合并 release 分支时关闭带有特定标签的 issues |
 | `cnb-delete-branch` | 删除 CNB 分支前先关闭关联的 PR |
