@@ -22,6 +22,6 @@ catalog:
   '@typescript/native-preview': 7.0.0-dev.20260707.2
   eslint: ^10.13.0
   jsonc-parser: ^3.3.1
-  tsdown: ^0.23.1
+  tsdown: ^0.23.2
   vitest: ^5.0.5
   yaml: ^2.9.1
