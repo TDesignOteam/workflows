@@ -20,7 +20,9 @@ export function parseDependencyName(spec: string): string {
   const value = spec.trim()
   if (!value)
     throw new Error('Empty dependency name')
-  const separator = value.startsWith('@') ? value.indexOf('@', value.indexOf('/') + 1) : value.lastIndexOf('@')
+  const separator = value.startsWith('@')
+    ? value.indexOf('@', value.indexOf('/') + 1)
+    : value.lastIndexOf('@')
   if (separator > 0)
     throw new Error(`Dependency versions are not supported: ${spec}. Please pass package names only.`)
   return value
@@ -71,7 +73,7 @@ export function updatePackageManifestVersions(
       if (specifier === undefined)
         continue
       if (typeof specifier !== 'string')
-        throw new Error(`Unsupported version specifier for ${manifestPath}#${field}.${dep.name}: expected a string`)
+        throw new TypeError(`Unsupported version specifier for ${manifestPath}#${field}.${dep.name}: expected a string`)
       if (specifier.startsWith('catalog:'))
         continue
       const nextSpecifier = updateVersionSpecifier(specifier, dep.version, `${manifestPath}#${field}.${dep.name}`)
@@ -92,12 +94,27 @@ export async function fetchPackageVersion(pkg: string): Promise<DependencyInfo> 
     const { version, repository } = await response.json() as { repository?: string | { directory?: string, url?: string }, version?: string }
     if (!version)
       throw new Error('no version found')
-    const repositoryUrl = typeof repository === 'string' ? repository : repository?.url
-    const repositoryDirectory = typeof repository === 'object' ? repository?.directory : undefined
-    return { name: pkg, version, ...(repositoryUrl ? { repositoryUrl } : {}), ...(repositoryDirectory ? { repositoryDirectory } : {}) }
+    const repositoryUrl = typeof repository === 'string'
+      ? repository
+      : repository?.url
+    const repositoryDirectory = typeof repository === 'object'
+      ? repository?.directory
+      : undefined
+    return {
+      name: pkg,
+      version,
+      ...(repositoryUrl
+        ? { repositoryUrl }
+        : {}),
+      ...(repositoryDirectory
+        ? { repositoryDirectory }
+        : {}),
+    }
   }
   catch (error) {
-    throw new Error(`Failed to get ${pkg} info from npm registry: ${error instanceof Error ? error.message : String(error)}`)
+    throw new Error(`Failed to get ${pkg} info from npm registry: ${error instanceof Error
+      ? error.message
+      : String(error)}`)
   }
 }
 

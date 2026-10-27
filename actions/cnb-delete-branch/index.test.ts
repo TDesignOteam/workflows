@@ -94,7 +94,9 @@ describe('删除 CNB 分支', () => {
 
   it('分页拉取 Pull Request 列表', async () => {
     const firstPage = Array.from({ length: 100 }, (_, index) => createPullRequest(String(index + 1)))
-    const secondPage = [createPullRequest('101')]
+    const secondPage = [
+      createPullRequest('101'),
+    ]
     mockFetchOnce(200, JSON.stringify(firstPage))
     mockFetchOnce(200, JSON.stringify(secondPage))
 

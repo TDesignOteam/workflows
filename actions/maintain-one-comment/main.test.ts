@@ -64,7 +64,9 @@ describe('maintain-one-comment', () => {
           })),
         })
         .mockResolvedValueOnce({
-          data: [{ body: 'comment-101', id: 101 }],
+          data: [
+            { body: 'comment-101', id: 101 },
+          ],
         }),
       updateComment: vi.fn(),
     }
@@ -93,7 +95,9 @@ describe('maintain-one-comment', () => {
 
   it('没有匹配评论时创建新评论', async () => {
     const issues = {
-      createComment: vi.fn().mockResolvedValue({ data: { body: 'new body', id: 9 } }),
+      createComment: vi.fn().mockResolvedValue({
+        data: { body: 'new body', id: 9 },
+      }),
       deleteComment: vi.fn(),
       listComments: vi.fn().mockResolvedValue({ data: [] }),
       updateComment: vi.fn(),
@@ -124,7 +128,9 @@ describe('maintain-one-comment', () => {
           { body: 'old <!-- tdesign-maintain-one-comment -->', id: 3 },
         ],
       }),
-      updateComment: vi.fn().mockResolvedValue({ data: { body: 'new <!-- tdesign-maintain-one-comment -->', id: 3 } }),
+      updateComment: vi.fn().mockResolvedValue({
+        data: { body: 'new <!-- tdesign-maintain-one-comment -->', id: 3 },
+      }),
     }
 
     await expect(maintainOneComment(issues, {
@@ -153,7 +159,9 @@ describe('maintain-one-comment', () => {
           { body: 'duplicate <!-- marker -->', id: 5 },
         ],
       }),
-      updateComment: vi.fn().mockResolvedValue({ data: { body: 'new <!-- marker -->', id: 3 } }),
+      updateComment: vi.fn().mockResolvedValue({
+        data: { body: 'new <!-- marker -->', id: 3 },
+      }),
     }
 
     await expect(maintainOneComment(issues, {
@@ -186,7 +194,9 @@ describe('maintain-one-comment', () => {
           { body: 'old body\n<!-- marker -->', id: 3 },
         ],
       }),
-      updateComment: vi.fn().mockResolvedValue({ data: { body: 'new body\n<!-- marker -->', id: 3 } }),
+      updateComment: vi.fn().mockResolvedValue({
+        data: { body: 'new body\n<!-- marker -->', id: 3 },
+      }),
     }
 
     await expect(maintainOneComment(issues, {

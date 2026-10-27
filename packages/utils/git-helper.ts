@@ -31,18 +31,35 @@ export class GitHelper {
 
   private logDryRunInfo(action: string, details?: Record<string, unknown>): void {
     if (this.isDryRun()) {
-      const message = details ? `${action}: ${JSON.stringify(details)}` : action
+      const message = details
+        ? `${action}: ${JSON.stringify(details)}`
+        : action
       info(`[DRY-RUN] ${message}`)
     }
   }
 
   private async initConfig(): Promise<void> {
-    await exec('git', ['config', '--global', 'user.name', GIT_CONFIG.USER_NAME])
-    await exec('git', ['config', '--global', 'user.email', GIT_CONFIG.USER_EMAIL])
+    await exec('git', [
+      'config',
+      '--global',
+      'user.name',
+      GIT_CONFIG.USER_NAME,
+    ])
+    await exec('git', [
+      'config',
+      '--global',
+      'user.email',
+      GIT_CONFIG.USER_EMAIL,
+    ])
     if (this.token === 'test') {
       return
     }
-    await exec('git', ['config', '--global', `url.https://${this.token}@github.com/.insteadOf`, 'https://github.com/'])
+    await exec('git', [
+      'config',
+      '--global',
+      `url.https://${this.token}@github.com/.insteadOf`,
+      'https://github.com/',
+    ])
   }
 
   async getConflictFiles(): Promise<string[]> {
@@ -110,7 +127,12 @@ export class GitHelper {
   }
 
   async initSubmodule(): Promise<void> {
-    await exec('git', ['submodule', 'update', '--init', '--recursive'], { cwd: this.repoPath })
+    await exec('git', [
+      'submodule',
+      'update',
+      '--init',
+      '--recursive',
+    ], { cwd: this.repoPath })
   }
 
   async updateSubmodule(): Promise<void> {

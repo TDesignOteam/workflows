@@ -39,7 +39,11 @@ export function updatePnpmCatalogs(content: string, deps: DependencyInfo[]): Cat
       if (!isScalar(pair.value) || typeof pair.value.value !== 'string' || !pair.value.range)
         throw new Error(`Unsupported catalog value for ${location}.${pair.key.value}: expected a version string`)
       const [start, end] = pair.value.range
-      edits.push({ start, end, value: formatYamlScalar(content.slice(start, end), updateVersionSpecifier(pair.value.value, version, `${location}.${pair.key.value}`)) })
+      edits.push({
+        start,
+        end,
+        value: formatYamlScalar(content.slice(start, end), updateVersionSpecifier(pair.value.value, version, `${location}.${pair.key.value}`)),
+      })
       found.add(pair.key.value)
     }
   }
@@ -54,7 +58,10 @@ export function updatePnpmCatalogs(content: string, deps: DependencyInfo[]): Cat
     }
   }
   const updatedContent = edits.sort((a, b) => b.start - a.start).reduce((result, edit) => `${result.slice(0, edit.start)}${edit.value}${result.slice(edit.end)}`, content)
-  return { catalogDependencies: [...found], content: updatedContent }
+  return {
+    catalogDependencies: [...found],
+    content: updatedContent,
+  }
 }
 
 export async function findPnpmWorkspaceFile(startDir: string, cloneRoot: string): Promise<string | undefined> {
@@ -82,14 +89,24 @@ export async function findPnpmWorkspaceFile(startDir: string, cloneRoot: string)
 }
 
 export async function listPnpmWorkspacePackagePaths(workspaceDir: string): Promise<string[]> {
-  const { stdout } = await exec.getExecOutput('pnpm', ['-r', 'list', '--depth', '-1', '--json'], { cwd: workspaceDir, silent: true })
+  const { stdout } = await exec.getExecOutput('pnpm', [
+    '-r',
+    'list',
+    '--depth',
+    '-1',
+    '--json',
+  ], { cwd: workspaceDir, silent: true })
   let packages: Array<{ path?: string }>
   try {
     packages = JSON.parse(stdout) as Array<{ path?: string }>
     if (!Array.isArray(packages))
       throw new TypeError('expected an array')
   }
-  catch (error) { throw new Error(`Failed to read pnpm workspace packages: ${error instanceof Error ? error.message : String(error)}`) }
+  catch (error) {
+    throw new Error(`Failed to read pnpm workspace packages: ${error instanceof Error
+      ? error.message
+      : String(error)}`)
+  }
   const root = await realpath(path.resolve(workspaceDir))
   const paths = new Set([root])
   for (const pkg of packages) {
@@ -107,29 +124,73 @@ export function getPnpmUpdateCommands(deps: DependencyInfo[], catalogDependencie
   const catalogNames = new Set(catalogDependencies)
   const regular = deps.filter(dep => !catalogNames.has(dep.name))
   return [
-    ...(regular.length ? [{ args: ['-r', 'up', ...regular.map(dep => dep.name)], cwd: targetPath }] : []),
-    ...(catalogDependencies.length ? [{ args: ['install'], cwd: workspaceDir }] : []),
+    ...(regular.length
+      ? [
+          {
+            args: [
+              '-r',
+              'up',
+              ...regular.map(dep => dep.name),
+            ],
+            cwd: targetPath,
+          },
+        ]
+      : []),
+    ...(catalogDependencies.length
+      ? [
+          {
+            args: ['install'],
+            cwd: workspaceDir,
+          },
+        ]
+      : []),
   ]
 }
 
 export function getSnapshotUpdateCommand(packageManager: 'npm' | 'yarn' | 'pnpm', deps: DependencyInfo[], targetRepo: string, repoPath: string): PnpmUpdateCommand | undefined {
   if (!deps.some(dep => /^tdesign-icons(?:-|$)/.test(dep.name)))
     return undefined
-  const scripts: Record<string, string> = { 'tdesign-mobile-react': 'test:update', 'tdesign-mobile-vue': 'test:update', 'tdesign-react': 'test:update', 'tdesign-vue': 'test:update', 'tdesign-vue-next': 'test:vue:update' }
+  const scripts: Record<string, string> = {
+    'tdesign-mobile-react': 'test:update',
+    'tdesign-mobile-vue': 'test:update',
+    'tdesign-react': 'test:update',
+    'tdesign-vue': 'test:update',
+    'tdesign-vue-next': 'test:vue:update',
+  }
   const script = scripts[targetRepo]
-  return script ? { args: packageManager === 'npm' ? ['run', script] : [script], cwd: repoPath } : undefined
+  return script
+    ? {
+        args: packageManager === 'npm'
+          ? ['run', script]
+          : [script],
+        cwd: repoPath,
+      }
+    : undefined
 }
 
 export async function updatePackageDependencies(packageManager: 'npm' | 'yarn' | 'pnpm', deps: DependencyInfo[], repo: string, targetDir: string): Promise<void> {
-  const targetPath = `./${repo}${targetDir ? `/${targetDir}` : ''}`
+  const targetPath = `./${repo}${targetDir
+    ? `/${targetDir}`
+    : ''}`
   if (packageManager !== 'pnpm') {
-    const commands = { yarn: ['upgrade', '--latest'], npm: ['install'] } as const
-    await exec.exec(packageManager, [...commands[packageManager], ...deps.map(dep => dep.name)], { cwd: targetPath })
+    const commands = {
+      yarn: ['upgrade', '--latest'],
+      npm: ['install'],
+    } as const
+    await exec.exec(packageManager, [
+      ...commands[packageManager],
+      ...deps.map(dep => dep.name),
+    ], { cwd: targetPath })
   }
   else {
     const workspaceFile = await findPnpmWorkspaceFile(targetPath, `./${repo}`)
     if (!workspaceFile) {
-      await exec.exec('pnpm', ['-r', 'up', '--latest', ...deps.map(dep => dep.name)], { cwd: targetPath })
+      await exec.exec('pnpm', [
+        '-r',
+        'up',
+        '--latest',
+        ...deps.map(dep => dep.name),
+      ], { cwd: targetPath })
     }
     else {
       const original = await readFile(workspaceFile, 'utf8')
@@ -153,8 +214,16 @@ export async function updatePackageDependencies(packageManager: 'npm' | 'yarn' |
       if (catalog.content !== original)
         updates.unshift({ filePath: workspaceFile, content: catalog.content })
       await Promise.all(updates.map(update => writeFile(update.filePath, update.content, 'utf8')))
-      for (const command of getPnpmUpdateCommands(deps, catalog.catalogDependencies, targetPath, path.dirname(workspaceFile)))
-        await exec.exec('pnpm', command.args, { cwd: command.cwd, ...(command.args[0] === 'install' ? { env: { ...processEnv as Record<string, string>, CI: 'false' } } : {}) })
+      for (const command of getPnpmUpdateCommands(deps, catalog.catalogDependencies, targetPath, path.dirname(workspaceFile))) {
+        await exec.exec('pnpm', command.args, {
+          cwd: command.cwd,
+          ...(command.args[0] === 'install'
+            ? {
+                env: { ...processEnv as Record<string, string>, CI: 'false' },
+              }
+            : {}),
+        })
+      }
     }
   }
   const snapshot = getSnapshotUpdateCommand(packageManager, deps, repo, `./${repo}`)

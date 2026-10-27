@@ -13,7 +13,9 @@ export function parseGithubRepository(repositoryUrl?: string): GithubRepository 
       return undefined
     const [owner, name] = url.pathname.replace(/^\//, '').split('/')
     const repo = name?.replace(/\.git$/, '')
-    return owner && repo ? { owner, repo } : undefined
+    return owner && repo
+      ? { owner, repo }
+      : undefined
   }
   catch {
     return undefined
@@ -22,7 +24,9 @@ export function parseGithubRepository(repositoryUrl?: string): GithubRepository 
 
 function getMarkdownHeading(line: string): string | undefined {
   const prefix = line.match(/^#{1,6}[ \t]+/)
-  return prefix ? line.slice(prefix[0].length).trim() : undefined
+  return prefix
+    ? line.slice(prefix[0].length).trim()
+    : undefined
 }
 
 export function extractVersionChangelog(content: string, version: string): string | undefined {
@@ -38,7 +42,9 @@ export function extractVersionChangelog(content: string, version: string): strin
   if (!level)
     return undefined
   const end = lines.findIndex((line, index) => index > start && (line.match(/^#{1,6}(?=[ \t])/)?.[0].length ?? 7) <= level)
-  return lines.slice(start, end === -1 ? undefined : end).join('\n').trim()
+  return lines.slice(start, end === -1
+    ? undefined
+    : end).join('\n').trim()
 }
 
 export async function fetchDependencyRelease(dep: DependencyInfo, token: string): Promise<DependencyRelease | undefined> {
@@ -51,7 +57,10 @@ export async function fetchDependencyRelease(dep: DependencyInfo, token: string)
   if (token && token !== 'test')
     headers.Authorization = `Bearer ${token}`
   try {
-    const changelogPath = [...(dep.repositoryDirectory?.split('/').filter(Boolean) ?? []), 'CHANGELOG.md'].map(encodeURIComponent).join('/')
+    const changelogPath = [
+      ...(dep.repositoryDirectory?.split('/').filter(Boolean) ?? []),
+      'CHANGELOG.md',
+    ].map(encodeURIComponent).join('/')
     const response = await fetch(`https://api.github.com/repos/${repository.owner}/${repository.repo}/contents/${changelogPath}`, { headers })
     if (response.status === 404) {
       core.warning(`No CHANGELOG.md found for ${dep.name}`)
@@ -68,7 +77,9 @@ export async function fetchDependencyRelease(dep: DependencyInfo, token: string)
     return { body, tag: `${dep.name}@${dep.version}`, url }
   }
   catch (error) {
-    core.warning(`Failed to get CHANGELOG.md for ${dep.name}@${dep.version}: ${error instanceof Error ? error.message : String(error)}`)
+    core.warning(`Failed to get CHANGELOG.md for ${dep.name}@${dep.version}: ${error instanceof Error
+      ? error.message
+      : String(error)}`)
     return undefined
   }
 }

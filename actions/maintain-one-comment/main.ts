@@ -37,7 +37,9 @@ export function findMatchingComments(comments: IssueComment[], selector: string)
 }
 
 export function buildCommentBody(body: string, bodyInclude?: string): string {
-  return bodyInclude && !body.includes(bodyInclude) ? `${body}\n${bodyInclude}` : body
+  return bodyInclude && !body.includes(bodyInclude)
+    ? `${body}\n${bodyInclude}`
+    : body
 }
 
 export async function listIssueComments(
