@@ -22,7 +22,12 @@ export async function updateDependencies(context: TriggerContext): Promise<void>
   let depInfos = await resolveDependencyInfos(deps)
   if (packageManager !== 'npm')
     await exec.exec('corepack', ['enable'])
-  const gitHelper = new GitHelper({ repo: context.repo, owner: context.owner, token: context.token, dryRun: context.dryRun })
+  const gitHelper = new GitHelper({
+    repo: context.repo,
+    owner: context.owner,
+    token: context.token,
+    dryRun: context.dryRun,
+  })
   const baseBranch = await gitHelper.clone()
   await gitHelper.initSubmodule()
   const template = await readPullRequestTemplate(`./${context.repo}`)
@@ -39,7 +44,12 @@ export async function updateDependencies(context: TriggerContext): Promise<void>
   const body = buildPullRequestBody(template, depInfos, context.repo)
   await gitHelper.commit(title)
   await gitHelper.push(branchName)
-  const githubHelper = new GithubHelper({ owner: context.owner, repo: context.repo, token: context.token, dryRun: context.dryRun })
+  const githubHelper = new GithubHelper({
+    owner: context.owner,
+    repo: context.repo,
+    token: context.token,
+    dryRun: context.dryRun,
+  })
   await githubHelper.createPR(title, branchName, body, baseBranch)
 }
 
@@ -47,5 +57,10 @@ export async function main(): Promise<void> {
   const repo = core.getInput('repo') || github.context.repo.repo
   const owner = core.getInput('owner') || github.context.repo.owner
   const token = core.getInput('token', { required: true })
-  await updateDependencies({ repo, owner, token, dryRun: core.getBooleanInput('dry-run') })
+  await updateDependencies({
+    repo,
+    owner,
+    token,
+    dryRun: core.getBooleanInput('dry-run'),
+  })
 }

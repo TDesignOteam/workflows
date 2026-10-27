@@ -172,13 +172,17 @@ export async function main(): Promise<void> {
       core.info(`Branch "${branch}" does not exist; skip delete`)
   }
   catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
+    const message = error instanceof Error
+      ? error.message
+      : String(error)
     core.setFailed(message)
   }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((error) => {
-    core.setFailed(`cnb-delete-branch failed: ${error instanceof Error ? error.message : String(error)}`)
+    core.setFailed(`cnb-delete-branch failed: ${error instanceof Error
+      ? error.message
+      : String(error)}`)
   })
 }

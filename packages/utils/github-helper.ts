@@ -23,7 +23,9 @@ export class GithubHelper {
 
     core.startGroup(`dry-run模式, 不运行${methodName}`)
     for (const [key, value] of Object.entries(params)) {
-      core.info(`${key}: ${typeof value === 'string' ? value : JSON.stringify(value)}`)
+      core.info(`${key}: ${typeof value === 'string'
+        ? value
+        : JSON.stringify(value)}`)
     }
     core.endGroup()
     return true
@@ -134,8 +136,12 @@ export class GithubHelper {
   }
 
   async addLabels(issueNumber: number, labels: string[]) {
-    if (await this.dryRunLog('addLabels', { issueNumber, labels: labels.join(', ') }))
+    if (await this.dryRunLog('addLabels', {
+      issueNumber,
+      labels: labels.join(', '),
+    })) {
       return
+    }
 
     try {
       const { data } = await this.octokit.rest.issues.addLabels({

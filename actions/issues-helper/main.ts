@@ -8,7 +8,16 @@ type IssueState = 'closed' | 'open'
 type CloseReason = 'completed' | 'not_planned'
 
 const actionNames = new Set<ActionName>(['create-comment', 'update-issue', 'mark-duplicate'])
-const reactionContents = new Set<ReactionContent>(['+1', '-1', 'laugh', 'confused', 'heart', 'hooray', 'rocket', 'eyes'])
+const reactionContents = new Set<ReactionContent>([
+  '+1',
+  '-1',
+  'laugh',
+  'confused',
+  'heart',
+  'hooray',
+  'rocket',
+  'eyes',
+])
 const permissionRanks: Record<string, number> = {
   none: 0,
   read: 1,
@@ -52,7 +61,9 @@ function getRepoParams() {
 
 function getIssueNumber(): number {
   const issueNumberInput = core.getInput('issue-number')
-  const issueNumber = issueNumberInput ? Number.parseInt(issueNumberInput, 10) : github.context.issue.number
+  const issueNumber = issueNumberInput
+    ? Number.parseInt(issueNumberInput, 10)
+    : github.context.issue.number
 
   if (!Number.isInteger(issueNumber) || issueNumber <= 0)
     throw new Error('Missing issue number')
@@ -72,16 +83,22 @@ function isReactionContent(value: string): value is ReactionContent {
 }
 
 function getCloseReason(): CloseReason {
-  return core.getInput('close-reason') === 'completed' ? 'completed' : 'not_planned'
+  return core.getInput('close-reason') === 'completed'
+    ? 'completed'
+    : 'not_planned'
 }
 
 function getIssueState(value: string | undefined): IssueState {
-  return value === 'closed' ? 'closed' : 'open'
+  return value === 'closed'
+    ? 'closed'
+    : 'open'
 }
 
 function getLabelNames(labels: Array<string | { name?: string | null }>): string[] {
   return labels
-    .map(label => (typeof label === 'string' ? label : label.name || ''))
+    .map(label => (typeof label === 'string'
+      ? label
+      : label.name || ''))
     .filter(Boolean)
 }
 
@@ -145,7 +162,9 @@ async function updateIssue(octokit: Octokit) {
   const state = core.getInput('state')
   const labels = splitInput(core.getInput('labels'))
   const assignees = splitInput(core.getInput('assignees'))
-  const updateMode = core.getInput('update-mode') === 'append' ? 'append' : 'replace'
+  const updateMode = core.getInput('update-mode') === 'append'
+    ? 'append'
+    : 'replace'
   const { data: issue } = await octokit.rest.issues.get(params)
   const nextBody = body
     ? updateMode === 'append'
@@ -153,13 +172,19 @@ async function updateIssue(octokit: Octokit) {
       : body
     : issue.body || ''
 
-  const nextState = state === 'closed' || state === 'open' ? state : getIssueState(issue.state)
+  const nextState = state === 'closed' || state === 'open'
+    ? state
+    : getIssueState(issue.state)
 
   await octokit.rest.issues.update({
     ...params,
-    assignees: assignees.length ? assignees : getAssigneeNames(issue.assignees),
+    assignees: assignees.length
+      ? assignees
+      : getAssigneeNames(issue.assignees),
     body: nextBody,
-    labels: labels.length ? labels : getLabelNames(issue.labels),
+    labels: labels.length
+      ? labels
+      : getLabelNames(issue.labels),
     state: nextState,
     title: title || issue.title,
   })
@@ -168,7 +193,9 @@ async function updateIssue(octokit: Octokit) {
 async function setIssueLabels(octokit: Octokit, params: ReturnType<typeof getIssueParams>, labels: string[]) {
   const { data: issue } = await octokit.rest.issues.get(params)
   const baseLabels = getLabelNames(issue.labels)
-  const nextLabels = [...new Set(labels)]
+  const nextLabels = [
+    ...new Set(labels),
+  ]
   const removeLabels = baseLabels.filter(label => !nextLabels.includes(label))
   const addLabels = nextLabels.filter(label => !baseLabels.includes(label))
 

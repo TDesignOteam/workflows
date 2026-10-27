@@ -142,17 +142,23 @@ describe('升级依赖', () => {
   })
 
   it('按包管理器执行升级命令', async () => {
-    await updatePackageDependencies('npm', [{ name: 'vite', version: '7.0.0' }], 'tdesign-vue-next', '')
+    await updatePackageDependencies('npm', [
+      { name: 'vite', version: '7.0.0' },
+    ], 'tdesign-vue-next', '')
     expect(exec.exec).toHaveBeenLastCalledWith('npm', ['install', 'vite'], { cwd: './tdesign-vue-next' })
   })
 
   it('按 yarn 执行升级命令', async () => {
-    await updatePackageDependencies('yarn', [{ name: 'vite', version: '7.0.0' }], 'tdesign-vue-next', 'packages/site')
+    await updatePackageDependencies('yarn', [
+      { name: 'vite', version: '7.0.0' },
+    ], 'tdesign-vue-next', 'packages/site')
     expect(exec.exec).toHaveBeenLastCalledWith('yarn', ['upgrade', '--latest', 'vite'], { cwd: './tdesign-vue-next/packages/site' })
   })
 
   it('icons 依赖升级后执行快照更新命令', async () => {
-    await updatePackageDependencies('npm', [{ name: 'tdesign-icons-vue-next', version: '0.4.6' }], 'tdesign-vue-next', '')
+    await updatePackageDependencies('npm', [
+      { name: 'tdesign-icons-vue-next', version: '0.4.6' },
+    ], 'tdesign-vue-next', '')
     expect(exec.exec).toHaveBeenLastCalledWith('npm', ['run', 'test:vue:update'], { cwd: './tdesign-vue-next' })
   })
 
@@ -194,24 +200,38 @@ describe('升级依赖', () => {
     try {
       await mkdir(path.join(tempDir, 'packages', 'site'), { recursive: true })
       await mkdir(outsideDir)
-      vi.mocked(exec.getExecOutput).mockResolvedValueOnce({ stdout: JSON.stringify([
-        { path: 'packages/site' },
-        { path: `../${path.basename(outsideDir)}` },
-        {},
-      ]), stderr: '', exitCode: 0 })
+      vi.mocked(exec.getExecOutput).mockResolvedValueOnce({
+        stdout: JSON.stringify([
+          { path: 'packages/site' },
+          { path: `../${path.basename(outsideDir)}` },
+          {},
+        ]),
+        stderr: '',
+        exitCode: 0,
+      })
 
       await expect(listPnpmWorkspacePackagePaths(tempDir)).rejects.toThrow('outside the workspace')
 
-      vi.mocked(exec.getExecOutput).mockResolvedValueOnce({ stdout: JSON.stringify([
-        { path: 'packages/site' },
-        { path: 'packages/site' },
-        {},
-      ]), stderr: '', exitCode: 0 })
+      vi.mocked(exec.getExecOutput).mockResolvedValueOnce({
+        stdout: JSON.stringify([
+          { path: 'packages/site' },
+          { path: 'packages/site' },
+          {},
+        ]),
+        stderr: '',
+        exitCode: 0,
+      })
       await expect(listPnpmWorkspacePackagePaths(tempDir)).resolves.toEqual([
         await realpath(tempDir),
         await realpath(path.join(tempDir, 'packages', 'site')),
       ])
-      expect(exec.getExecOutput).toHaveBeenLastCalledWith('pnpm', ['-r', 'list', '--depth', '-1', '--json'], { cwd: tempDir, silent: true })
+      expect(exec.getExecOutput).toHaveBeenLastCalledWith('pnpm', [
+        '-r',
+        'list',
+        '--depth',
+        '-1',
+        '--json',
+      ], { cwd: tempDir, silent: true })
     }
     finally {
       await rm(tempDir, { force: true, recursive: true })
@@ -261,7 +281,9 @@ catalogs:
   }
 }
 `
-    const result = updatePackageManifestVersions(content, [{ name: 'vite', version: '7.0.0' }])
+    const result = updatePackageManifestVersions(content, [
+      { name: 'vite', version: '7.0.0' },
+    ])
 
     expect(result.updated).toBe(true)
     expect(result.content).toContain('// catalog and direct declarations can coexist')
@@ -279,7 +301,9 @@ catalogs:
   "dependencies": {
     "vite": "workspace:^6.0.0"
   }
-}`, [{ name: 'vite', version: '7.0.0' }])).toThrow('Unsupported version specifier "workspace:^6.0.0"')
+}`, [
+      { name: 'vite', version: '7.0.0' },
+    ])).toThrow('Unsupported version specifier "workspace:^6.0.0"')
 
     expect(() => updateVersionSpecifier('=6.0.0', '7.0.0', 'catalog.vite')).toThrow('Unsupported version specifier "=6.0.0"')
     expect(() => updateVersionSpecifier('^01.2.3', '7.0.0', 'catalog.vite')).toThrow('Unsupported version specifier "^01.2.3"')
@@ -303,16 +327,24 @@ catalogs:
   })
 
   it('升级 icons 依赖后更新对应仓库快照', () => {
-    expect(getSnapshotUpdateCommand('pnpm', [{ name: 'tdesign-icons-vue-next', version: '0.4.6' }], 'tdesign-vue-next', './tdesign-vue-next')).toEqual({
+    expect(getSnapshotUpdateCommand('pnpm', [
+      { name: 'tdesign-icons-vue-next', version: '0.4.6' },
+    ], 'tdesign-vue-next', './tdesign-vue-next')).toEqual({
       args: ['test:vue:update'],
       cwd: './tdesign-vue-next',
     })
-    expect(getSnapshotUpdateCommand('npm', [{ name: 'tdesign-icons-react', version: '0.6.6' }], 'tdesign-react', './tdesign-react')).toEqual({
+    expect(getSnapshotUpdateCommand('npm', [
+      { name: 'tdesign-icons-react', version: '0.6.6' },
+    ], 'tdesign-react', './tdesign-react')).toEqual({
       args: ['run', 'test:update'],
       cwd: './tdesign-react',
     })
-    expect(getSnapshotUpdateCommand('pnpm', [{ name: 'vite', version: '7.0.0' }], 'tdesign-vue-next', './tdesign-vue-next')).toBeUndefined()
-    expect(getSnapshotUpdateCommand('pnpm', [{ name: 'tdesign-icons-view', version: '0.5.7' }], 'tdesign', './tdesign')).toBeUndefined()
+    expect(getSnapshotUpdateCommand('pnpm', [
+      { name: 'vite', version: '7.0.0' },
+    ], 'tdesign-vue-next', './tdesign-vue-next')).toBeUndefined()
+    expect(getSnapshotUpdateCommand('pnpm', [
+      { name: 'tdesign-icons-view', version: '0.5.7' },
+    ], 'tdesign', './tdesign')).toBeUndefined()
   })
 
   it('解析 npm 常见的 GitHub 仓库地址', () => {
@@ -422,7 +454,9 @@ catalogs:
   })
 
   it('无 release 时生成 npm 链接和提示', () => {
-    expect(getReleaseNotesMarkdown([{ name: 'vite', version: '7.0.0' }])).toBe(
+    expect(getReleaseNotesMarkdown([
+      { name: 'vite', version: '7.0.0' },
+    ])).toBe(
       '#### [`vite@7.0.0`](https://www.npmjs.com/package/vite/v/7.0.0)\n\n未在仓库的 CHANGELOG.md 中找到对应版本日志。',
     )
   })
@@ -467,15 +501,17 @@ catalogs:
 - [ ] 代码演示已提供或无须提供
 - [ ] TypeScript 定义已补充或无须补充
 - [ ] Changelog 已提供或无须提供`
-    const body = buildPullRequestBody(template, [{
-      name: 'tdesign-icons-view',
-      version: '0.5.7',
-      release: {
-        body: '## 🌈 0.5.7 `2026-07-15`\n\n### 🐞 Bug Fixes\n\n- 修复 fullscreen、logo-wecom-filled、no-result-filled、tree-list、wifi-no-filled 5 个图标搜索缺失 @liweijie0812 ([#264](https://github.com/Tencent/tdesign-icons/pull/264))',
-        tag: 'tdesign-icons-view@0.5.7',
-        url: 'https://github.com/Tencent/tdesign-icons/releases/tag/tdesign-icons-view%400.5.7',
+    const body = buildPullRequestBody(template, [
+      {
+        name: 'tdesign-icons-view',
+        version: '0.5.7',
+        release: {
+          body: '## 🌈 0.5.7 `2026-07-15`\n\n### 🐞 Bug Fixes\n\n- 修复 fullscreen、logo-wecom-filled、no-result-filled、tree-list、wifi-no-filled 5 个图标搜索缺失 @liweijie0812 ([#264](https://github.com/Tencent/tdesign-icons/pull/264))',
+          tag: 'tdesign-icons-view@0.5.7',
+          url: 'https://github.com/Tencent/tdesign-icons/releases/tag/tdesign-icons-view%400.5.7',
+        },
       },
-    }], 'tdesign')
+    ], 'tdesign')
 
     expect(body).toContain('### 💡 需求背景和解决方案\n\n自动升级以下依赖：')
     expect(body).toContain('### 🔗 相关 Issue\n\n无')
@@ -506,15 +542,17 @@ catalogs:
 
 - [ ] Changelog 已提供或无须提供`
     const changelog = '- fix(Icon): 修复 usb 原始图标的图层 ID 错误 @uyarn ([icons#298](https://github.com/Tencent/tdesign-icons/pull/298))'
-    const body = buildPullRequestBody(template, [{
-      name: 'tdesign-icons-vue-next',
-      version: '0.4.11',
-      release: {
-        body: '## 🌈 0.4.11 `2026-08-28`\n\n### 🐞 Bug Fixes\n\n- 修复 usb 原始图标的图层 ID 错误 @uyarn ([#298](https://github.com/Tencent/tdesign-icons/pull/298))',
-        tag: 'tdesign-icons-vue-next@0.4.11',
-        url: 'https://github.com/Tencent/tdesign-icons/blob/HEAD/packages/vue-next/CHANGELOG.md',
+    const body = buildPullRequestBody(template, [
+      {
+        name: 'tdesign-icons-vue-next',
+        version: '0.4.11',
+        release: {
+          body: '## 🌈 0.4.11 `2026-08-28`\n\n### 🐞 Bug Fixes\n\n- 修复 usb 原始图标的图层 ID 错误 @uyarn ([#298](https://github.com/Tencent/tdesign-icons/pull/298))',
+          tag: 'tdesign-icons-vue-next@0.4.11',
+          url: 'https://github.com/Tencent/tdesign-icons/blob/HEAD/packages/vue-next/CHANGELOG.md',
+        },
       },
-    }], 'tdesign-mobile-vue')
+    ], 'tdesign-mobile-vue')
 
     expect(body).toContain(`### 📝 更新日志\n\n${changelog}`)
     expect(body).not.toContain(`CHANGELOG.md)\n\n${changelog}`)
@@ -565,7 +603,9 @@ catalogs:
   ])('单独升级 %s 时无需 Changelog', (name) => {
     expect(buildPullRequestBody(
       '- [ ] 本条 PR 不需要纳入 Changelog',
-      [{ name, version: '1.0.0' }],
+      [
+        { name, version: '1.0.0' },
+      ],
       'tdesign-vue-next',
     )).toBe('- [x] 本条 PR 不需要纳入 Changelog')
   })
@@ -585,23 +625,26 @@ catalogs:
 
 #### tdesign-vue-next
 <!-- 主包日志 -->`
-    const body = buildPullRequestBody(template, [{
-      name: '@tdesign/site-components',
-      version: '0.19.1',
-      release: {
-        body: '## 0.19.1\n\n### Features\n\n- Update site navigation',
-        tag: '@tdesign/site-components@0.19.1',
-        url: 'https://github.com/Tencent/tdesign/releases/tag/site-components',
+    const body = buildPullRequestBody(template, [
+      {
+        name: '@tdesign/site-components',
+        version: '0.19.1',
+        release: {
+          body: '## 0.19.1\n\n### Features\n\n- Update site navigation',
+          tag: '@tdesign/site-components@0.19.1',
+          url: 'https://github.com/Tencent/tdesign/releases/tag/site-components',
+        },
       },
-    }, {
-      name: 'tdesign-icons-view',
-      version: '0.5.7',
-      release: {
-        body: '## 0.5.7\n\n### Bug Fixes\n\n- Fix missing icons',
-        tag: 'tdesign-icons-view@0.5.7',
-        url: 'https://github.com/Tencent/tdesign-icons/releases/tag/tdesign-icons-view%400.5.7',
+      {
+        name: 'tdesign-icons-view',
+        version: '0.5.7',
+        release: {
+          body: '## 0.5.7\n\n### Bug Fixes\n\n- Fix missing icons',
+          tag: 'tdesign-icons-view@0.5.7',
+          url: 'https://github.com/Tencent/tdesign-icons/releases/tag/tdesign-icons-view%400.5.7',
+        },
       },
-    }], 'tdesign-vue-next')
+    ], 'tdesign-vue-next')
 
     expect(body).toContain('- `@tdesign/site-components` 升级至 `0.19.1`')
     expect(body).toContain('Update site navigation')
@@ -611,11 +654,12 @@ catalogs:
   })
 
   it('将 release 分类转换成 Conventional Changelog', () => {
-    const changelog = getChangelogMarkdown([{
-      name: 'tdesign-icons-view',
-      version: '0.5.7',
-      release: {
-        body: `## 0.5.7
+    const changelog = getChangelogMarkdown([
+      {
+        name: 'tdesign-icons-view',
+        version: '0.5.7',
+        release: {
+          body: `## 0.5.7
 
 ### Breaking Changes
 - Remove legacy icon
@@ -638,10 +682,11 @@ catalogs:
 
 ### Others
 - Update tooling`,
-        tag: 'tdesign-icons-view@0.5.7',
-        url: 'https://github.com/Tencent/tdesign-icons/releases/tag/tdesign-icons-view%400.5.7',
+          tag: 'tdesign-icons-view@0.5.7',
+          url: 'https://github.com/Tencent/tdesign-icons/releases/tag/tdesign-icons-view%400.5.7',
+        },
       },
-    }], 'tdesign-vue-next')
+    ], 'tdesign-vue-next')
 
     expect(changelog).toBe(`- feat(Icon)!: Remove legacy icon
 - feat(Icon): Add new icon
@@ -662,15 +707,17 @@ catalogs:
 
 #### @tdesign-vue-next/chat
 <!-- Chat 日志 -->`
-    const body = buildPullRequestBody(template, [{
-      name: 'tdesign-icons-view',
-      version: '0.5.7',
-      release: {
-        body: '## 0.5.7\n\n### Bug Fixes\n\n- Fix missing icons',
-        tag: 'tdesign-icons-view@0.5.7',
-        url: 'https://github.com/Tencent/tdesign-icons/releases/tag/tdesign-icons-view%400.5.7',
+    const body = buildPullRequestBody(template, [
+      {
+        name: 'tdesign-icons-view',
+        version: '0.5.7',
+        release: {
+          body: '## 0.5.7\n\n### Bug Fixes\n\n- Fix missing icons',
+          tag: 'tdesign-icons-view@0.5.7',
+          url: 'https://github.com/Tencent/tdesign-icons/releases/tag/tdesign-icons-view%400.5.7',
+        },
       },
-    }], 'tdesign-vue-next')
+    ], 'tdesign-vue-next')
 
     expect(body).toContain('#### tdesign-vue-next\n\n- fix(Icon): Fix missing icons\n<!-- 主包日志 -->')
     expect(body).not.toContain('#### @tdesign-vue-next/chat\n\n- fix(Icon)')
@@ -689,15 +736,17 @@ catalogs:
 
 #### @tdesign/uniapp-chat
 <!-- Chat 日志 -->`
-    const body = buildPullRequestBody(template, [{
-      name: 'tdesign-icons-view',
-      version: '0.5.7',
-      release: {
-        body: '## 0.5.7\n\n### Features\n\n- Add new icon',
-        tag: 'tdesign-icons-view@0.5.7',
-        url: 'https://github.com/Tencent/tdesign-icons/releases/tag/tdesign-icons-view%400.5.7',
+    const body = buildPullRequestBody(template, [
+      {
+        name: 'tdesign-icons-view',
+        version: '0.5.7',
+        release: {
+          body: '## 0.5.7\n\n### Features\n\n- Add new icon',
+          tag: 'tdesign-icons-view@0.5.7',
+          url: 'https://github.com/Tencent/tdesign-icons/releases/tag/tdesign-icons-view%400.5.7',
+        },
       },
-    }], 'tdesign-miniprogram')
+    ], 'tdesign-miniprogram')
 
     expect(body.match(/- feat\(Icon\): Add new icon/g)).toHaveLength(2)
     expect(body).toContain('#### tdesign-miniprogram\n\n- feat(Icon): Add new icon')
@@ -706,7 +755,9 @@ catalogs:
   })
 
   it('release 缺失时根据目标仓库生成 chore 日志', () => {
-    const deps = [{ name: 'vite', version: '7.0.0' }]
+    const deps = [
+      { name: 'vite', version: '7.0.0' },
+    ]
     expect(getChangelogMarkdown(deps, 'tdesign-mobile-vue')).toBe('- chore(Icon): upgrade vite to 7.0.0')
     expect(getChangelogMarkdown(deps, 'tdesign')).toBe('- chore: upgrade vite to 7.0.0')
   })
@@ -720,22 +771,26 @@ catalogs:
     'tdesign-vue',
     'tdesign-vue-next',
   ])('%s 使用 Icon scope', (repo) => {
-    expect(getChangelogMarkdown([{
-      name: 'vite',
-      version: '7.0.0',
-      release: {
-        body: '## 7.0.0\n\n### Bug Fixes\n\n- Fix issue',
-        tag: 'v7.0.0',
-        url: 'https://github.com/vitejs/vite/releases/tag/v7.0.0',
+    expect(getChangelogMarkdown([
+      {
+        name: 'vite',
+        version: '7.0.0',
+        release: {
+          body: '## 7.0.0\n\n### Bug Fixes\n\n- Fix issue',
+          tag: 'v7.0.0',
+          url: 'https://github.com/vitejs/vite/releases/tag/v7.0.0',
+        },
       },
-    }], repo)).toBe('- fix(Icon): Fix issue')
+    ], repo)).toBe('- fix(Icon): Fix issue')
   })
 
   it('模板没有已知区块时在模板前添加升级内容', () => {
-    const body = buildPullRequestBody('## Checklist\n\n- [ ] Reviewed', [{
-      name: 'vite',
-      version: '7.0.0',
-    }], 'unknown-repo')
+    const body = buildPullRequestBody('## Checklist\n\n- [ ] Reviewed', [
+      {
+        name: 'vite',
+        version: '7.0.0',
+      },
+    ], 'unknown-repo')
 
     expect(body).toMatch(/^## 依赖升级/)
     expect(body).toContain('## 版本日志')
