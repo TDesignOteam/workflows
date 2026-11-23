@@ -1,0 +1,156 @@
+name: reusable-notify-wecom
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Release tag to announce
+        required: true
+        type: string
+    secrets:
+      WECOM_WEBHOOK:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send markdown to WeCom group robot
+        env:
+          WECOM_WEBHOOK: ${{ secrets.WECOM_WEBHOOK }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_API_URL: ${{ github.api_url }}
+        run: |
+          python3 - <<'PY'
+          import os, json, re, html, urllib.request, urllib.parse, urllib.error
+          from datetime import datetime, timedelta, timezone
+
+          webhook = os.environ.get("WECOM_WEBHOOK", "").strip()
+          if not webhook:
+              raise SystemExit("请先配置 WECOM_WEBHOOK secret")
+
+          tag = os.environ.get("RELEASE_TAG", "").strip()
+          if not tag:
+              raise SystemExit("必须提供 Release tag")
+
+          token = os.environ.get("GITHUB_TOKEN", "").strip()
+          if not token:
+              raise SystemExit("缺少 GITHUB_TOKEN，无法查询 Release")
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          api_url = os.environ["GITHUB_API_URL"].rstrip("/")
+          encoded_tag = urllib.parse.quote(tag, safe="")
+          release_req = urllib.request.Request(
+              f"{api_url}/repos/{repo}/releases/tags/{encoded_tag}",
+              headers={
+                  "Accept": "application/vnd.github+json",
+                  "Authorization": f"Bearer {token}",
+              },
+          )
+          try:
+              with urllib.request.urlopen(release_req, timeout=20) as resp:
+                  release = json.load(resp)
+          except urllib.error.HTTPError as exc:
+              if exc.code == 404:
+                  raise SystemExit(
+                      f"找不到 tag {tag!r} 对应的已发布 Release；仅推送 tag 不够。"
+                  ) from None
+              raise SystemExit(f"查询 Release 失败：HTTP {exc.code}") from None
+          except urllib.error.URLError as exc:
+              raise SystemExit(f"查询 Release 网络异常：{exc.reason}") from None
+
+          if release.get("draft"):
+              raise SystemExit("该 Release 仍是草稿，不能发送发布通知")
+
+          tag = release.get("tag_name") or tag
+          url = release.get("html_url") or ""
+          body = release.get("body") or ""
+
+          published_at = release.get("published_at") or ""
+          try:
+              published_time = datetime.fromisoformat(published_at.replace("Z", "+00:00"))
+              if published_time.tzinfo is None:
+                  published_time = published_time.replace(tzinfo=timezone.utc)
+              published_date = published_time.astimezone(
+                  timezone(timedelta(hours=8))
+              ).strftime("%Y-%m-%d")
+          except ValueError:
+              published_date = "未知"
+
+          body = re.sub(r"<!--.*?-->", "", body, flags=re.S)
+          body = re.sub(r"!\[[^\]]*\]\([^)]*\)", "", body)
+          body = re.sub(r"<[^>]+>", "", body)
+          body = html.unescape(body)
+          body = re.sub(r"\n{3,}", "\n\n", body).strip()
+
+          feature_heading = "### 🚀 Features"
+          feature_start = body.find(feature_heading)
+          if feature_start != -1:
+              content_start = feature_start + len(feature_heading)
+              separator_start = body.find("---", content_start)
+              if separator_start != -1:
+                  body = body[feature_start:separator_start].strip()
+              else:
+                  body = body[feature_start:].strip()
+
+          body = re.sub(
+              r"^([ \t]{0,3}###[ \t]+[^\r\n]*)(\r?\n)(?:[ \t]*\r?\n)+",
+              r"\1\2",
+              body,
+              flags=re.M,
+          )
+
+          limit = 3600
+          if len(body.encode("utf-8")) > limit:
+              blocks = re.split(
+                  r"(?m)(?=^(?:#{1,6}[ \t]+|[-*+][ \t]+|\d+[.)][ \t]+))",
+                  body,
+              )
+              retained_body = ""
+              for block in blocks:
+                  candidate = retained_body + block
+                  if len((candidate.rstrip() + "\n...").encode("utf-8")) > limit:
+                      break
+                  retained_body = candidate
+
+              retained_lines = retained_body.rstrip().splitlines()
+              while retained_lines and (
+                  not retained_lines[-1].strip()
+                  or re.match(r"^#{1,6}[ \t]+", retained_lines[-1])
+              ):
+                  retained_lines.pop()
+              body = "\n".join(retained_lines).rstrip()
+              body = body + "\n..." if body else "..."
+
+          quoted = (
+              "\n".join("> " + line for line in body.splitlines())
+              if body
+              else "> （本次发布没有填写 Release Notes）"
+          )
+          content = "\n".join([
+              f"## 版本发布：{tag} ({published_date})",
+              "",
+              quoted,
+              "",
+              f"[查看完整发布日志]({url})",
+          ])
+
+          payload = json.dumps(
+              {"msgtype": "markdown", "markdown": {"content": content}}
+          ).encode("utf-8")
+          req = urllib.request.Request(
+              webhook,
+              data=payload,
+              headers={"Content-Type": "application/json"},
+          )
+          with urllib.request.urlopen(req, timeout=20) as resp:
+              result = json.load(resp)
+          print("wecom response:", result)
+          if result.get("errcode") != 0:
+              raise SystemExit(f"send failed: {result}")
+          PY
